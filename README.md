@@ -1,12 +1,12 @@
 # Health Data to MQTT
 
-Health Data to MQTT is a drop-in server for the HealthSave iOS app. It accepts HealthKit-derived sync batches through the same HTTP API as the original Health Data Hub server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
+Health Data to MQTT is a drop-in server for the [HealthSave iOS app](https://apps.apple.com/app/id6759843047). It accepts HealthKit-derived sync batches through the same HTTP API as the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
 
 The repository currently contains the initial Node.js + TypeScript server scaffold with Fastify, compatibility endpoints, optional API-key authentication, Docker support, and tests. MQTT publishing and full metric normalization are still planned implementation phases.
 
 ## Why This Exists
 
-HealthSave can already send Apple Health data to a self-hosted server. The original server stores that data in TimescaleDB and visualizes it with Grafana. This project keeps the same client-facing sync contract but changes the integration model:
+[HealthSave](https://apps.apple.com/app/id6759843047) can already send Apple Health data to a self-hosted server. The original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) project stores that data in TimescaleDB and visualizes it with Grafana. This project keeps the same client-facing sync contract but changes the integration model:
 
 - Health data becomes available through MQTT topics.
 - Home automation systems can subscribe in near real time.
@@ -30,6 +30,12 @@ Available now:
 - `reference-implementation/` - read-only reference copy of the original FastAPI + TimescaleDB implementation.
 
 The `reference-implementation/` directory is included only to document existing behavior. Do not edit it as part of this port.
+
+## Upstream Reference and Required Client
+
+This project is a porting effort based on the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) project.
+
+The required client app is [HealthSave](https://apps.apple.com/app/id6759843047) for iOS. HealthSave acts as the HealthKit bridge and sends sync batches to the configured server URL.
 
 ## Intended Usage
 

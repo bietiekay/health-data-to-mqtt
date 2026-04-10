@@ -17,3 +17,4 @@ Version headers must match the `version` field in `package.json`.
 - Added initial MQTT topic rendering helper.
 - Added unit and API integration tests.
 - Added test strategy and test matrix documentation.
+- Documented the upstream Health Data Hub reference project and required HealthSave iOS client.
