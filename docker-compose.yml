@@ -8,6 +8,8 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8000
+      DATA_PATH: /data
+      STATE_BACKEND: file
       MQTT_URL: mqtt://mqtt-broker:1883
     ports:
       - "8000:8000"

@@ -17,6 +17,10 @@ http:
   # HealthSave/reference-compatible HTTP port.
   port: 8000
 
+  # Maximum accepted HTTP request body size in bytes.
+  # HealthSave can send large sync batches, so the default is 500 MiB.
+  bodyLimitBytes: 524288000
+
 auth:
   # Optional client API key.
   # Leave empty to accept requests without the x-api-key header.
@@ -64,10 +68,13 @@ contexts:
       current: "healthsave/daniel/current/{metric}"
 
 state:
-  # Initial scaffold backend. Planned values are memory, sqlite, and redis.
-  backend: "memory"
+  # Use "file" for durable status counters or "memory" for disposable local runs.
+  backend: "file"
 
 storage:
+  # Persistent application data directory. The file state backend writes state.json here.
+  dataPath: ".data"
+
   # Optional raw batch archive path.
   # Leave empty to disable. Files are written as:
   #   <rawDataPath>/<context>/yyyy-mm

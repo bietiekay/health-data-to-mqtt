@@ -21,11 +21,18 @@ afterEach(() => {
 });
 
 describe("loadConfig", () => {
+  it("uses a 500 MiB default HTTP body limit", () => {
+    const config = loadConfig({});
+
+    expect(config.httpBodyLimitBytes).toBe(500 * 1024 * 1024);
+  });
+
   it("loads local YAML configuration files", () => {
     const configPath = writeTempConfig(`
 http:
   host: "127.0.0.1"
   port: 9000
+  bodyLimitBytes: 1234567
 auth:
   apiKey: "local-secret"
 logging:
@@ -51,6 +58,7 @@ contexts:
 state:
   backend: "memory"
 storage:
+  dataPath: "/tmp/health-data"
   rawDataPath: "/tmp/health-raw"
 `);
 
@@ -59,6 +67,7 @@ storage:
     expect(config).toMatchObject({
       host: "127.0.0.1",
       port: 9000,
+      httpBodyLimitBytes: 1234567,
       apiKey: "local-secret",
       logEnabled: false,
       logLevel: "debug",
@@ -74,6 +83,7 @@ storage:
           current: "local/current/{metric}",
         },
       },
+      dataPath: "/tmp/health-data",
       stateBackend: "memory",
       rawStoragePath: "/tmp/health-raw",
       contexts: [
@@ -107,24 +117,38 @@ storage:
     const configPath = writeTempConfig(`
 http:
   port: 9000
+  bodyLimitBytes: 1234567
 auth:
   apiKey: "file-secret"
 storage:
+  dataPath: "/tmp/file-data"
   rawDataPath: "/tmp/file-raw"
 `);
 
     const config = loadConfig({
       env: {
         PORT: "9100",
+        HTTP_BODY_LIMIT_BYTES: "7654321",
         API_KEY: "env-secret",
+        DATA_PATH: "/tmp/env-data",
         RAW_STORAGE_PATH: "/tmp/env-raw",
       },
       configFilePath: configPath,
     });
 
     expect(config.port).toBe(9100);
+    expect(config.httpBodyLimitBytes).toBe(7654321);
     expect(config.apiKey).toBe("env-secret");
+    expect(config.dataPath).toBe("/tmp/env-data");
     expect(config.rawStoragePath).toBe("/tmp/env-raw");
+  });
+
+  it("loads the data path from environment variables", () => {
+    const config = loadConfig({
+      DATA_PATH: "/data",
+    });
+
+    expect(config.dataPath).toBe("/data");
   });
 
   it("loads raw storage paths from environment variables", () => {

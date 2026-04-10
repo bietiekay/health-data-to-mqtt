@@ -7,7 +7,7 @@ import {
 } from "./mqtt/publisher.js";
 import { registerAppleRoutes } from "./routes/apple.js";
 import { registerHealthRoutes } from "./routes/health.js";
-import { createMemoryStateStore, type StateStore } from "./state/store.js";
+import { createStateStore, type StateStore } from "./state/store.js";
 import {
   createRawBatchStorage,
   type RawBatchStorage,
@@ -24,13 +24,14 @@ export async function buildApp(
   options: BuildAppOptions = {},
 ): Promise<FastifyInstance> {
   const config = options.config ?? loadConfig();
-  const stateStore = options.stateStore ?? createMemoryStateStore();
+  const stateStore = options.stateStore ?? createStateStore(config);
   const mqttPublisher =
     options.mqttPublisher ?? (await createMqttPublisher(config));
   const rawBatchStorage =
     options.rawBatchStorage ?? createRawBatchStorage(config);
 
   const app = Fastify({
+    bodyLimit: config.httpBodyLimitBytes,
     logger: config.logEnabled
       ? {
           level: config.logLevel,

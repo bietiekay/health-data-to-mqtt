@@ -2,7 +2,7 @@
 
 Health Data to MQTT is a drop-in server for the [HealthSave iOS app](https://apps.apple.com/app/id6759843047). It accepts HealthKit-derived sync batches through the same HTTP API as the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
 
-The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, optional raw batch storage, Docker support, and tests. Replay fixtures and persistent idempotency are still planned implementation phases.
+The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, durable local status counters, optional raw batch storage, Docker support, and tests. Replay fixtures and persistent idempotency are still planned implementation phases.
 
 ![Health Data to MQTT screenshot](./screenshot.png)
 
@@ -18,7 +18,7 @@ The repository currently contains a Node.js + TypeScript Fastify server with com
 
 ## Current Status
 
-This repository contains the compatibility server and initial raw plus normalized MQTT pipeline, not the final persistent/idempotent pipeline.
+This repository contains the compatibility server, durable status counters, and initial raw plus normalized MQTT pipeline, not the final idempotent pipeline.
 
 Available now:
 
@@ -244,6 +244,25 @@ Set `LOG_LEVEL=debug` while capturing new client payload shapes. Batch debug log
 
 Exact normalized payload fields may still change while the porting plan is finalized. Compatibility requirements and open decisions are tracked in `PORTING.md`.
 
+## Local State
+
+Status counters for `/api/apple/status` are stored in the configured data path when `STATE_BACKEND=file`.
+
+Docker example:
+
+```env
+DATA_PATH=/data
+STATE_BACKEND=file
+```
+
+The state file is written to:
+
+```text
+<DATA_PATH>/state.json
+```
+
+Docker Compose mounts `/data` as a persistent volume, so the HealthSave app can see records that were already accepted by the server after container restarts. Set `STATE_BACKEND=memory` only for disposable local runs or tests.
+
 ## Raw Batch Storage
 
 Set `RAW_STORAGE_PATH` to archive non-empty, valid HealthSave batch requests before MQTT publishing. Leave it empty to disable raw storage.
@@ -309,6 +328,7 @@ Core options:
 | --- | --- | --- |
 | `HOST` | `0.0.0.0` | HTTP bind address |
 | `PORT` | `8000` | HTTP port |
+| `HTTP_BODY_LIMIT_BYTES` | `524288000` | Maximum accepted request body size. Defaults to 500 MiB for large HealthSave sync batches. |
 | `API_KEY` | empty | Optional API key. Empty disables auth enforcement. |
 | `LOG_ENABLED` | `true` | Enables structured logs by default |
 | `LOG_LEVEL` | `info` | Log verbosity |
@@ -333,8 +353,8 @@ State and migration options:
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `STATE_BACKEND` | `sqlite` | Local state backend, planned values: `sqlite` or `redis` |
-| `SQLITE_PATH` | `/data/state.db` | SQLite state file path |
+| `DATA_PATH` | `/data` | Persistent application data directory |
+| `STATE_BACKEND` | `file` | Local status counter backend. Use `file` for durable counters or `memory` for disposable runs. |
 | `IDEMPOTENCY_ENABLED` | `true` | Avoid duplicate processing where possible |
 | `IDEMPOTENCY_WINDOW_DAYS` | `30` | Retention window for idempotency keys |
 | `TIMESCALE_MODE` | `off` | Optional reference mode: `off`, `shadow`, or `bridge` |
@@ -392,8 +412,12 @@ contexts:
 logging:
   level: "debug"
 
+state:
+  backend: "file"
+
 storage:
-  rawDataPath: "/data/raw"
+  dataPath: ".data"
+  rawDataPath: ".data/raw"
 ```
 
 Then start with:

@@ -20,6 +20,7 @@ const baseConfig = loadConfig({
   PORT: "0",
   LOG_ENABLED: "false",
   API_KEY: "",
+  STATE_BACKEND: "memory",
 });
 
 let app: FastifyInstance | undefined;
@@ -141,6 +142,40 @@ describe("compatibility endpoints", () => {
     });
   });
 
+  it("accepts HealthSave batches larger than Fastify's default body limit", async () => {
+    const server = await createApp();
+    const payload = JSON.stringify({
+      metric: "heart_rate",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        {
+          date: "2026-04-10T12:00:00Z",
+          qty: 72,
+          source: "HealthSave",
+          metadata: "x".repeat(1024 * 1024),
+        },
+      ],
+    });
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      headers: { "content-type": "application/json" },
+      payload,
+    });
+
+    expect(Buffer.byteLength(payload)).toBeGreaterThan(1024 * 1024);
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      status: "processed",
+      metric: "heart_rate",
+      batch: 0,
+      total_batches: 1,
+      records: 1,
+    });
+  });
+
   it("returns the reference-compatible empty batch response", async () => {
     const server = await createApp();
     const response = await server.inject({
@@ -188,6 +223,40 @@ describe("compatibility endpoints", () => {
         sleep_sessions: 0,
         workouts: 0,
         quantity_samples: 0,
+      },
+    });
+  });
+
+  it("persists status counters in the configured data path", async () => {
+    tempDirectory = mkdtempSync(join(tmpdir(), "health-api-state-"));
+    const config = loadConfig({
+      HOST: "127.0.0.1",
+      PORT: "0",
+      LOG_ENABLED: "false",
+      API_KEY: "",
+      MQTT_ENABLED: "false",
+      STATE_BACKEND: "file",
+      DATA_PATH: tempDirectory,
+    });
+
+    app = await buildApp({ config });
+    await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+      },
+    });
+    await app.close();
+
+    app = await buildApp({ config });
+    const response = await app.inject({ method: "GET", url: "/api/apple/status" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      counts: {
+        heart_rate: 1,
       },
     });
   });

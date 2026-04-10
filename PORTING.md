@@ -420,6 +420,7 @@ contexts:
 | --- | --- | --- |
 | `HOST` | `0.0.0.0` | HTTP bind host |
 | `PORT` | `8000` | Match reference default |
+| `HTTP_BODY_LIMIT_BYTES` | `524288000` | 500 MiB parser limit for large HealthSave sync batches |
 | `API_KEY` | empty | Empty disables API-key enforcement |
 | `LOG_ENABLED` | `true` | Debuggability first |
 | `LOG_LEVEL` | `info` | Standard production default |
@@ -444,10 +445,12 @@ contexts:
 
 | Variable | Default |
 | --- | --- |
-| `STATE_BACKEND` | `sqlite` |
-| `SQLITE_PATH` | `/data/state.db` |
+| `DATA_PATH` | `/data` |
+| `STATE_BACKEND` | `file` |
 | `IDEMPOTENCY_ENABLED` | `true` |
 | `IDEMPOTENCY_WINDOW_DAYS` | `30` |
+
+The initial durable state backend stores `/api/apple/status` counters in `<DATA_PATH>/state.json` so HealthSave clients can read records that are already accepted by the server after restarts. `STATE_BACKEND=memory` remains available for disposable local runs and tests. Persistent idempotency is still planned separately.
 
 ### 10.4 Raw Batch Storage
 
@@ -504,7 +507,7 @@ Docker requirements:
 - multi-stage build,
 - non-root runtime user,
 - healthcheck against `/health`,
-- persistent `/data` volume for SQLite state,
+- persistent `/data` volume for local state,
 - optional raw batch archive under `/data/raw`,
 - service examples for API and MQTT broker,
 - optional TimescaleDB service for reference validation.
@@ -521,6 +524,7 @@ Cover:
 - date parsing,
 - metric mappers,
 - topic rendering,
+- file-backed status state persistence,
 - idempotency key generation,
 - auth behavior,
 - config parsing.
@@ -594,8 +598,8 @@ Create realistic replay fixtures with:
 
 ### Phase D: State and Idempotency
 
-- Add SQLite state store.
-- Track logical counters.
+- Add file-backed local status state. Status: initial JSON counter store complete.
+- Track logical counters. Status: initial durable counters complete.
 - Add idempotency keys and retention.
 - Add optional raw batch archive. Status: initial NDJSON archive complete for non-empty valid batches.
 - Add duplicate replay tests.

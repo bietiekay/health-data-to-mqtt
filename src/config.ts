@@ -16,6 +16,8 @@ export interface AppContextConfig {
   };
 }
 
+export const DEFAULT_HTTP_BODY_LIMIT_BYTES = 500 * 1024 * 1024;
+
 const booleanFromEnv = z
   .union([z.boolean(), z.string(), z.undefined()])
   .transform((value) => {
@@ -65,6 +67,11 @@ const envSchema = z
   .object({
     HOST: z.string().default("0.0.0.0"),
     PORT: integerFromEnv.default(8000),
+    HTTP_BODY_LIMIT_BYTES: integerFromEnv
+      .default(DEFAULT_HTTP_BODY_LIMIT_BYTES)
+      .refine((value) => value > 0, {
+        message: "HTTP body limit must be greater than 0",
+      }),
     API_KEY: z.string().optional().default(""),
     LOG_ENABLED: booleanFromEnv.default(true),
     LOG_LEVEL: z.string().default("info"),
@@ -80,12 +87,14 @@ const envSchema = z
       .string()
       .default("healthsave/normalized/{metric}"),
     MQTT_TOPIC_CURRENT: z.string().default("healthsave/current/{metric}"),
-    STATE_BACKEND: z.enum(["memory", "sqlite", "redis"]).default("memory"),
+    DATA_PATH: z.string().default("/data"),
+    STATE_BACKEND: z.enum(["file", "memory"]).default("file"),
     RAW_STORAGE_PATH: z.string().optional().default(""),
   })
   .transform((env) => ({
     host: env.HOST,
     port: env.PORT,
+    httpBodyLimitBytes: env.HTTP_BODY_LIMIT_BYTES,
     apiKey: env.API_KEY,
     logEnabled: env.LOG_ENABLED,
     logLevel: env.LOG_LEVEL,
@@ -103,6 +112,7 @@ const envSchema = z
         current: env.MQTT_TOPIC_CURRENT,
       },
     },
+    dataPath: env.DATA_PATH.trim() || "/data",
     stateBackend: env.STATE_BACKEND,
     rawStoragePath:
       env.RAW_STORAGE_PATH.trim().length > 0
@@ -121,6 +131,7 @@ const fileConfigSchema = z
       .object({
         host: z.string().optional(),
         port: z.number().int().optional(),
+        bodyLimitBytes: z.number().int().positive().optional(),
       })
       .optional(),
     auth: z
@@ -155,11 +166,12 @@ const fileConfigSchema = z
     contexts: z.array(contextConfigSchema).optional(),
     state: z
       .object({
-        backend: z.enum(["memory", "sqlite", "redis"]).optional(),
+        backend: z.enum(["file", "memory"]).optional(),
       })
       .optional(),
     storage: z
       .object({
+        dataPath: z.string().optional(),
         rawDataPath: z.string().optional(),
       })
       .optional(),
@@ -183,6 +195,7 @@ function fileConfigToEnv(config: FileConfig): Partial<NodeJS.ProcessEnv> {
   return {
     HOST: config.http?.host,
     PORT: config.http?.port?.toString(),
+    HTTP_BODY_LIMIT_BYTES: config.http?.bodyLimitBytes?.toString(),
     API_KEY: config.auth?.apiKey,
     LOG_ENABLED: config.logging?.enabled?.toString(),
     LOG_LEVEL: config.logging?.level,
@@ -196,6 +209,7 @@ function fileConfigToEnv(config: FileConfig): Partial<NodeJS.ProcessEnv> {
     MQTT_TOPIC_RAW: config.mqtt?.topics?.raw,
     MQTT_TOPIC_NORMALIZED: config.mqtt?.topics?.normalized,
     MQTT_TOPIC_CURRENT: config.mqtt?.topics?.current,
+    DATA_PATH: config.storage?.dataPath,
     STATE_BACKEND: config.state?.backend,
     RAW_STORAGE_PATH: config.storage?.rawDataPath,
   };

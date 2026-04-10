@@ -9,7 +9,9 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Auth | Configured API key rejects missing or wrong header | Existing | `test/unit/auth.test.ts` | Unit-level auth helper coverage |
 | Config | Local YAML configuration file loads successfully | Existing | `test/unit/config.test.ts` | Covers local-only `--config` file format including MQTT topic templates |
 | Config | Environment variables override YAML configuration | Existing | `test/unit/config.test.ts` | Preserves container-first env behavior |
+| Config | HTTP body limit loads from defaults, environment, and YAML | Existing | `test/unit/config.test.ts` | Covers the 500 MiB default and `HTTP_BODY_LIMIT_BYTES` override for large sync batches |
 | Config | Contexts load from environment JSON | Existing | `test/unit/config.test.ts` | Covers Docker-friendly multi-client context configuration |
+| Config | Data path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers `DATA_PATH`, YAML `storage.dataPath`, and env override |
 | Config | Raw storage path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers opt-in `RAW_STORAGE_PATH`, YAML `storage.rawDataPath`, env override, and empty-path disabled behavior |
 | Ingest | Reference metrics map to status counters | Existing | `test/unit/ingest.test.ts` | Covers known initial routing table |
 | Ingest | Unknown metrics map to `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Reference-compatible fallback |
@@ -28,11 +30,15 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | MQTT | Context-specific topic templates | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies prefixed contexts can route to distinct topic templates |
 | Storage | Raw batch archive writes NDJSON by context and month | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies append-only lines, UTC month naming, and per-context directories |
 | Storage | Raw batch archive encodes unusual context names | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies context directory names do not allow path traversal |
+| State | File-backed status counters persist by context | Existing | `test/unit/state-store.test.ts` | Verifies JSON state reloads default and prefixed-context counters |
+| State | File-backed state writes under the configured path | Existing | `test/unit/state-store.test.ts` | Verifies the durable state file is created |
 | API | `GET /health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /api/health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | Batch happy path returns processed response | Existing | `test/integration/app.test.ts` | Counts accepted normalized datapoints |
+| API | Large batch payloads above Fastify default parser limit are accepted | Existing | `test/integration/app.test.ts` | Regression coverage for HealthSave sync batches larger than 1 MiB |
 | API | Empty batch returns reference-compatible empty response | Existing | `test/integration/app.test.ts` | No counter increment |
 | API | Status endpoint returns known counter keys | Existing | `test/integration/app.test.ts` | Verifies HRV counter after ingest |
+| API | Status endpoint counters survive app restart | Existing | `test/integration/app.test.ts` | Verifies `DATA_PATH/state.json` drives already-on-server counts |
 | API | Protected endpoints reject incorrect API keys | Existing | `test/integration/app.test.ts` | Verifies `401` and reference-compatible error body |
 | API | Prefixed context endpoints isolate status counters | Existing | `test/integration/app.test.ts` | Verifies `/prefix/api/...` uses context routing and separate counts |
 | MQTT | Batch route calls publisher | Existing | `test/integration/app.test.ts` | Verifies unknown metrics publish raw batches, extracted normalized datapoints, and current values before acceptance |
@@ -44,5 +50,5 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | MQTT | Broker-backed raw publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | MQTT | Broker-backed normalized publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | Replay | Realistic multi-metric sync fixtures | Planned | Not implemented | Add with mapper implementation |
-| State | SQLite persistence | Planned | Not implemented | Current scaffold uses memory state only |
+| State | Persistent idempotency storage | Planned | Not implemented | Durable status counters exist; duplicate filtering still needs a persistent state layer |
 | State | Idempotency key generation and duplicate filtering | Planned | Not implemented | Add with persistent state layer |
