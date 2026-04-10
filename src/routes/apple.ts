@@ -63,7 +63,9 @@ export async function registerAppleRoutes(
     const counter = counterForMetric(batch.metric);
     const rawRecords = batch.samples.length;
     const normalizedRecords = normalizeBatch(batch);
-    const records = normalizedRecords.length;
+    const normalizedRecordCount = normalizedRecords.length;
+    const acceptedRecords =
+      normalizedRecordCount > 0 ? normalizedRecordCount : rawRecords;
     request.log.debug(
       {
         context: options.context.name,
@@ -72,7 +74,8 @@ export async function registerAppleRoutes(
         batch_index: batch.batch_index,
         total_batches: batch.total_batches,
         raw_records: rawRecords,
-        normalized_records: records,
+        normalized_records: normalizedRecordCount,
+        accepted_records: acceptedRecords,
         counter,
         first_sample_keys: getFirstSampleKeys(batch.samples),
         mqtt_enabled: options.config.mqtt.enabled,
@@ -138,7 +141,8 @@ export async function registerAppleRoutes(
           normalized_topics: normalizedPublishResult.topics,
           current_topics: currentPublishResult.topics,
           raw_records: rawRecords,
-          normalized_records: records,
+          normalized_records: normalizedRecordCount,
+          accepted_records: acceptedRecords,
           raw_published_records: rawPublishResult.records,
           normalized_published_records: normalizedPublishResult.records,
           current_published_records: currentPublishResult.records,
@@ -154,7 +158,7 @@ export async function registerAppleRoutes(
           batch_index: batch.batch_index,
           total_batches: batch.total_batches,
           raw_records: rawRecords,
-          normalized_records: records,
+          normalized_records: normalizedRecordCount,
         },
         "failed to publish apple health batch to mqtt",
       );
@@ -165,14 +169,18 @@ export async function registerAppleRoutes(
       });
     }
 
-    await options.stateStore.increment(counter, records, options.context.name);
+    await options.stateStore.increment(
+      counter,
+      acceptedRecords,
+      options.context.name,
+    );
 
     return {
       status: "processed",
       metric: batch.metric,
       batch: batch.batch_index,
       total_batches: batch.total_batches,
-      records,
+      records: acceptedRecords,
     };
   });
 
@@ -181,9 +189,18 @@ export async function registerAppleRoutes(
       return reply;
     }
 
+    const counts = await options.stateStore.getCounts(options.context.name);
+    request.log.debug(
+      {
+        context: options.context.name,
+        counts,
+      },
+      "returned apple health status counts",
+    );
+
     return {
       status: "ok",
-      counts: await options.stateStore.getCounts(options.context.name),
+      counts,
     };
   });
 }

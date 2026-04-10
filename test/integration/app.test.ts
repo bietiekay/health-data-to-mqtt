@@ -227,6 +227,37 @@ describe("compatibility endpoints", () => {
     });
   });
 
+  it("counts accepted samples when a non-empty batch has no normalized records", async () => {
+    const server = await createApp();
+    const response = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "walking_speed",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          { date: "not-a-date", qty: 1.2 },
+          { source: "Phone" },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "walking_speed",
+      records: 2,
+    });
+
+    const status = await server.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toMatchObject({
+      counts: {
+        quantity_samples: 2,
+      },
+    });
+  });
+
   it("persists status counters in the configured data path", async () => {
     tempDirectory = mkdtempSync(join(tmpdir(), "health-api-state-"));
     const config = loadConfig({
@@ -324,6 +355,145 @@ describe("compatibility endpoints", () => {
       },
     ]);
     expect(mqttPublisher.currentBatches[0]?.records).toHaveLength(2);
+  });
+
+  it("publishes workouts active energy as normalized and current data", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "workouts",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            duration: 2596,
+            source: "Runkeeper",
+            start: "2016-01-20T13:59:13.337Z",
+            distance: 15000,
+            name: "Cycling",
+            maxHeartRate: 105,
+            activeEnergy: 366.3367462222223,
+            end: "2016-01-20T14:42:29.337Z",
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "workouts",
+      records: 1,
+    });
+    expect(mqttPublisher.normalizedBatches[0]?.records).toMatchObject([
+      {
+        metric: "workouts",
+        normalizedMetric: "workouts",
+        normalizedSample: {
+          start_time: "2016-01-20T13:59:13.337Z",
+          end_time: "2016-01-20T14:42:29.337Z",
+          sport_type: "Cycling",
+          duration_ms: 2_596_000,
+          max_hr: 105,
+          calories: 366.3367462222223,
+          distance_m: 15000,
+        },
+      },
+    ]);
+    expect(mqttPublisher.currentBatches[0]?.records).toMatchObject([
+      {
+        metric: "workouts",
+        normalizedMetric: "workouts",
+        normalizedSample: {
+          calories: 366.3367462222223,
+        },
+      },
+    ]);
+
+    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toMatchObject({
+      counts: {
+        workouts: 1,
+      },
+    });
+  });
+
+  it("publishes sleep awake state as normalized and current data", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "sleep_analysis",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            startDate: "2026-04-10T22:00:00Z",
+            endDate: "2026-04-11T06:00:00Z",
+            value: "core",
+          },
+          {
+            startDate: "2026-04-11T06:00:00Z",
+            endDate: "2026-04-11T06:15:00Z",
+            value: "awake",
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "sleep_analysis",
+      records: 1,
+    });
+    expect(mqttPublisher.normalizedBatches[0]?.records).toMatchObject([
+      {
+        metric: "sleep_analysis",
+        normalizedMetric: "sleep_sessions",
+        normalizedSample: {
+          total_duration_ms: 28_800_000,
+          light_ms: 28_800_000,
+          awake_ms: 900_000,
+          awake: true,
+        },
+      },
+    ]);
+    expect(mqttPublisher.currentBatches[0]?.records).toMatchObject([
+      {
+        metric: "sleep_analysis",
+        normalizedMetric: "sleep_sessions",
+        normalizedSample: {
+          awake: true,
+        },
+      },
+    ]);
+
+    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toMatchObject({
+      counts: {
+        sleep_sessions: 1,
+      },
+    });
   });
 
   it("stores non-empty valid batches before accepting them", async () => {

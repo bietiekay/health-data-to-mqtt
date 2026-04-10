@@ -348,6 +348,8 @@ const currentValueFields: Record<string, string> = {
   hrv: "value_ms",
   blood_oxygen: "spo2_pct",
   body_temperature: "temp_celsius",
+  sleep_sessions: "awake",
+  workouts: "calories",
   quantity_samples: "value",
 };
 

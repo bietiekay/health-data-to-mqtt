@@ -14,6 +14,7 @@ describe("counterForMetric", () => {
     expect(counterForMetric("blood_oxygen")).toBe("blood_oxygen");
     expect(counterForMetric("activity_summaries")).toBe("daily_activity");
     expect(counterForMetric("sleep_analysis")).toBe("sleep_sessions");
+    expect(counterForMetric("workout")).toBe("workouts");
     expect(counterForMetric("workouts")).toBe("workouts");
   });
 
@@ -160,6 +161,7 @@ describe("normalizeBatch", () => {
       deep_ms: 3_600_000,
       light_ms: 5_400_000,
       awake_ms: 900_000,
+      awake: true,
     });
   });
 
@@ -176,7 +178,7 @@ describe("normalizeBatch", () => {
             sportType: "cycling",
             duration: 3600,
             avgHeartRate: 120,
-            activeEnergy: 500,
+            activeEnergyBurned: 500,
           },
         ],
       })[0]?.normalizedSample,
@@ -187,6 +189,53 @@ describe("normalizeBatch", () => {
       duration_ms: 3_600_000,
       avg_hr: 120,
       calories: 500,
+    });
+  });
+
+  it("normalizes singular workout active energy as a scalar quantity", () => {
+    expect(
+      normalizeBatch({
+        metric: "workout",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            date: "2021-09-28T22:00:00.000Z",
+            activeEnergyBurned: 1015.5210156402777,
+            appleExerciseTime: 84,
+            appleStandHours: 15,
+          },
+        ],
+      })[0]?.normalizedSample,
+    ).toEqual({
+      time: "2021-09-28T22:00:00.000Z",
+      metric_name: "workout",
+      value: 1015.5210156402777,
+      unit: "kcal",
+      source_id: "",
+    });
+  });
+
+  it("falls back to active energy when workouts do not include session bounds", () => {
+    expect(
+      normalizeBatch({
+        metric: "workouts",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            date: "2021-09-29T22:00:00.000Z",
+            activeEnergyBurned: 1488.1677986518941,
+            appleExerciseTime: 166,
+            appleStandHours: 13,
+          },
+        ],
+      })[0]?.normalizedSample,
+    ).toMatchObject({
+      time: "2021-09-29T22:00:00.000Z",
+      metric_name: "workouts",
+      value: 1488.1677986518941,
+      unit: "kcal",
     });
   });
 });

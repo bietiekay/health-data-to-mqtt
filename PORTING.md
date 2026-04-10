@@ -233,6 +233,7 @@ Reference behavior:
   - `rem` -> `rem_ms`
   - `awake` -> `awake_ms`
   - `core`, `light`, `asleep`, `asleep unspecified` -> `light_ms`
+- Adds normalized `awake` from the latest stage in the session and publishes it as the `sleep_sessions` current MQTT value.
 
 Open planning question: whether the MQTT-first implementation should strictly reproduce sleep session aggregation or publish raw stages plus a minimal normalized session event.
 
@@ -242,6 +243,7 @@ Incoming metric:
 
 ```text
 workouts
+workout
 ```
 
 Logical counter:
@@ -260,8 +262,10 @@ Reference-compatible fields:
 | `duration_ms` | `duration_ms`, or `duration` converted from seconds |
 | `avg_hr` | `avg_hr`, `avgHeartRate` |
 | `max_hr` | `max_hr`, `maxHeartRate` |
-| `calories` | `calories`, `activeEnergy` |
+| `calories` | `calories`, `activeEnergy`, `activeEnergyBurned` |
 | `distance_m` | `distance_m`, `distance` |
+
+Workout session records publish current MQTT values from normalized `calories`. HealthSave can also send daily activity-style active energy samples as `workout` or as `workouts` without `endDate`/`end_date`; those samples are normalized as scalar `quantity_samples` records using `activeEnergyBurned` as the kilocalorie value so normalized and current MQTT topics still receive data.
 
 Open planning question: whether workout events should be deduplicated even though the reference does not strictly enforce this.
 
@@ -450,7 +454,7 @@ contexts:
 | `IDEMPOTENCY_ENABLED` | `true` |
 | `IDEMPOTENCY_WINDOW_DAYS` | `30` |
 
-The initial durable state backend stores `/api/apple/status` counters in `<DATA_PATH>/state.json` so HealthSave clients can read records that are already accepted by the server after restarts. `STATE_BACKEND=memory` remains available for disposable local runs and tests. Persistent idempotency is still planned separately.
+The initial durable state backend stores `/api/apple/status` counters in `<DATA_PATH>/state.json` so HealthSave clients can read records that are already accepted by the server after restarts. Non-empty accepted batches count normalized datapoints when extraction succeeds and fall back to source sample counts when extraction returns zero records. `STATE_BACKEND=memory` remains available for disposable local runs and tests. Persistent idempotency is still planned separately.
 
 ### 10.4 Raw Batch Storage
 

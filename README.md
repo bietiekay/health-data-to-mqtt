@@ -238,7 +238,7 @@ Current payload:
 72
 ```
 
-Current messages use the same metric names as normalized topics, but the payload is only the scalar value. Current values are emitted for dedicated metrics and generic quantity samples, such as `heart_rate`, `hrv`, `blood_oxygen`, `body_temperature`, `step_count`, or `walking_speed`. Multi-field records such as activity summaries, sleep sessions, and workouts stay on normalized topics until a specific scalar topic mapping is added.
+Current messages use the same metric names as normalized topics, but the payload is only the scalar value. Current values are emitted for dedicated metrics, generic quantity samples, sleep awake state, and workout calories, such as `heart_rate`, `hrv`, `blood_oxygen`, `body_temperature`, `step_count`, `walking_speed`, `sleep_sessions`, or `workouts`. For sleep sessions, the current value is `true` when the latest stage is `awake` and `false` when the latest stage is a sleep stage. For workout session records, the current value uses normalized `calories` from `activeEnergy`, `activeEnergyBurned`, or `calories`. Multi-field records such as activity summaries stay on normalized topics until a specific scalar topic mapping is added.
 
 Set `LOG_LEVEL=debug` while capturing new client payload shapes. Batch debug logs include top-level request field names, metric name, batch counters, record count, status counter bucket, the first sample's field names, and MQTT publish counts without logging complete health samples by default. Set `LOG_LEVEL=trace` only when you intentionally need raw request bodies in the logs.
 
@@ -246,7 +246,7 @@ Exact normalized payload fields may still change while the porting plan is final
 
 ## Local State
 
-Status counters for `/api/apple/status` are stored in the configured data path when `STATE_BACKEND=file`.
+Status counters for `/api/apple/status` are stored in the configured data path when `STATE_BACKEND=file`. For non-empty batches, counters use the normalized datapoint count when records can be extracted. If a batch is accepted but no normalized datapoints can be extracted yet, counters fall back to the accepted source sample count so the HealthSave status check still reflects data that reached the server.
 
 Docker example:
 

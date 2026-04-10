@@ -63,6 +63,7 @@ const metricCounters: Record<string, StatusCounterKey> = {
   blood_oxygen: "blood_oxygen",
   activity_summaries: "daily_activity",
   sleep_analysis: "sleep_sessions",
+  workout: "workouts",
   workouts: "workouts",
 };
 
@@ -92,8 +93,15 @@ export function normalizeBatch(batch: BatchRequest): NormalizedRecord[] {
     return normalizeSleep(batch);
   }
 
+  if (batch.metric === "workout") {
+    return normalizeActiveEnergyQuantity(batch);
+  }
+
   if (batch.metric === "workouts") {
-    return normalizeWorkouts(batch);
+    const workoutRecords = normalizeWorkouts(batch);
+    return workoutRecords.length > 0
+      ? workoutRecords
+      : normalizeActiveEnergyQuantity(batch);
   }
 
   const dedicatedSpec = dedicatedMetricSpecs[batch.metric];
@@ -159,6 +167,46 @@ function normalizeGenericQuantity(batch: BatchRequest): NormalizedRecord[] {
           metric_name: batch.metric,
           value,
           unit: getStringValue(sample.unit) ?? "",
+          source_id: getStringValue(sample.source) ?? "",
+        },
+      ),
+    ];
+  });
+
+  return dedupeRecords(
+    records,
+    (record) =>
+      `${record.normalizedMetric}:${record.metric}:${record.deviceId}:${String(record.normalizedSample.time)}`,
+  );
+}
+
+function normalizeActiveEnergyQuantity(batch: BatchRequest): NormalizedRecord[] {
+  const records = batch.samples.flatMap((sample, sampleIndex) => {
+    const time = parseTimestamp(firstPresent(sample, "date", "startDate", "start"));
+    const value = toNumber(
+      firstPresent(
+        sample,
+        "activeEnergyBurned",
+        "activeEnergy",
+        "active_energy",
+        "calories",
+      ),
+    );
+    if (!time || value === undefined) {
+      return [];
+    }
+
+    return [
+      createNormalizedRecord(
+        batch.metric,
+        "quantity_samples",
+        sampleIndex,
+        sample,
+        {
+          time,
+          metric_name: batch.metric,
+          value,
+          unit: "kcal",
           source_id: getStringValue(sample.source) ?? "",
         },
       ),
@@ -277,6 +325,7 @@ function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
     lastEnd: Date;
     firstSampleIndex: number;
     deviceId: string;
+    lastStage: string;
     deepMs: number;
     remMs: number;
     lightMs: number;
@@ -296,6 +345,7 @@ function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
         lastEnd: segment.end,
         firstSampleIndex: segment.sampleIndex,
         deviceId: segment.deviceId,
+        lastStage: segment.stage,
         deepMs: 0,
         remMs: 0,
         lightMs: 0,
@@ -305,6 +355,7 @@ function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
     } else {
       current.end = maxDate(current.end, segment.end);
       current.lastEnd = maxDate(current.lastEnd, segment.end);
+      current.lastStage = segment.stage;
     }
 
     const durationMs = durationMsBetween(segment.start, segment.end);
@@ -341,6 +392,7 @@ function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
           rem_ms: session.remMs,
           light_ms: session.lightMs,
           awake_ms: session.awakeMs,
+          awake: session.lastStage === "awake",
           respiratory_rate: null,
           first_sample_index: session.firstSampleIndex,
         },
@@ -378,7 +430,14 @@ function normalizeWorkouts(batch: BatchRequest): NormalizedRecord[] {
           duration_ms: durationMs ?? null,
           avg_hr: toNumberOrNull(firstPresent(sample, "avg_hr", "avgHeartRate")),
           max_hr: toNumberOrNull(firstPresent(sample, "max_hr", "maxHeartRate")),
-          calories: toNumberOrNull(firstPresent(sample, "calories", "activeEnergy")),
+          calories: toNumberOrNull(
+            firstPresent(
+              sample,
+              "calories",
+              "activeEnergy",
+              "activeEnergyBurned",
+            ),
+          ),
           distance_m: toNumberOrNull(firstPresent(sample, "distance_m", "distance")),
         },
       ),

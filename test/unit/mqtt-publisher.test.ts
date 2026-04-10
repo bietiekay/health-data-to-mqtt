@@ -174,9 +174,31 @@ describe("MQTT publisher", () => {
         },
       },
       {
+        metric: "sleep_analysis",
+        normalizedMetric: "sleep_sessions",
+        recordIndex: 2,
+        deviceId: "Watch",
+        normalizedSample: {
+          start_time: "2026-04-10T22:00:00.000Z",
+          end_time: "2026-04-11T06:00:00.000Z",
+          awake: true,
+        },
+      },
+      {
+        metric: "workouts",
+        normalizedMetric: "workouts",
+        recordIndex: 3,
+        deviceId: "Runkeeper",
+        normalizedSample: {
+          start_time: "2016-01-20T13:59:13.337Z",
+          end_time: "2016-01-20T14:42:29.337Z",
+          calories: 366.3367462222223,
+        },
+      },
+      {
         metric: "activity_summaries",
         normalizedMetric: "daily_activity",
-        recordIndex: 2,
+        recordIndex: 4,
         deviceId: "Phone",
         normalizedSample: {
           date: "2026-04-10",
@@ -186,8 +208,13 @@ describe("MQTT publisher", () => {
     ]);
 
     expect(result).toEqual({
-      records: 2,
-      topics: ["healthsave/current/heart_rate", "healthsave/current/walking_speed"],
+      records: 4,
+      topics: [
+        "healthsave/current/heart_rate",
+        "healthsave/current/walking_speed",
+        "healthsave/current/sleep_sessions",
+        "healthsave/current/workouts",
+      ],
     });
     expect(client.publishCalls).toMatchObject([
       {
@@ -197,6 +224,14 @@ describe("MQTT publisher", () => {
       {
         topic: "healthsave/current/walking_speed",
         message: "1.2",
+      },
+      {
+        topic: "healthsave/current/sleep_sessions",
+        message: "true",
+      },
+      {
+        topic: "healthsave/current/workouts",
+        message: "366.3367462222223",
       },
     ]);
   });

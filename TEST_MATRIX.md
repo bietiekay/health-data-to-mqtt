@@ -21,12 +21,15 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Ingest | Generic quantity metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers unknown metric fallback fields |
 | Ingest | Activity summaries normalize aliases | Existing | `test/unit/ingest.test.ts` | Covers reference activity field aliases |
 | Ingest | Sleep stage samples aggregate into sessions | Existing | `test/unit/ingest.test.ts` | Covers reference stage bucket and duration behavior |
+| Ingest | Sleep sessions expose latest awake state | Existing | `test/unit/ingest.test.ts` | Covers normalized `awake` boolean from the latest sleep stage |
 | Ingest | Workouts normalize field variants | Existing | `test/unit/ingest.test.ts` | Covers start/end aliases and duration seconds conversion |
+| Ingest | Workout active energy normalizes from HealthSave aliases | Existing | `test/unit/ingest.test.ts` | Covers `workouts` calories from `activeEnergyBurned` plus sessionless active-energy fallback |
 | Ingest | ISO timestamps normalize to UTC | Existing | `test/unit/ingest.test.ts` | Covers offset timestamp parsing |
 | MQTT | Topic template rendering | Existing | `test/unit/ingest.test.ts` | Covers `{metric}` and `{context}` placeholders |
 | MQTT | Raw event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies one raw event per sample, topic, QoS, retain, metadata, and idempotency key shape |
 | MQTT | Normalized event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical topics, normalized metadata, payload shape, and idempotency key shape |
 | MQTT | Current scalar value publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical current topics and value-only payloads |
+| MQTT | Sleep current value publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies `sleep_sessions` publishes latest awake state as `true` or `false` |
 | MQTT | Context-specific topic templates | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies prefixed contexts can route to distinct topic templates |
 | Storage | Raw batch archive writes NDJSON by context and month | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies append-only lines, UTC month naming, and per-context directories |
 | Storage | Raw batch archive encodes unusual context names | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies context directory names do not allow path traversal |
@@ -35,6 +38,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | API | `GET /health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /api/health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | Batch happy path returns processed response | Existing | `test/integration/app.test.ts` | Counts accepted normalized datapoints |
+| API | Non-empty batches without normalized records still count as accepted | Existing | `test/integration/app.test.ts` | Verifies status counters and batch response use accepted sample count when normalized extraction returns zero records |
 | API | Large batch payloads above Fastify default parser limit are accepted | Existing | `test/integration/app.test.ts` | Regression coverage for HealthSave sync batches larger than 1 MiB |
 | API | Empty batch returns reference-compatible empty response | Existing | `test/integration/app.test.ts` | No counter increment |
 | API | Status endpoint returns known counter keys | Existing | `test/integration/app.test.ts` | Verifies HRV counter after ingest |
@@ -42,6 +46,8 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | API | Protected endpoints reject incorrect API keys | Existing | `test/integration/app.test.ts` | Verifies `401` and reference-compatible error body |
 | API | Prefixed context endpoints isolate status counters | Existing | `test/integration/app.test.ts` | Verifies `/prefix/api/...` uses context routing and separate counts |
 | MQTT | Batch route calls publisher | Existing | `test/integration/app.test.ts` | Verifies unknown metrics publish raw batches, extracted normalized datapoints, and current values before acceptance |
+| MQTT | Batch route publishes workout active energy as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies `workouts` `activeEnergy` payloads produce normalized records, current values, and workouts counter increments |
+| MQTT | Batch route publishes sleep awake state as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies sleep stage payloads produce normalized `awake`, current values, and sleep counter increments |
 | MQTT | Publish failures reject batches | Existing | `test/integration/app.test.ts` | Verifies failed MQTT publication returns `502` without incrementing counters |
 | Storage | Batch route archives non-empty valid batches | Existing | `test/integration/app.test.ts` | Verifies the raw request body is stored before successful acceptance |
 | Storage | Batch route skips empty batch archive writes | Existing | `test/integration/app.test.ts` | Verifies empty batches do not create raw archive files |
