@@ -1,7 +1,23 @@
 import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
 
-const config = loadConfig();
+function getConfigFilePath(args: string[]): string | undefined {
+  const configIndex = args.findIndex((arg) => arg === "--config" || arg === "-c");
+  if (configIndex === -1) {
+    return undefined;
+  }
+
+  const configFilePath = args[configIndex + 1];
+  if (!configFilePath) {
+    throw new Error("Missing value for --config");
+  }
+
+  return configFilePath;
+}
+
+const config = loadConfig({
+  configFilePath: getConfigFilePath(process.argv.slice(2)),
+});
 const app = await buildApp({ config });
 
 try {

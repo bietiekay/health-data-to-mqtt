@@ -19,7 +19,13 @@ RUN npm ci --omit=dev
 
 FROM node:24-alpine AS runtime
 
+# Container deployments are configured through environment variables.
+# The local YAML config file is intentionally only for plain npm starts.
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=8000
+ENV LOG_ENABLED=true
+ENV LOG_LEVEL=info
 WORKDIR /app
 
 RUN addgroup -S app && adduser -S app -G app

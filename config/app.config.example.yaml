@@ -1,0 +1,55 @@
+# Local npm configuration template.
+#
+# Copy this file and adjust it for your local machine:
+#
+#   cp config/app.config.example.yaml config/app.config.local.yaml
+#   npm run build
+#   npm start -- --config config/app.config.local.yaml
+#
+# This file is intended for plain local npm starts only.
+# Docker and Docker Compose deployments should use environment variables
+# from .env.default/.env.example instead of mounting this file.
+
+http:
+  # Bind address for the local HTTP server.
+  host: "0.0.0.0"
+
+  # HealthSave/reference-compatible HTTP port.
+  port: 8000
+
+auth:
+  # Optional client API key.
+  # Leave empty to accept requests without the x-api-key header.
+  apiKey: ""
+
+logging:
+  # Keep logs enabled while porting and debugging sync behavior.
+  enabled: true
+
+  # Common values: trace, debug, info, warn, error.
+  level: "info"
+
+mqtt:
+  # MQTT publishing is planned for the MQTT pipeline implementation.
+  enabled: true
+
+  # Use mqtt://localhost:1883 for a broker running on the host.
+  url: "mqtt://localhost:1883"
+
+  # MQTT client identity and optional broker credentials.
+  clientId: "healthsave-proxy"
+  username: ""
+  password: ""
+
+  # MQTT publish behavior.
+  qos: 1
+  retain: false
+
+  topics:
+    # The {metric} placeholder is replaced with the incoming metric name.
+    raw: "healthsave/raw/{metric}"
+    normalized: "healthsave/normalized/{metric}"
+
+state:
+  # Initial scaffold backend. Planned values are memory, sqlite, and redis.
+  backend: "memory"

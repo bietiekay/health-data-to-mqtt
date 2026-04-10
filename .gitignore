@@ -3,5 +3,6 @@ node_modules/
 dist/
 coverage/
 .env
+config/app.config.local.yaml
 *.log
 data/

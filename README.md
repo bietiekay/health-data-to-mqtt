@@ -66,6 +66,26 @@ cp .env.default .env
 docker compose up --build
 ```
 
+Run locally with a configuration file:
+
+```bash
+cp config/app.config.example.yaml config/app.config.local.yaml
+npm run build
+npm run start:local
+```
+
+The configuration file path is only intended for plain local `npm start` runs. Docker and Docker Compose deployments should use environment variables through `.env` instead.
+
+Local development config quick guide:
+
+1. Copy `config/app.config.example.yaml` to `config/app.config.local.yaml`.
+2. Edit `config/app.config.local.yaml` for your machine, for example local port, API key, MQTT broker URL, or log level.
+3. Build the TypeScript output with `npm run build`.
+4. Start the server with `npm run start:local`.
+5. Point HealthSave at `http://your-machine-ip:8000` or the port configured in your local YAML file.
+
+`config/app.config.local.yaml` is ignored by Git, so it is safe to keep local secrets or machine-specific values there. Environment variables still override local YAML values when both are set.
+
 Use the service as the HealthSave server endpoint:
 
 ```text
@@ -144,7 +164,27 @@ Exact payload fields may still change while the porting plan is finalized. Compa
 
 ## Configuration Options
 
-The planned service will be configured through environment variables.
+The service can be configured in two ways:
+
+- Environment variables: preferred and required for Docker/Docker Compose.
+- Local YAML config file: optional for plain local `npm start` runs only.
+
+For Docker:
+
+```bash
+cp .env.default .env
+docker compose up --build
+```
+
+For local npm:
+
+```bash
+cp config/app.config.example.yaml config/app.config.local.yaml
+npm run build
+npm run start:local
+```
+
+Environment variables override values from the local YAML config file when both are present.
 
 Core options:
 
@@ -181,6 +221,52 @@ State and migration options:
 | `TIMESCALE_MODE` | `off` | Optional reference mode: `off`, `shadow`, or `bridge` |
 | `TIMESCALE_URL` | empty | Optional Timescale/PostgreSQL connection string |
 | `TIMESCALE_STRICT_STARTUP` | `false` | Fail startup if reference mode cannot connect |
+
+### Local Config File
+
+The commented template lives at:
+
+```text
+config/app.config.example.yaml
+```
+
+Copy it before editing:
+
+```bash
+cp config/app.config.example.yaml config/app.config.local.yaml
+```
+
+Pass it to the local server:
+
+```bash
+npm run start:local
+```
+
+The local config file uses grouped YAML sections for `http`, `auth`, `logging`, `mqtt`, and `state`. `config/app.config.local.yaml` is ignored by Git so local secrets and machine-specific settings are not committed. It is not used by the Docker image or `docker-compose.yml`; container deployments should use `.env` variables.
+
+Example local adjustments:
+
+```yaml
+http:
+  host: "0.0.0.0"
+  port: 8000
+
+auth:
+  apiKey: "dev-secret"
+
+mqtt:
+  url: "mqtt://localhost:1883"
+
+logging:
+  level: "debug"
+```
+
+Then start with:
+
+```bash
+npm run build
+npm run start:local
+```
 
 ## Deployment Model
 

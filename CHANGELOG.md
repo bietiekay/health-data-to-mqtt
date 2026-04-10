@@ -14,6 +14,11 @@ Version headers must match the `version` field in `package.json`.
 - Added in-memory status counters for the initial compatibility scaffold.
 - Added Dockerfile and Docker Compose self-hosting setup with Mosquitto.
 - Added commented default environment templates.
+- Added a commented local YAML configuration file template for plain `npm start` runs.
+- Added local config file loading with environment variable override behavior.
+- Added `npm run start:local` for local development config files.
+- Fixed npm start scripts to use the built server entrypoint.
+- Expanded README guidance for local development configuration.
 - Added initial MQTT topic rendering helper.
 - Added unit and API integration tests.
 - Added test strategy and test matrix documentation.

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 
 const booleanFromEnv = z
@@ -77,6 +79,113 @@ const envSchema = z
 
 export type AppConfig = z.infer<typeof envSchema>;
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  return envSchema.parse(env);
+const fileConfigSchema = z
+  .object({
+    http: z
+      .object({
+        host: z.string().optional(),
+        port: z.number().int().optional(),
+      })
+      .optional(),
+    auth: z
+      .object({
+        apiKey: z.string().optional(),
+      })
+      .optional(),
+    logging: z
+      .object({
+        enabled: z.boolean().optional(),
+        level: z.string().optional(),
+      })
+      .optional(),
+    mqtt: z
+      .object({
+        enabled: z.boolean().optional(),
+        url: z.string().optional(),
+        clientId: z.string().optional(),
+        username: z.string().optional(),
+        password: z.string().optional(),
+        qos: z.number().int().optional(),
+        retain: z.boolean().optional(),
+        topics: z
+          .object({
+            raw: z.string().optional(),
+            normalized: z.string().optional(),
+          })
+          .optional(),
+      })
+      .optional(),
+    state: z
+      .object({
+        backend: z.enum(["memory", "sqlite", "redis"]).optional(),
+      })
+      .optional(),
+  })
+  .default({});
+
+type FileConfig = z.infer<typeof fileConfigSchema>;
+
+interface LoadConfigOptions {
+  env?: NodeJS.ProcessEnv;
+  configFilePath?: string;
+}
+
+function readConfigFile(configFilePath: string): FileConfig {
+  const content = readFileSync(configFilePath, "utf8");
+  return fileConfigSchema.parse(parseYaml(content) ?? {});
+}
+
+function fileConfigToEnv(config: FileConfig): Partial<NodeJS.ProcessEnv> {
+  return {
+    HOST: config.http?.host,
+    PORT: config.http?.port?.toString(),
+    API_KEY: config.auth?.apiKey,
+    LOG_ENABLED: config.logging?.enabled?.toString(),
+    LOG_LEVEL: config.logging?.level,
+    MQTT_ENABLED: config.mqtt?.enabled?.toString(),
+    MQTT_URL: config.mqtt?.url,
+    MQTT_CLIENT_ID: config.mqtt?.clientId,
+    MQTT_USERNAME: config.mqtt?.username,
+    MQTT_PASSWORD: config.mqtt?.password,
+    MQTT_QOS: config.mqtt?.qos?.toString(),
+    MQTT_RETAIN: config.mqtt?.retain?.toString(),
+    MQTT_TOPIC_RAW: config.mqtt?.topics?.raw,
+    MQTT_TOPIC_NORMALIZED: config.mqtt?.topics?.normalized,
+    STATE_BACKEND: config.state?.backend,
+  };
+}
+
+function removeUndefinedValues(
+  env: Partial<NodeJS.ProcessEnv>,
+): Partial<NodeJS.ProcessEnv> {
+  return Object.fromEntries(
+    Object.entries(env).filter((entry): entry is [string, string] => {
+      return entry[1] !== undefined;
+    }),
+  );
+}
+
+function isLoadConfigOptions(
+  input: NodeJS.ProcessEnv | LoadConfigOptions,
+): input is LoadConfigOptions {
+  return (
+    Object.hasOwn(input, "env") || Object.hasOwn(input, "configFilePath")
+  );
+}
+
+export function loadConfig(
+  input: NodeJS.ProcessEnv | LoadConfigOptions = process.env,
+): AppConfig {
+  const options: LoadConfigOptions = isLoadConfigOptions(input)
+    ? input
+    : { env: input };
+  const env = options.env ?? process.env;
+  const configFileEnv = options.configFilePath
+    ? fileConfigToEnv(readConfigFile(options.configFilePath))
+    : {};
+
+  return envSchema.parse({
+    ...removeUndefinedValues(configFileEnv),
+    ...env,
+  });
 }
