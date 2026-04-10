@@ -1,6 +1,6 @@
 {
   "name": "health-data-to-mqtt",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "HealthSave-compatible Node.js server that publishes health data to MQTT.",
   "type": "module",
   "private": true,
