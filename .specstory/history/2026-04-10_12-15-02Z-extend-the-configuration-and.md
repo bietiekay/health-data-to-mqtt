@@ -4925,3 +4925,243 @@ I also confirmed `reference-implementation/` was not modified. The worktree stil
 _**User (2026-04-10 12:35:26Z)**_
 
 document, describe and comitt all
+
+
+---
+
+_**Agent (gpt-5.4 2026-04-10 12:35:43Z)**_
+
+I’ll commit the whole current worktree, including the externally managed `.specstory` files per the repo instructions. I’ll first do a quick status/version sanity check, then stage and commit with an English message.
+
+_**Agent (gpt-5.4 2026-04-10 12:35:43Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Command: /bin/zsh -lc 'git status --short'
+Chunk ID: b343dd
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 125
+Output:
+ M .env.default
+ M .env.example
+ M .specstory/history/2026-04-10_10-56-17Z-i-tried-an-initial.md
+ M .specstory/statistics.json
+ M CHANGELOG.md
+ M Dockerfile
+ M PORTING.md
+ M README.md
+ M TEST_MATRIX.md
+ M TEST_STRATEGY.md
+ M config/app.config.example.yaml
+ M src/app.ts
+ M src/config.ts
+ M src/routes/apple.ts
+ M test/integration/app.test.ts
+ M test/unit/config.test.ts
+?? .specstory/history/2026-04-10_12-15-02Z-extend-the-configuration-and.md
+?? src/storage/
+?? test/unit/raw-batch-storage.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 12:35:43Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `node -p "require('./package.json').version" && sed -n '1,40p' CHANGELOG.md`</summary>
+```
+Command: /bin/zsh -lc "node -p \"require('./package.json').version\" && sed -n '1,40p' CHANGELOG.md"
+Chunk ID: cb43b6
+Wall time: 0.0069 seconds
+Process exited with code 0
+Original token count: 545
+Output:
+0.1.0
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+Version headers must match the `version` field in `package.json`.
+
+## 0.1.0
+
+### Added
+
+- Added the initial Node.js + TypeScript Fastify server scaffold.
+- Added HealthSave-compatible health, batch, and status endpoints.
+- Added reference-compatible optional API-key behavior.
+- Added in-memory status counters for the initial compatibility scaffold.
+- Added Dockerfile and Docker Compose self-hosting setup with Mosquitto.
+- Added commented default environment templates.
+- Added a commented local YAML configuration file template for plain `npm start` runs.
+- Added local config file loading with environment variable override behavior.
+- Added `npm run start:local` for local development config files.
+- Fixed npm start scripts to use the built server entrypoint.
+- Expanded README guidance for local development configuration.
+- Removed manual SpecStory requirements from agent commit instructions.
+- Documented that external tooling manages `.specstory/` and generated changes may be committed.
+- Added initial MQTT topic rendering helper.
+- Added raw MQTT publishing for non-empty HealthSave batch samples.
+- Added reference-compatible datapoint extraction for dedicated metrics, generic quantities, activity summaries, sleep sessions, and workouts.
+- Added normalized MQTT publishing for accepted datapoints.
+- Added scalar current MQTT topics for datapoints with one primary value.
+- Added multi-client contexts with configurable URL prefixes, per-context MQTT topics, and isolated status counters.
+- Added JSON wrapper deserialization for encoded batch and sample data.
+- Added batch-level debug logging for incoming body keys, metrics, sample keys, counter routing, and MQTT publish counts.
+- Added `502` handling for MQTT publish failures so failed batches are not counted as accepted.
+- Added optional raw batch NDJSON storage with per-context monthly files for replay/readout use cases.
+- Added unit and API integration tests.
+- Added test strategy and test matrix documentation.
+- Documented the upstream Health Data Hub reference project and required HealthSave iOS client.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 12:35:43Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git diff --name-only -- reference-implementation`</summary>
+```
+Command: /bin/zsh -lc 'git diff --name-only -- reference-implementation'
+Chunk ID: e6059e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 0
+Output:
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 12:35:47Z)**_
+
+The changelog version matches `package.json` (`0.1.0`), and the reference implementation is clean. I’m staging everything now, including the SpecStory files that the external tooling touched.
+
+_**Agent (gpt-5.4 2026-04-10 12:35:48Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git add -A && git status --short`</summary>
+```
+Command: /bin/zsh -lc 'git add -A && git status --short'
+Chunk ID: e93307
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 130
+Output:
+M  .env.default
+M  .env.example
+M  .specstory/history/2026-04-10_10-56-17Z-i-tried-an-initial.md
+A  .specstory/history/2026-04-10_12-15-02Z-extend-the-configuration-and.md
+M  .specstory/statistics.json
+M  CHANGELOG.md
+M  Dockerfile
+M  PORTING.md
+M  README.md
+M  TEST_MATRIX.md
+M  TEST_STRATEGY.md
+M  config/app.config.example.yaml
+M  src/app.ts
+M  src/config.ts
+M  src/routes/apple.ts
+A  src/storage/raw-batch-storage.ts
+M  test/integration/app.test.ts
+M  test/unit/config.test.ts
+A  test/unit/raw-batch-storage.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 12:35:52Z)**_
+
+Everything is staged. I’m committing this as a single scoped change for the raw batch archive feature.
+
+_**Agent (gpt-5.4 2026-04-10 12:35:53Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git commit -m "Add optional raw batch storage"`</summary>
+```
+Command: /bin/zsh -lc 'git commit -m "Add optional raw batch storage"'
+Chunk ID: e59ef2
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 76
+Output:
+[main da88c9d] Add optional raw batch storage
+ 19 files changed, 5488 insertions(+), 22 deletions(-)
+ create mode 100644 .specstory/history/2026-04-10_12-15-02Z-extend-the-configuration-and.md
+ create mode 100644 src/storage/raw-batch-storage.ts
+ create mode 100644 test/unit/raw-batch-storage.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 12:35:57Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Command: /bin/zsh -lc 'git status --short'
+Chunk ID: 011a9e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 0
+Output:
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 12:35:57Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git log -1 --oneline --stat`</summary>
+```
+Command: /bin/zsh -lc 'git log -1 --oneline --stat'
+Chunk ID: ea892e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 320
+Output:
+da88c9d Add optional raw batch storage
+ .env.default                                       |    4 +
+ .env.example                                       |    4 +
+ .../2026-04-10_10-56-17Z-i-tried-an-initial.md     |   39 +-
+ ...04-10_12-15-02Z-extend-the-configuration-and.md | 4927 ++++++++++++++++++++
+ .specstory/statistics.json                         |   17 +-
+ CHANGELOG.md                                       |    1 +
+ Dockerfile                                         |    5 +-
+ PORTING.md                                         |   42 +-
+ README.md                                          |   43 +-
+ TEST_MATRIX.md                                     |    7 +
+ TEST_STRATEGY.md                                   |    2 +
+ config/app.config.example.yaml                     |    6 +
+ src/app.ts                                         |    8 +
+ src/config.ts                                      |   11 +
+ src/routes/apple.ts                                |   30 +-
+ src/storage/raw-batch-storage.ts                   |   80 +
+ test/integration/app.test.ts                       |  172 +
+ test/unit/config.test.ts                           |   23 +
+ test/unit/raw-batch-storage.test.ts                |   89 +
+ 19 files changed, 5488 insertions(+), 22 deletions(-)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 12:36:01Z)**_
+
+Implemented, documented, described in the changelog/test docs, and committed.
+
+Commit:
+`da88c9d Add optional raw batch storage`
+
+Included:
+- Raw batch NDJSON storage implementation.
+- Config/env/YAML support.
+- README, PORTING, TEST_STRATEGY, TEST_MATRIX, CHANGELOG updates.
+- Docker `/data` ownership update.
+- Unit and integration tests.
+- External `.specstory` files, as required when committing all current work.
+
+Validation run before commit:
+- `npm test`
+- `npm run typecheck`
+- `npm run build`
+- `git diff --check`
+
+Worktree is clean now.
+
+::git-stage{cwd="/Users/bietiekay/code/health-data-to-mqtt"}
+::git-commit{cwd="/Users/bietiekay/code/health-data-to-mqtt"}
