@@ -2,6 +2,20 @@ import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 
+export interface MqttTopicConfig {
+  raw: string;
+  normalized: string;
+  current: string;
+}
+
+export interface AppContextConfig {
+  name: string;
+  prefix: string;
+  mqtt: {
+    topics: MqttTopicConfig;
+  };
+}
+
 const booleanFromEnv = z
   .union([z.boolean(), z.string(), z.undefined()])
   .transform((value) => {
@@ -35,6 +49,18 @@ const integerFromEnv = z
     return parsed;
   });
 
+const topicConfigSchema = z.object({
+  raw: z.string().optional(),
+  normalized: z.string().optional(),
+  current: z.string().optional(),
+});
+
+const contextConfigSchema = z.object({
+  name: z.string().min(1),
+  prefix: z.string().optional().default("/"),
+  topics: topicConfigSchema.optional(),
+});
+
 const envSchema = z
   .object({
     HOST: z.string().default("0.0.0.0"),
@@ -53,6 +79,7 @@ const envSchema = z
     MQTT_TOPIC_NORMALIZED: z
       .string()
       .default("healthsave/normalized/{metric}"),
+    MQTT_TOPIC_CURRENT: z.string().default("healthsave/current/{metric}"),
     STATE_BACKEND: z.enum(["memory", "sqlite", "redis"]).default("memory"),
   })
   .transform((env) => ({
@@ -72,12 +99,16 @@ const envSchema = z
       topics: {
         raw: env.MQTT_TOPIC_RAW,
         normalized: env.MQTT_TOPIC_NORMALIZED,
+        current: env.MQTT_TOPIC_CURRENT,
       },
     },
     stateBackend: env.STATE_BACKEND,
   }));
 
-export type AppConfig = z.infer<typeof envSchema>;
+type BaseAppConfig = z.infer<typeof envSchema>;
+export type AppConfig = BaseAppConfig & {
+  contexts: AppContextConfig[];
+};
 
 const fileConfigSchema = z
   .object({
@@ -111,10 +142,12 @@ const fileConfigSchema = z
           .object({
             raw: z.string().optional(),
             normalized: z.string().optional(),
+            current: z.string().optional(),
           })
           .optional(),
       })
       .optional(),
+    contexts: z.array(contextConfigSchema).optional(),
     state: z
       .object({
         backend: z.enum(["memory", "sqlite", "redis"]).optional(),
@@ -124,6 +157,7 @@ const fileConfigSchema = z
   .default({});
 
 type FileConfig = z.infer<typeof fileConfigSchema>;
+type ContextConfigInput = z.infer<typeof contextConfigSchema>;
 
 interface LoadConfigOptions {
   env?: NodeJS.ProcessEnv;
@@ -151,18 +185,19 @@ function fileConfigToEnv(config: FileConfig): Partial<NodeJS.ProcessEnv> {
     MQTT_RETAIN: config.mqtt?.retain?.toString(),
     MQTT_TOPIC_RAW: config.mqtt?.topics?.raw,
     MQTT_TOPIC_NORMALIZED: config.mqtt?.topics?.normalized,
+    MQTT_TOPIC_CURRENT: config.mqtt?.topics?.current,
     STATE_BACKEND: config.state?.backend,
   };
 }
 
-function removeUndefinedValues(
-  env: Partial<NodeJS.ProcessEnv>,
-): Partial<NodeJS.ProcessEnv> {
+function removeUndefinedValues<T extends Record<string, unknown>>(
+  env: T,
+): Partial<T> {
   return Object.fromEntries(
-    Object.entries(env).filter((entry): entry is [string, string] => {
+    Object.entries(env).filter((entry): boolean => {
       return entry[1] !== undefined;
     }),
-  );
+  ) as Partial<T>;
 }
 
 function isLoadConfigOptions(
@@ -180,12 +215,109 @@ export function loadConfig(
     ? input
     : { env: input };
   const env = options.env ?? process.env;
-  const configFileEnv = options.configFilePath
-    ? fileConfigToEnv(readConfigFile(options.configFilePath))
+  const fileConfig: FileConfig = options.configFilePath
+    ? readConfigFile(options.configFilePath)
     : {};
+  const configFileEnv = options.configFilePath ? fileConfigToEnv(fileConfig) : {};
 
-  return envSchema.parse({
+  const baseConfig = envSchema.parse({
     ...removeUndefinedValues(configFileEnv),
     ...env,
   });
+
+  return {
+    ...baseConfig,
+    contexts: buildContexts(
+      baseConfig,
+      parseContextsEnv(env.CONTEXTS) ?? fileConfig.contexts,
+    ),
+  };
+}
+
+function buildContexts(
+  config: BaseAppConfig,
+  inputs: ContextConfigInput[] | undefined,
+): AppContextConfig[] {
+  const defaultInput = inputs?.find((input) => {
+    return input.name === "default" || normalizeContextPrefix(input.prefix) === "/";
+  });
+  const contexts: AppContextConfig[] = [
+    createContextConfig("default", "/", config.mqtt.topics, defaultInput?.topics),
+  ];
+
+  for (const input of inputs ?? []) {
+    const name = input.name.trim();
+    const prefix = normalizeContextPrefix(input.prefix);
+
+    if (name === "default" || prefix === "/") {
+      continue;
+    }
+
+    contexts.push(
+      createContextConfig(name, prefix, config.mqtt.topics, input.topics),
+    );
+  }
+
+  assertUniqueContexts(contexts);
+  return contexts;
+}
+
+function createContextConfig(
+  name: string,
+  prefix: string,
+  defaults: MqttTopicConfig,
+  overrides: Partial<MqttTopicConfig> | undefined,
+): AppContextConfig {
+  return {
+    name,
+    prefix,
+    mqtt: {
+      topics: {
+        ...defaults,
+        ...removeUndefinedValues(overrides ?? {}),
+      },
+    },
+  };
+}
+
+function parseContextsEnv(
+  contextsValue: string | undefined,
+): ContextConfigInput[] | undefined {
+  if (!contextsValue || contextsValue.trim().length === 0) {
+    return undefined;
+  }
+
+  try {
+    return z.array(contextConfigSchema).parse(JSON.parse(contextsValue));
+  } catch (error) {
+    throw new Error("Invalid CONTEXTS JSON configuration", { cause: error });
+  }
+}
+
+function normalizeContextPrefix(prefix: string | undefined): string {
+  const trimmed = (prefix ?? "/").trim();
+  if (trimmed === "" || trimmed === "/") {
+    return "/";
+  }
+
+  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+  return withLeadingSlash.replace(/\/+$/, "");
+}
+
+function assertUniqueContexts(contexts: AppContextConfig[]): void {
+  const names = new Set<string>();
+  const prefixes = new Set<string>();
+
+  for (const context of contexts) {
+    if (names.has(context.name)) {
+      throw new Error(`Duplicate context name: ${context.name}`);
+    }
+
+    if (prefixes.has(context.prefix)) {
+      throw new Error(`Duplicate context prefix: ${context.prefix}`);
+    }
+
+    names.add(context.name);
+    prefixes.add(context.prefix);
+  }
 }

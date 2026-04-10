@@ -349,7 +349,7 @@ This structure can change if implementation reveals a simpler local pattern.
 5. Mapper parses timestamps/dates and normalizes fields.
 6. Idempotency layer filters duplicates where enabled.
 7. State store updates logical counters.
-8. MQTT publisher emits raw and normalized events.
+8. MQTT publisher emits raw, normalized, and current events using the active client context.
 9. Optional Timescale reference mode performs shadow write or comparison.
 10. API returns the reference-compatible response.
 
@@ -361,6 +361,7 @@ This structure can change if implementation reveals a simpler local pattern.
 | --- | --- |
 | Raw sample | `healthsave/raw/{metric}` |
 | Normalized sample | `healthsave/normalized/{metric}` |
+| Current scalar value | `healthsave/current/{metric}` |
 | Sync status | `healthsave/status/sync` |
 
 ### 9.2 Payload Requirements
@@ -378,27 +379,34 @@ Every MQTT event should include:
 
 Raw events preserve source fields where possible. Normalized events provide stable field names for consumers.
 
-### 9.3 Topic Mapping File
+### 9.3 Multi-Client Contexts
 
-Support optional topic overrides through:
+The root URL is always registered as the `default` context. Additional contexts can register URL prefixes such as:
 
 ```text
-/app/config/topic-map.json
+/daniel
+/alice
 ```
 
-Example:
+Clients configured with `http://host:8000/daniel` still send the reference API paths under that prefix:
 
-```json
-{
-  "heart_rate": {
-    "raw": "health/hr/raw",
-    "normalized": "health/hr/norm"
-  },
-  "workouts": {
-    "raw": "health/workouts/raw",
-    "normalized": "health/workouts/norm"
-  }
-}
+```text
+/daniel/api/apple/batch
+/daniel/api/apple/status
+```
+
+Each context owns topic templates and status counters. Topic templates support both `{metric}` and `{context}` placeholders.
+
+Example YAML:
+
+```yaml
+contexts:
+  - name: "daniel"
+    prefix: "/daniel"
+    topics:
+      raw: "healthsave/daniel/raw/{metric}"
+      normalized: "healthsave/daniel/normalized/{metric}"
+      current: "healthsave/daniel/current/{metric}"
 ```
 
 ## 10) Configuration Plan
@@ -426,6 +434,8 @@ Example:
 | `MQTT_RETAIN` | `false` |
 | `MQTT_TOPIC_RAW` | `healthsave/raw/{metric}` |
 | `MQTT_TOPIC_NORMALIZED` | `healthsave/normalized/{metric}` |
+| `MQTT_TOPIC_CURRENT` | `healthsave/current/{metric}` |
+| `CONTEXTS` | empty JSON array |
 
 ### 10.3 State
 
@@ -543,17 +553,17 @@ Create realistic replay fixtures with:
 
 ### Phase B: MQTT Publishing
 
-- Add MQTT publisher.
-- Add topic template rendering.
-- Publish raw events.
-- Add MQTT tests.
+- Add MQTT publisher. Status: initial raw publisher complete.
+- Add topic template rendering. Status: initial scaffold complete.
+- Publish raw events. Status: initial raw sample events complete.
+- Add MQTT tests. Status: initial publisher and API publish-path tests complete.
 
 ### Phase C: Metric Normalization
 
-- Implement dedicated metric mappers.
-- Implement activity, sleep, workout, and generic fallback mappers.
-- Publish normalized events.
-- Add mapper and replay tests.
+- Implement dedicated metric mappers. Status: initial reference-compatible extraction complete.
+- Implement activity, sleep, workout, and generic fallback mappers. Status: initial reference-compatible extraction complete.
+- Publish normalized events. Status: initial normalized MQTT events complete.
+- Add mapper and replay tests. Status: mapper tests complete; replay fixtures still planned.
 
 ### Phase D: State and Idempotency
 

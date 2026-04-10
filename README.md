@@ -2,7 +2,9 @@
 
 Health Data to MQTT is a drop-in server for the [HealthSave iOS app](https://apps.apple.com/app/id6759843047). It accepts HealthKit-derived sync batches through the same HTTP API as the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
 
-The repository currently contains the initial Node.js + TypeScript server scaffold with Fastify, compatibility endpoints, optional API-key authentication, Docker support, and tests. MQTT publishing and full metric normalization are still planned implementation phases.
+The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, Docker support, and tests. Replay fixtures and persistent idempotency are still planned implementation phases.
+
+![Health Data to MQTT screenshot](./screenshot.png)
 
 ## Why This Exists
 
@@ -16,7 +18,7 @@ The repository currently contains the initial Node.js + TypeScript server scaffo
 
 ## Current Status
 
-This repository contains the first implementation scaffold, not the final MQTT pipeline.
+This repository contains the compatibility server and initial raw plus normalized MQTT pipeline, not the final persistent/idempotent pipeline.
 
 Available now:
 
@@ -24,8 +26,8 @@ Available now:
 - `PORTING.md` - living porting plan and implementation discussion document.
 - `AGENTS.md` - working instructions for coding agents and maintainers.
 - `TEST_STRATEGY.md` and `TEST_MATRIX.md` - test planning and test inventory.
-- `src/` - initial Fastify compatibility server.
-- `test/` - unit and API integration tests.
+- `src/` - Fastify compatibility server, reference-compatible datapoint extraction, and MQTT publishers.
+- `test/` - unit, API integration, and publisher behavior tests.
 - `Dockerfile` and `docker-compose.yml` - initial self-hosting setup.
 - `reference-implementation/` - read-only reference copy of the original FastAPI + TimescaleDB implementation.
 
@@ -124,17 +126,76 @@ Supported client-facing endpoints:
 | `/api/apple/batch` | POST | Receive one metric batch |
 | `/api/apple/status` | GET | Return sync/status counters |
 
+## Multiple Client Contexts
+
+The root URL continues to work as the `default` context:
+
+```text
+http://your-server:8000
+```
+
+Additional clients can use configured prefixes as their HealthSave server URL:
+
+```text
+http://your-server:8000/daniel
+http://your-server:8000/alice
+```
+
+HealthSave still appends the same API paths, so a client configured with `/daniel` sends batches to:
+
+```text
+/daniel/api/apple/batch
+```
+
+Each context has its own MQTT topic templates and status counters. This allows one self-hosted server to receive multiple clients while keeping MQTT output and `/api/apple/status` counts separated by context.
+
+Context topic templates support:
+
+| Placeholder | Value |
+| --- | --- |
+| `{metric}` | Normalized metric name or incoming generic metric name |
+| `{context}` | Context name such as `default`, `daniel`, or `alice` |
+
 ## MQTT Output
 
-The service is planned to publish both raw and normalized events.
+The service publishes one raw MQTT event for each source sample, one normalized MQTT event for each accepted datapoint, and a scalar current value for datapoints that have a single primary value. Normalization follows the reference implementation's field extraction rules for dedicated metrics, generic quantities, activity summaries, sleep sessions, and workouts.
+
+When MQTT is enabled, non-empty batch requests are only accepted after MQTT publishing succeeds. If publishing fails, the endpoint returns `502` so the client can retry instead of silently dropping data.
 
 Default topics:
 
 | Topic | Purpose |
 | --- | --- |
 | `healthsave/raw/{metric}` | Original batch sample with ingestion metadata |
-| `healthsave/normalized/{metric}` | Metric-specific normalized sample |
-| `healthsave/status/sync` | Optional sync/status event |
+| `healthsave/normalized/{metric}` | Extracted datapoint with stable metric-specific fields |
+| `healthsave/current/{metric}` | Latest scalar value for metrics with one primary value |
+| `healthsave/status/sync` | Planned sync/status event |
+
+Example raw topic:
+
+```text
+healthsave/raw/heart_rate
+```
+
+Raw payload shape:
+
+```json
+{
+  "metric": "heart_rate",
+  "event_type": "raw_sample",
+  "ingested_at": "2026-04-10T12:00:00.000Z",
+  "batch_index": 0,
+  "total_batches": 1,
+  "device_id": "Apple Watch",
+  "sample_index": 0,
+  "sample": {
+    "date": "2026-04-10T11:58:00.000Z",
+    "qty": 72,
+    "source": "Apple Watch"
+  },
+  "idempotency_key": "..."
+}
+```
 
 Example normalized topic:
 
@@ -142,15 +203,18 @@ Example normalized topic:
 healthsave/normalized/heart_rate
 ```
 
-Expected payload shape:
+Normalized payload shape:
 
 ```json
 {
   "metric": "heart_rate",
+  "normalized_metric": "heart_rate",
+  "event_type": "normalized_sample",
   "ingested_at": "2026-04-10T12:00:00.000Z",
   "batch_index": 0,
   "total_batches": 1,
-  "device_id": "apple_watch",
+  "device_id": "Apple Watch",
+  "record_index": 0,
   "normalized_sample": {
     "time": "2026-04-10T11:58:00.000Z",
     "bpm": 72,
@@ -160,7 +224,25 @@ Expected payload shape:
 }
 ```
 
-Exact payload fields may still change while the porting plan is finalized. Compatibility requirements and open decisions are tracked in `PORTING.md`.
+Timestamp fields are parsed from ISO 8601 input and published as UTC ISO strings. Date-only activity summaries are published as `YYYY-MM-DD`.
+
+Example current topic:
+
+```text
+healthsave/current/heart_rate
+```
+
+Current payload:
+
+```text
+72
+```
+
+Current messages use the same metric names as normalized topics, but the payload is only the scalar value. Current values are emitted for dedicated metrics and generic quantity samples, such as `heart_rate`, `hrv`, `blood_oxygen`, `body_temperature`, `step_count`, or `walking_speed`. Multi-field records such as activity summaries, sleep sessions, and workouts stay on normalized topics until a specific scalar topic mapping is added.
+
+Set `LOG_LEVEL=debug` while capturing new client payload shapes. Batch debug logs include top-level request field names, metric name, batch counters, record count, status counter bucket, the first sample's field names, and MQTT publish counts without logging complete health samples by default. Set `LOG_LEVEL=trace` only when you intentionally need raw request bodies in the logs.
+
+Exact normalized payload fields may still change while the porting plan is finalized. Compatibility requirements and open decisions are tracked in `PORTING.md`.
 
 ## Configuration Options
 
@@ -209,6 +291,8 @@ MQTT options:
 | `MQTT_RETAIN` | `false` | Retain published messages |
 | `MQTT_TOPIC_RAW` | `healthsave/raw/{metric}` | Raw event topic template |
 | `MQTT_TOPIC_NORMALIZED` | `healthsave/normalized/{metric}` | Normalized event topic template |
+| `MQTT_TOPIC_CURRENT` | `healthsave/current/{metric}` | Scalar current value topic template |
+| `CONTEXTS` | empty | Optional JSON array of prefixed client contexts |
 
 State and migration options:
 
@@ -242,7 +326,7 @@ Pass it to the local server:
 npm run start:local
 ```
 
-The local config file uses grouped YAML sections for `http`, `auth`, `logging`, `mqtt`, and `state`. `config/app.config.local.yaml` is ignored by Git so local secrets and machine-specific settings are not committed. It is not used by the Docker image or `docker-compose.yml`; container deployments should use `.env` variables.
+The local config file uses grouped YAML sections for `http`, `auth`, `logging`, `mqtt`, `contexts`, and `state`. `config/app.config.local.yaml` is ignored by Git so local secrets and machine-specific settings are not committed. It is not used by the Docker image or `docker-compose.yml`; container deployments should use `.env` variables.
 
 Example local adjustments:
 
@@ -256,6 +340,18 @@ auth:
 
 mqtt:
   url: "mqtt://localhost:1883"
+  topics:
+    raw: "healthsave/{context}/raw/{metric}"
+    normalized: "healthsave/{context}/normalized/{metric}"
+    current: "healthsave/{context}/current/{metric}"
+
+contexts:
+  - name: "daniel"
+    prefix: "/daniel"
+    topics:
+      raw: "healthsave/daniel/raw/{metric}"
+      normalized: "healthsave/daniel/normalized/{metric}"
+      current: "healthsave/daniel/current/{metric}"
 
 logging:
   level: "debug"

@@ -1,12 +1,19 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getRequestApiKey, isAuthorized } from "../auth.js";
-import type { AppConfig } from "../config.js";
-import { batchRequestSchema, counterForMetric } from "../ingest.js";
+import type { AppConfig, AppContextConfig } from "../config.js";
+import {
+  batchRequestSchema,
+  counterForMetric,
+  normalizeBatch,
+} from "../ingest.js";
+import type { HealthMqttPublisher } from "../mqtt/publisher.js";
 import type { StateStore } from "../state/store.js";
 
 interface AppleRouteOptions {
   config: AppConfig;
+  context: AppContextConfig;
   stateStore: StateStore;
+  mqttPublisher: HealthMqttPublisher;
 }
 
 function requireApiKey(
@@ -31,6 +38,15 @@ export async function registerAppleRoutes(
       return reply;
     }
 
+    request.log.debug(
+      { body_keys: getObjectKeys(request.body) },
+      "received apple health batch request body",
+    );
+    request.log.trace(
+      { body: request.body },
+      "received raw apple health batch request body",
+    );
+
     const parsed = batchRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -41,6 +57,26 @@ export async function registerAppleRoutes(
     }
 
     const batch = parsed.data;
+    const counter = counterForMetric(batch.metric);
+    const rawRecords = batch.samples.length;
+    const normalizedRecords = normalizeBatch(batch);
+    const records = normalizedRecords.length;
+    request.log.debug(
+      {
+        context: options.context.name,
+        prefix: options.context.prefix,
+        metric: batch.metric,
+        batch_index: batch.batch_index,
+        total_batches: batch.total_batches,
+        raw_records: rawRecords,
+        normalized_records: records,
+        counter,
+        first_sample_keys: getFirstSampleKeys(batch.samples),
+        mqtt_enabled: options.config.mqtt.enabled,
+      },
+      "received apple health batch",
+    );
+
     if (batch.samples.length === 0) {
       return {
         status: "empty",
@@ -50,8 +86,58 @@ export async function registerAppleRoutes(
       };
     }
 
-    const records = batch.samples.length;
-    await options.stateStore.increment(counterForMetric(batch.metric), records);
+    try {
+      const rawPublishResult = await options.mqttPublisher.publishRawBatch(
+        options.context,
+        batch,
+      );
+      const normalizedPublishResult =
+        await options.mqttPublisher.publishNormalizedBatch(
+          options.context,
+          batch,
+          normalizedRecords,
+        );
+      const currentPublishResult =
+        await options.mqttPublisher.publishCurrentBatch(
+          options.context,
+          normalizedRecords,
+        );
+      request.log.debug(
+        {
+          context: options.context.name,
+          metric: batch.metric,
+          raw_topic: rawPublishResult.topic,
+          normalized_topics: normalizedPublishResult.topics,
+          current_topics: currentPublishResult.topics,
+          raw_records: rawRecords,
+          normalized_records: records,
+          raw_published_records: rawPublishResult.records,
+          normalized_published_records: normalizedPublishResult.records,
+          current_published_records: currentPublishResult.records,
+        },
+        "published apple health batch to mqtt",
+      );
+    } catch (error) {
+      request.log.error(
+        {
+          err: error,
+          context: options.context.name,
+          metric: batch.metric,
+          batch_index: batch.batch_index,
+          total_batches: batch.total_batches,
+          raw_records: rawRecords,
+          normalized_records: records,
+        },
+        "failed to publish apple health batch to mqtt",
+      );
+
+      return reply.code(502).send({
+        status: "error",
+        error: "Failed to publish batch to MQTT",
+      });
+    }
+
+    await options.stateStore.increment(counter, records, options.context.name);
 
     return {
       status: "processed",
@@ -69,7 +155,20 @@ export async function registerAppleRoutes(
 
     return {
       status: "ok",
-      counts: await options.stateStore.getCounts(),
+      counts: await options.stateStore.getCounts(options.context.name),
     };
   });
+}
+
+function getFirstSampleKeys(samples: Array<Record<string, unknown>>): string[] {
+  const [firstSample] = samples;
+  return firstSample ? Object.keys(firstSample).sort() : [];
+}
+
+function getObjectKeys(value: unknown): string[] {
+  if (value === null || Array.isArray(value) || typeof value !== "object") {
+    return [];
+  }
+
+  return Object.keys(value).sort();
 }

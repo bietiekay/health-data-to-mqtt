@@ -8,7 +8,8 @@ This document describes how the project should verify compatibility, MQTT behavi
 - Compatibility with the reference HTTP contract is the first test priority.
 - Unit tests should cover deterministic parsing, mapping, and auth logic.
 - Integration tests should exercise Fastify routes through in-process injection where possible.
-- MQTT behavior should be covered with integration tests once the publisher exists.
+- MQTT behavior should be covered with unit tests for payload construction and integration tests for route-to-publisher behavior.
+- Multi-client context behavior should verify prefixed routes, topic selection, and isolated status counters.
 - Replay fixtures should model realistic HealthSave sync batches.
 
 ## Test Layers
@@ -21,8 +22,9 @@ Unit tests cover small deterministic behavior:
 - batch request defaults,
 - metric-to-counter routing,
 - future metric mappers,
-- future topic rendering,
-- future idempotency key generation.
+- topic rendering,
+- raw MQTT payload construction,
+- idempotency key generation.
 
 ### API Integration Tests
 
@@ -34,20 +36,26 @@ API integration tests cover the HealthSave-facing contract:
 - empty batch responses,
 - status counters,
 - optional API-key behavior.
+- prefixed context endpoints.
 
-### MQTT Integration Tests
+### MQTT Tests
 
-MQTT integration tests are planned for the publisher implementation:
+MQTT tests cover implemented publisher behavior and planned broker-backed integration coverage:
 
-- raw event publication,
-- normalized event publication,
+- raw event publication through a recording client,
+- normalized event publication through a recording client,
+- scalar current value publication through a recording client,
+- API route calls into the publisher before accepting non-empty batches,
 - QoS and retain settings,
 - topic template overrides,
-- MQTT-disabled mode.
+- context-specific topic template overrides,
+- MQTT-disabled mode,
+- future broker-backed publication checks,
+- future broker-backed normalized publication checks.
 
 ### Replay Tests
 
-Replay tests are planned once metric normalization exists. Fixtures should include:
+Replay tests are planned once realistic client fixtures are captured. Fixtures should include:
 
 - multiple metric types,
 - duplicate samples,

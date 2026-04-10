@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
-import { loadConfig } from "../../src/config.js";
+import { loadConfig, type AppContextConfig } from "../../src/config.js";
+import type { BatchRequest, NormalizedRecord } from "../../src/ingest.js";
+import type {
+  CurrentPublishResult,
+  HealthMqttPublisher,
+  NormalizedPublishResult,
+  RawPublishResult,
+} from "../../src/mqtt/publisher.js";
 
 const baseConfig = loadConfig({
   HOST: "127.0.0.1",
@@ -18,10 +25,68 @@ async function createApp(apiKey = "") {
       ...baseConfig,
       apiKey,
       logEnabled: false,
+      mqtt: {
+        ...baseConfig.mqtt,
+        enabled: false,
+      },
     },
   });
 
   return app;
+}
+
+function createRecordingMqttPublisher(): HealthMqttPublisher & {
+  batches: Array<{
+    context: AppContextConfig;
+    batch: BatchRequest;
+  }>;
+  normalizedBatches: Array<{
+    context: AppContextConfig;
+    batch: BatchRequest;
+    records: NormalizedRecord[];
+  }>;
+  currentBatches: Array<{
+    context: AppContextConfig;
+    records: NormalizedRecord[];
+  }>;
+} {
+  return {
+    batches: [],
+    normalizedBatches: [],
+    currentBatches: [],
+    async publishRawBatch(context, batch): Promise<RawPublishResult> {
+      this.batches.push({ context, batch });
+      return {
+        topic: `${context.name}/raw/${batch.metric}`,
+        records: batch.samples.length,
+      };
+    },
+    async publishNormalizedBatch(
+      context,
+      batch,
+      records,
+    ): Promise<NormalizedPublishResult> {
+      this.normalizedBatches.push({ context, batch, records });
+      return {
+        records: records.length,
+        topics: records.map(
+          (record) => `${context.name}/normalized/${record.normalizedMetric}`,
+        ),
+      };
+    },
+    async publishCurrentBatch(context, records): Promise<CurrentPublishResult> {
+      this.currentBatches.push({ context, records });
+      return {
+        records: records.length,
+        topics: records.map(
+          (record) => `${context.name}/current/${record.normalizedMetric}`,
+        ),
+      };
+    },
+    async close() {
+      return undefined;
+    },
+  };
 }
 
 afterEach(async () => {
@@ -113,6 +178,175 @@ describe("compatibility endpoints", () => {
         sleep_sessions: 0,
         workouts: 0,
         quantity_samples: 0,
+      },
+    });
+  });
+
+  it("publishes extracted datapoints to MQTT before accepting batches", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "step_count",
+        batch_index: 3,
+        total_batches: 5,
+        samples: [
+          { date: "2026-04-10T12:00:00Z", qty: 120 },
+          { date: "2026-04-10T12:01:00Z", qty: 125 },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "step_count",
+      records: 2,
+    });
+    expect(mqttPublisher.batches[0]).toMatchObject({
+      context: { name: "default", prefix: "/" },
+      batch: {
+        metric: "step_count",
+        batch_index: 3,
+        total_batches: 5,
+        samples: [
+          { date: "2026-04-10T12:00:00Z", qty: 120 },
+          { date: "2026-04-10T12:01:00Z", qty: 125 },
+        ],
+      },
+    });
+    expect(mqttPublisher.normalizedBatches[0]?.records).toMatchObject([
+      {
+        metric: "step_count",
+        normalizedMetric: "quantity_samples",
+        normalizedSample: {
+          time: "2026-04-10T12:00:00.000Z",
+          metric_name: "step_count",
+          value: 120,
+        },
+      },
+      {
+        metric: "step_count",
+        normalizedMetric: "quantity_samples",
+        normalizedSample: {
+          time: "2026-04-10T12:01:00.000Z",
+          metric_name: "step_count",
+          value: 125,
+        },
+      },
+    ]);
+    expect(mqttPublisher.currentBatches[0]?.records).toHaveLength(2);
+  });
+
+  it("supports prefixed context endpoints with isolated status counts", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+        contexts: [
+          baseConfig.contexts[0]!,
+          {
+            name: "daniel",
+            prefix: "/daniel",
+            mqtt: {
+              topics: {
+                raw: "healthsave/daniel/raw/{metric}",
+                normalized: "healthsave/daniel/normalized/{metric}",
+                current: "healthsave/daniel/current/{metric}",
+              },
+            },
+          },
+        ],
+      },
+      mqttPublisher,
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/daniel/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+      },
+    });
+
+    const defaultStatus = await app.inject({
+      method: "GET",
+      url: "/api/apple/status",
+    });
+    const danielStatus = await app.inject({
+      method: "GET",
+      url: "/daniel/api/apple/status",
+    });
+
+    expect(defaultStatus.json()).toMatchObject({
+      counts: { heart_rate: 0 },
+    });
+    expect(danielStatus.json()).toMatchObject({
+      counts: { heart_rate: 1 },
+    });
+    expect(mqttPublisher.batches[0]?.context.name).toBe("daniel");
+    expect(mqttPublisher.normalizedBatches[0]?.context.name).toBe("daniel");
+    expect(mqttPublisher.currentBatches[0]?.context.name).toBe("daniel");
+  });
+
+  it("rejects non-empty batches when MQTT publication fails", async () => {
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher: {
+        async publishRawBatch() {
+          throw new Error("broker unavailable");
+        },
+        async publishNormalizedBatch() {
+          return {
+            records: 0,
+            topics: [],
+          };
+        },
+        async publishCurrentBatch() {
+          return {
+            records: 0,
+            topics: [],
+          };
+        },
+        async close() {
+          return undefined;
+        },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({
+      status: "error",
+      error: "Failed to publish batch to MQTT",
+    });
+
+    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toMatchObject({
+      counts: {
+        heart_rate: 0,
       },
     });
   });

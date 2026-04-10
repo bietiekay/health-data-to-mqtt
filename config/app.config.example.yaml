@@ -30,7 +30,7 @@ logging:
   level: "info"
 
 mqtt:
-  # MQTT publishing is planned for the MQTT pipeline implementation.
+  # Publish one raw MQTT event per accepted HealthSave sample.
   enabled: true
 
   # Use mqtt://localhost:1883 for a broker running on the host.
@@ -47,8 +47,21 @@ mqtt:
 
   topics:
     # The {metric} placeholder is replaced with the incoming metric name.
+    # The {context} placeholder is replaced with the context name.
     raw: "healthsave/raw/{metric}"
     normalized: "healthsave/normalized/{metric}"
+    current: "healthsave/current/{metric}"
+
+# Optional multi-client contexts. The root context is always available as
+# name "default" with prefix "/". Configure HealthSave clients with the
+# prefixed base URL, for example http://host:8000/daniel.
+contexts:
+  - name: "daniel"
+    prefix: "/daniel"
+    topics:
+      raw: "healthsave/daniel/raw/{metric}"
+      normalized: "healthsave/daniel/normalized/{metric}"
+      current: "healthsave/daniel/current/{metric}"
 
 state:
   # Initial scaffold backend. Planned values are memory, sqlite, and redis.

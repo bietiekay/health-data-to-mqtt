@@ -10807,13 +10807,32 @@ _**Agent (gpt-5.4 2026-04-10 10:50:35Z)**_
 
 <tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
 <summary>Tool use: **exec_command** `git add . && git commit -m "Document SpecStory tooling behavior"`</summary>
-
-**Input:**
-
-- cmd: `git add . && git commit -m "Document SpecStory tooling behavior"`
-- command: `git add . && git commit -m "Document SpecStory tooling behavior"`
-- max_output_tokens: `12000`
-- workdir: `/Users/bietiekay/code/health-data-to-mqtt`
-- yield_time_ms: `30000`
-
+```
+Command: /bin/zsh -lc 'git add . && git commit -m "Document SpecStory tooling behavior"'
+Chunk ID: 81ba34
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 26
+Output:
+[main 304d568] Document SpecStory tooling behavior
+ 4 files changed, 207 insertions(+), 7 deletions(-)
+```
 </details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:50:39Z)**_
+
+Committed.
+
+Commit:
+`304d568 Document SpecStory tooling behavior`
+
+Enthalten:
+- `AGENTS.md`: SpecStory-Verhalten dokumentiert
+- `CHANGELOG.md`: Änderung ergänzt
+- automatisch aktualisierte `.specstory`-Dateien
+
+Validierung vor dem Commit:
+- `npm test` bestanden: 4 Test-Dateien, 14 Tests
+- `package.json` Version `0.1.0` passt zum neuesten `CHANGELOG.md` Header `0.1.0`
+
+::git-commit{cwd="/Users/bietiekay/code/health-data-to-mqtt"}
