@@ -12,6 +12,7 @@ describe("counterForMetric", () => {
     expect(counterForMetric("heart_rate")).toBe("heart_rate");
     expect(counterForMetric("heart_rate_variability")).toBe("hrv");
     expect(counterForMetric("blood_oxygen")).toBe("blood_oxygen");
+    expect(counterForMetric("oxygen_saturation")).toBe("blood_oxygen");
     expect(counterForMetric("activity_summaries")).toBe("daily_activity");
     expect(counterForMetric("sleep_analysis")).toBe("sleep_sessions");
     expect(counterForMetric("workout")).toBe("workouts");
@@ -104,6 +105,27 @@ describe("normalizeBatch", () => {
       value: 1.4,
       unit: "m/s",
       source_id: "iPhone",
+    });
+  });
+
+  it("normalizes blood oxygen aliases and fractional saturation values", () => {
+    expect(
+      normalizeBatch({
+        metric: "blood_oxygen",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            startDate: "2026-04-10T12:00:00Z",
+            oxygenSaturation: 0.973,
+            source: "Watch",
+          },
+        ],
+      })[0]?.normalizedSample,
+    ).toEqual({
+      time: "2026-04-10T12:00:00.000Z",
+      spo2_pct: 97.3,
+      source_id: "Watch",
     });
   });
 

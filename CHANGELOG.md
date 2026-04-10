@@ -24,6 +24,7 @@ Version headers must match the `version` field in `package.json`.
 - Added initial MQTT topic rendering helper.
 - Added raw MQTT publishing for non-empty HealthSave batch samples.
 - Added reference-compatible datapoint extraction for dedicated metrics, generic quantities, activity summaries, sleep sessions, and workouts.
+- Added blood oxygen normalization aliases for HealthKit-style saturation fields.
 - Added workout active-energy normalization and current values using `activeEnergy`, `activeEnergyBurned`, or `calories`.
 - Added sleep awake-state current values from the latest sleep stage.
 - Added normalized MQTT publishing for accepted datapoints.

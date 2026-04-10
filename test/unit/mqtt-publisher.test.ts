@@ -174,9 +174,19 @@ describe("MQTT publisher", () => {
         },
       },
       {
+        metric: "blood_oxygen",
+        normalizedMetric: "blood_oxygen",
+        recordIndex: 2,
+        deviceId: "Watch",
+        normalizedSample: {
+          time: "2026-04-10T12:05:00.000Z",
+          spo2_pct: 97.3,
+        },
+      },
+      {
         metric: "sleep_analysis",
         normalizedMetric: "sleep_sessions",
-        recordIndex: 2,
+        recordIndex: 3,
         deviceId: "Watch",
         normalizedSample: {
           start_time: "2026-04-10T22:00:00.000Z",
@@ -187,7 +197,7 @@ describe("MQTT publisher", () => {
       {
         metric: "workouts",
         normalizedMetric: "workouts",
-        recordIndex: 3,
+        recordIndex: 4,
         deviceId: "Runkeeper",
         normalizedSample: {
           start_time: "2016-01-20T13:59:13.337Z",
@@ -198,7 +208,7 @@ describe("MQTT publisher", () => {
       {
         metric: "activity_summaries",
         normalizedMetric: "daily_activity",
-        recordIndex: 4,
+        recordIndex: 5,
         deviceId: "Phone",
         normalizedSample: {
           date: "2026-04-10",
@@ -208,10 +218,11 @@ describe("MQTT publisher", () => {
     ]);
 
     expect(result).toEqual({
-      records: 4,
+      records: 5,
       topics: [
         "healthsave/current/heart_rate",
         "healthsave/current/walking_speed",
+        "healthsave/current/blood_oxygen",
         "healthsave/current/sleep_sessions",
         "healthsave/current/workouts",
       ],
@@ -224,6 +235,10 @@ describe("MQTT publisher", () => {
       {
         topic: "healthsave/current/walking_speed",
         message: "1.2",
+      },
+      {
+        topic: "healthsave/current/blood_oxygen",
+        message: "97.3",
       },
       {
         topic: "healthsave/current/sleep_sessions",

@@ -227,6 +227,68 @@ describe("compatibility endpoints", () => {
     });
   });
 
+  it("publishes blood oxygen aliases as normalized and current data", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "blood_oxygen",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            startDate: "2026-04-10T12:00:00Z",
+            oxygenSaturation: 0.973,
+            source: "Watch",
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "blood_oxygen",
+      records: 1,
+    });
+    expect(mqttPublisher.normalizedBatches[0]?.records).toMatchObject([
+      {
+        metric: "blood_oxygen",
+        normalizedMetric: "blood_oxygen",
+        normalizedSample: {
+          time: "2026-04-10T12:00:00.000Z",
+          spo2_pct: 97.3,
+          source_id: "Watch",
+        },
+      },
+    ]);
+    expect(mqttPublisher.currentBatches[0]?.records).toMatchObject([
+      {
+        metric: "blood_oxygen",
+        normalizedMetric: "blood_oxygen",
+        normalizedSample: {
+          spo2_pct: 97.3,
+        },
+      },
+    ]);
+
+    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toMatchObject({
+      counts: {
+        blood_oxygen: 1,
+      },
+    });
+  });
+
   it("counts accepted samples when a non-empty batch has no normalized records", async () => {
     const server = await createApp();
     const response = await server.inject({

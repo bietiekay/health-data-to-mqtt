@@ -177,7 +177,7 @@ The new server should preserve the reference routing categories.
 | --- | --- | --- | --- |
 | `heart_rate` | `heart_rate` | `date`, `qty` | Map `qty` to `bpm`, `source` to `source_id` |
 | `heart_rate_variability` | `hrv` | `date`, `qty` | Map `qty` to `value_ms`, default algorithm `sdnn` |
-| `blood_oxygen` | `blood_oxygen` | `date`, `qty` | Map `qty` to `spo2_pct` |
+| `blood_oxygen` | `blood_oxygen` | `date`/`startDate`, `qty`/`oxygenSaturation`/`spo2`/`value` | Map value to `spo2_pct`; fractional values like `0.97` are converted to percent |
 | `body_temperature` | optional dedicated normalized metric | `date`, `qty` | Reference has a table, status response does not include a counter key |
 
 ### 6.2 Activity Summaries

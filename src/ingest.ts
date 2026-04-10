@@ -34,8 +34,29 @@ export interface NormalizedRecord {
 interface DedicatedMetricSpec {
   normalizedMetric: string;
   valueField: string;
+  timeFields?: string[];
+  valueFields?: string[];
+  transformValue?: (value: number) => number;
   defaults?: Record<string, unknown>;
 }
+
+const bloodOxygenSpec: DedicatedMetricSpec = {
+  normalizedMetric: "blood_oxygen",
+  valueField: "spo2_pct",
+  valueFields: [
+    "qty",
+    "spo2_pct",
+    "spo2",
+    "oxygenSaturation",
+    "oxygen_saturation",
+    "bloodOxygen",
+    "blood_oxygen",
+    "percentage",
+    "percent",
+    "value",
+  ],
+  transformValue: normalizeOxygenSaturation,
+};
 
 const dedicatedMetricSpecs: Record<string, DedicatedMetricSpec> = {
   heart_rate: {
@@ -47,10 +68,9 @@ const dedicatedMetricSpecs: Record<string, DedicatedMetricSpec> = {
     valueField: "value_ms",
     defaults: { algorithm: "sdnn" },
   },
-  blood_oxygen: {
-    normalizedMetric: "blood_oxygen",
-    valueField: "spo2_pct",
-  },
+  blood_oxygen: bloodOxygenSpec,
+  oxygen_saturation: bloodOxygenSpec,
+  oxygenSaturation: bloodOxygenSpec,
   body_temperature: {
     normalizedMetric: "body_temperature",
     valueField: "temp_celsius",
@@ -61,6 +81,8 @@ const metricCounters: Record<string, StatusCounterKey> = {
   heart_rate: "heart_rate",
   heart_rate_variability: "hrv",
   blood_oxygen: "blood_oxygen",
+  oxygen_saturation: "blood_oxygen",
+  oxygenSaturation: "blood_oxygen",
   activity_summaries: "daily_activity",
   sleep_analysis: "sleep_sessions",
   workout: "workouts",
@@ -117,15 +139,18 @@ function normalizeDedicated(
   spec: DedicatedMetricSpec,
 ): NormalizedRecord[] {
   const records = batch.samples.flatMap((sample, sampleIndex) => {
-    const time = parseTimestamp(sample.date);
-    const value = toNumber(sample.qty);
+    const time = parseTimestamp(
+      firstPresent(sample, ...(spec.timeFields ?? ["date", "startDate", "start"])),
+    );
+    const value = toNumber(firstPresent(sample, ...(spec.valueFields ?? ["qty"])));
     if (!time || value === undefined) {
       return [];
     }
 
+    const normalizedValue = spec.transformValue?.(value) ?? value;
     const normalizedSample = {
       time,
-      [spec.valueField]: value,
+      [spec.valueField]: normalizedValue,
       ...optionalStringField("source_id", sample.source),
       ...spec.defaults,
     };
@@ -530,6 +555,10 @@ function toNumber(value: unknown): number | undefined {
 
 function toNumberOrNull(value: unknown): number | null {
   return toNumber(value) ?? null;
+}
+
+function normalizeOxygenSaturation(value: number): number {
+  return value > 0 && value <= 1 ? value * 100 : value;
 }
 
 function secondsToMilliseconds(seconds: number | undefined): number | undefined {
