@@ -10,6 +10,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Config | Local YAML configuration file loads successfully | Existing | `test/unit/config.test.ts` | Covers local-only `--config` file format including MQTT topic templates |
 | Config | Environment variables override YAML configuration | Existing | `test/unit/config.test.ts` | Preserves container-first env behavior |
 | Config | Contexts load from environment JSON | Existing | `test/unit/config.test.ts` | Covers Docker-friendly multi-client context configuration |
+| Config | Raw storage path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers opt-in `RAW_STORAGE_PATH`, YAML `storage.rawDataPath`, env override, and empty-path disabled behavior |
 | Ingest | Reference metrics map to status counters | Existing | `test/unit/ingest.test.ts` | Covers known initial routing table |
 | Ingest | Unknown metrics map to `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Reference-compatible fallback |
 | Ingest | Batch schema applies reference-compatible defaults | Existing | `test/unit/ingest.test.ts` | Covers missing metric, batch fields, and samples |
@@ -25,6 +26,8 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | MQTT | Normalized event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical topics, normalized metadata, payload shape, and idempotency key shape |
 | MQTT | Current scalar value publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical current topics and value-only payloads |
 | MQTT | Context-specific topic templates | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies prefixed contexts can route to distinct topic templates |
+| Storage | Raw batch archive writes NDJSON by context and month | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies append-only lines, UTC month naming, and per-context directories |
+| Storage | Raw batch archive encodes unusual context names | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies context directory names do not allow path traversal |
 | API | `GET /health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /api/health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | Batch happy path returns processed response | Existing | `test/integration/app.test.ts` | Counts accepted normalized datapoints |
@@ -34,6 +37,10 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | API | Prefixed context endpoints isolate status counters | Existing | `test/integration/app.test.ts` | Verifies `/prefix/api/...` uses context routing and separate counts |
 | MQTT | Batch route calls publisher | Existing | `test/integration/app.test.ts` | Verifies unknown metrics publish raw batches, extracted normalized datapoints, and current values before acceptance |
 | MQTT | Publish failures reject batches | Existing | `test/integration/app.test.ts` | Verifies failed MQTT publication returns `502` without incrementing counters |
+| Storage | Batch route archives non-empty valid batches | Existing | `test/integration/app.test.ts` | Verifies the raw request body is stored before successful acceptance |
+| Storage | Batch route skips empty batch archive writes | Existing | `test/integration/app.test.ts` | Verifies empty batches do not create raw archive files |
+| Storage | Batch route rejects storage failures before side effects | Existing | `test/integration/app.test.ts` | Verifies storage failure returns `500` without MQTT publish or counter increments |
+| Storage | Prefixed contexts write to isolated archive directories | Existing | `test/integration/app.test.ts` | Verifies context-specific raw archive layout |
 | MQTT | Broker-backed raw publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | MQTT | Broker-backed normalized publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | Replay | Realistic multi-metric sync fixtures | Planned | Not implemented | Add with mapper implementation |

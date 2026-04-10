@@ -66,3 +66,9 @@ contexts:
 state:
   # Initial scaffold backend. Planned values are memory, sqlite, and redis.
   backend: "memory"
+
+storage:
+  # Optional raw batch archive path.
+  # Leave empty to disable. Files are written as:
+  #   <rawDataPath>/<context>/yyyy-mm
+  rawDataPath: ""

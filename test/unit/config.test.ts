@@ -50,6 +50,8 @@ contexts:
       current: "daniel/current/{metric}"
 state:
   backend: "memory"
+storage:
+  rawDataPath: "/tmp/health-raw"
 `);
 
     const config = loadConfig({ env: {}, configFilePath: configPath });
@@ -73,6 +75,7 @@ state:
         },
       },
       stateBackend: "memory",
+      rawStoragePath: "/tmp/health-raw",
       contexts: [
         {
           name: "default",
@@ -106,18 +109,38 @@ http:
   port: 9000
 auth:
   apiKey: "file-secret"
+storage:
+  rawDataPath: "/tmp/file-raw"
 `);
 
     const config = loadConfig({
       env: {
         PORT: "9100",
         API_KEY: "env-secret",
+        RAW_STORAGE_PATH: "/tmp/env-raw",
       },
       configFilePath: configPath,
     });
 
     expect(config.port).toBe(9100);
     expect(config.apiKey).toBe("env-secret");
+    expect(config.rawStoragePath).toBe("/tmp/env-raw");
+  });
+
+  it("loads raw storage paths from environment variables", () => {
+    const config = loadConfig({
+      RAW_STORAGE_PATH: "/data/raw",
+    });
+
+    expect(config.rawStoragePath).toBe("/data/raw");
+  });
+
+  it("treats empty raw storage paths as disabled", () => {
+    const config = loadConfig({
+      RAW_STORAGE_PATH: " ",
+    });
+
+    expect(config.rawStoragePath).toBeUndefined();
   });
 
   it("loads contexts from environment JSON", () => {

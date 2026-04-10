@@ -2,7 +2,7 @@
 
 Health Data to MQTT is a drop-in server for the [HealthSave iOS app](https://apps.apple.com/app/id6759843047). It accepts HealthKit-derived sync batches through the same HTTP API as the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
 
-The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, Docker support, and tests. Replay fixtures and persistent idempotency are still planned implementation phases.
+The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, optional raw batch storage, Docker support, and tests. Replay fixtures and persistent idempotency are still planned implementation phases.
 
 ![Health Data to MQTT screenshot](./screenshot.png)
 
@@ -26,7 +26,7 @@ Available now:
 - `PORTING.md` - living porting plan and implementation discussion document.
 - `AGENTS.md` - working instructions for coding agents and maintainers.
 - `TEST_STRATEGY.md` and `TEST_MATRIX.md` - test planning and test inventory.
-- `src/` - Fastify compatibility server, reference-compatible datapoint extraction, and MQTT publishers.
+- `src/` - Fastify compatibility server, reference-compatible datapoint extraction, MQTT publishers, and optional raw batch storage.
 - `test/` - unit, API integration, and publisher behavior tests.
 - `Dockerfile` and `docker-compose.yml` - initial self-hosting setup.
 - `reference-implementation/` - read-only reference copy of the original FastAPI + TimescaleDB implementation.
@@ -244,6 +244,41 @@ Set `LOG_LEVEL=debug` while capturing new client payload shapes. Batch debug log
 
 Exact normalized payload fields may still change while the porting plan is finalized. Compatibility requirements and open decisions are tracked in `PORTING.md`.
 
+## Raw Batch Storage
+
+Set `RAW_STORAGE_PATH` to archive non-empty, valid HealthSave batch requests before MQTT publishing. Leave it empty to disable raw storage.
+
+Docker example:
+
+```env
+RAW_STORAGE_PATH=/data/raw
+```
+
+The Docker Compose service already mounts persistent storage at `/data`, so `/data/raw` persists across container restarts.
+
+Stored files contain raw health payloads. Treat the directory as sensitive personal health data and protect it with filesystem permissions, backups, and host-level encryption appropriate for your deployment.
+
+The archive is organized by context and server ingestion month:
+
+```text
+<RAW_STORAGE_PATH>/<context>/yyyy-mm
+```
+
+Example:
+
+```text
+/data/raw/default/2026-04
+/data/raw/daniel/2026-04
+```
+
+Files are newline-delimited JSON. Each line is one accepted batch request as Fastify parsed it, with minimal replay metadata:
+
+```json
+{"ingested_at":"2026-04-10T12:00:00.000Z","context":"default","metric":"heart_rate","batch_index":0,"total_batches":1,"body":{"metric":"heart_rate","batch_index":0,"total_batches":1,"samples":[{"date":"2026-04-10T12:00:00Z","qty":72}]}}
+```
+
+Empty batches are intentionally skipped. If raw storage is enabled and the archive write fails, the batch is rejected before MQTT publishing and status counters are updated so the client can retry.
+
 ## Configuration Options
 
 The service can be configured in two ways:
@@ -305,6 +340,7 @@ State and migration options:
 | `TIMESCALE_MODE` | `off` | Optional reference mode: `off`, `shadow`, or `bridge` |
 | `TIMESCALE_URL` | empty | Optional Timescale/PostgreSQL connection string |
 | `TIMESCALE_STRICT_STARTUP` | `false` | Fail startup if reference mode cannot connect |
+| `RAW_STORAGE_PATH` | empty | Optional raw NDJSON batch archive path. Empty disables raw storage. |
 
 ### Local Config File
 
@@ -355,6 +391,9 @@ contexts:
 
 logging:
   level: "debug"
+
+storage:
+  rawDataPath: "/data/raw"
 ```
 
 Then start with:

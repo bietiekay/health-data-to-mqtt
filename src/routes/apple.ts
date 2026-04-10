@@ -8,12 +8,14 @@ import {
 } from "../ingest.js";
 import type { HealthMqttPublisher } from "../mqtt/publisher.js";
 import type { StateStore } from "../state/store.js";
+import type { RawBatchStorage } from "../storage/raw-batch-storage.js";
 
 interface AppleRouteOptions {
   config: AppConfig;
   context: AppContextConfig;
   stateStore: StateStore;
   mqttPublisher: HealthMqttPublisher;
+  rawBatchStorage: RawBatchStorage;
 }
 
 function requireApiKey(
@@ -47,7 +49,8 @@ export async function registerAppleRoutes(
       "received raw apple health batch request body",
     );
 
-    const parsed = batchRequestSchema.safeParse(request.body);
+    const rawBody = request.body;
+    const parsed = batchRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
       return reply.code(400).send({
         status: "error",
@@ -84,6 +87,31 @@ export async function registerAppleRoutes(
         batch: batch.batch_index,
         records: 0,
       };
+    }
+
+    try {
+      await options.rawBatchStorage.storeBatch(
+        options.context,
+        batch,
+        rawBody,
+      );
+    } catch (error) {
+      request.log.error(
+        {
+          err: error,
+          context: options.context.name,
+          metric: batch.metric,
+          batch_index: batch.batch_index,
+          total_batches: batch.total_batches,
+          raw_records: rawRecords,
+        },
+        "failed to store raw apple health batch",
+      );
+
+      return reply.code(500).send({
+        status: "error",
+        error: "Failed to store raw batch",
+      });
     }
 
     try {

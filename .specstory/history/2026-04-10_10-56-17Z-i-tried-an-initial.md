@@ -15029,13 +15029,38 @@ _**Agent (gpt-5.4 2026-04-10 12:11:47Z)**_
 
 <tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
 <summary>Tool use: **exec_command** `git add -A .specstory && git commit --amend --no-edit`</summary>
-
-**Input:**
-
-- cmd: `git add -A .specstory && git commit --amend --no-edit`
-- command: `git add -A .specstory && git commit --amend --no-edit`
-- max_output_tokens: `30000`
-- workdir: `/Users/bietiekay/code/health-data-to-mqtt`
-- yield_time_ms: `1000`
-
+```
+Command: /bin/zsh -lc 'git add -A .specstory && git commit --amend --no-edit'
+Chunk ID: 99df08
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 92
+Output:
+[main c1668d4] Add MQTT publishing and multi-client contexts
+ Date: Fri Apr 10 14:11:16 2026 +0200
+ 23 files changed, 17289 insertions(+), 98 deletions(-)
+ create mode 100644 .specstory/history/2026-04-10_10-56-17Z-i-tried-an-initial.md
+ create mode 100644 screenshot.png
+ create mode 100644 src/mqtt/publisher.ts
+ create mode 100644 test/unit/mqtt-publisher.test.ts
+```
 </details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 12:11:57Z)**_
+
+Committed everything as:
+
+`c1668d4 Add MQTT publishing and multi-client contexts`
+
+I included the current `.specstory/` tooling changes, the new `screenshot.png`, README update, MQTT/context implementation, config/docs, and tests. I also amended the commit to catch the SpecStory updates generated during the commit flow itself.
+
+Last full verification before the README-only screenshot addition was green:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
+
+::git-stage{cwd="/Users/bietiekay/code/health-data-to-mqtt"}
+::git-commit{cwd="/Users/bietiekay/code/health-data-to-mqtt"}

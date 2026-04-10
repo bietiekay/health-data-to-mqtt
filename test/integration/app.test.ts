@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync } from "node:fs";
+import { readFile, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
@@ -9,6 +13,7 @@ import type {
   NormalizedPublishResult,
   RawPublishResult,
 } from "../../src/mqtt/publisher.js";
+import type { RawBatchStorage } from "../../src/storage/raw-batch-storage.js";
 
 const baseConfig = loadConfig({
   HOST: "127.0.0.1",
@@ -18,6 +23,7 @@ const baseConfig = loadConfig({
 });
 
 let app: FastifyInstance | undefined;
+let tempDirectory: string | undefined;
 
 async function createApp(apiKey = "") {
   app = await buildApp({
@@ -92,6 +98,10 @@ function createRecordingMqttPublisher(): HealthMqttPublisher & {
 afterEach(async () => {
   await app?.close();
   app = undefined;
+  if (tempDirectory) {
+    rmSync(tempDirectory, { recursive: true, force: true });
+    tempDirectory = undefined;
+  }
 });
 
 describe("compatibility endpoints", () => {
@@ -247,6 +257,122 @@ describe("compatibility endpoints", () => {
     expect(mqttPublisher.currentBatches[0]?.records).toHaveLength(2);
   });
 
+  it("stores non-empty valid batches before accepting them", async () => {
+    tempDirectory = mkdtempSync(join(tmpdir(), "health-api-raw-storage-"));
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+        rawStoragePath: tempDirectory,
+      },
+      mqttPublisher,
+    });
+
+    const payload = {
+      metric: "heart_rate",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+    };
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [archiveFile] = await readdir(join(tempDirectory, "default"));
+    expect(archiveFile).toMatch(/^\d{4}-\d{2}$/);
+
+    const archiveContent = await readFile(
+      join(tempDirectory, "default", archiveFile!),
+      "utf8",
+    );
+    const archiveRecord = JSON.parse(archiveContent.trim()) as Record<
+      string,
+      unknown
+    >;
+
+    expect(archiveRecord).toMatchObject({
+      context: "default",
+      metric: "heart_rate",
+      batch_index: 0,
+      total_batches: 1,
+      body: payload,
+    });
+    expect(archiveRecord.ingested_at).toEqual(expect.any(String));
+    expect(mqttPublisher.batches).toHaveLength(1);
+  });
+
+  it("does not store empty batches", async () => {
+    tempDirectory = mkdtempSync(join(tmpdir(), "health-api-raw-storage-"));
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+        rawStoragePath: tempDirectory,
+      },
+      mqttPublisher: createRecordingMqttPublisher(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    await expect(readdir(join(tempDirectory, "default"))).rejects.toThrow();
+  });
+
+  it("rejects batches before MQTT and status updates when raw storage fails", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    const failingRawStorage: RawBatchStorage = {
+      async storeBatch() {
+        throw new Error("disk unavailable");
+      },
+    };
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+      rawBatchStorage: failingRawStorage,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(500);
+    expect(response.json()).toEqual({
+      status: "error",
+      error: "Failed to store raw batch",
+    });
+    expect(mqttPublisher.batches).toHaveLength(0);
+    expect(mqttPublisher.normalizedBatches).toHaveLength(0);
+    expect(mqttPublisher.currentBatches).toHaveLength(0);
+
+    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toMatchObject({
+      counts: {
+        heart_rate: 0,
+      },
+    });
+  });
+
   it("supports prefixed context endpoints with isolated status counts", async () => {
     const mqttPublisher = createRecordingMqttPublisher();
     app = await buildApp({
@@ -298,6 +424,52 @@ describe("compatibility endpoints", () => {
     expect(mqttPublisher.batches[0]?.context.name).toBe("daniel");
     expect(mqttPublisher.normalizedBatches[0]?.context.name).toBe("daniel");
     expect(mqttPublisher.currentBatches[0]?.context.name).toBe("daniel");
+  });
+
+  it("stores prefixed context batches under their context directory", async () => {
+    tempDirectory = mkdtempSync(join(tmpdir(), "health-api-raw-storage-"));
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+        rawStoragePath: tempDirectory,
+        contexts: [
+          baseConfig.contexts[0]!,
+          {
+            name: "daniel",
+            prefix: "/daniel",
+            mqtt: {
+              topics: {
+                raw: "healthsave/daniel/raw/{metric}",
+                normalized: "healthsave/daniel/normalized/{metric}",
+                current: "healthsave/daniel/current/{metric}",
+              },
+            },
+          },
+        ],
+      },
+      mqttPublisher: createRecordingMqttPublisher(),
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/daniel/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+      },
+    });
+
+    const [archiveFile] = await readdir(join(tempDirectory, "daniel"));
+    const archiveContent = await readFile(
+      join(tempDirectory, "daniel", archiveFile!),
+      "utf8",
+    );
+
+    expect(JSON.parse(archiveContent.trim())).toMatchObject({
+      context: "daniel",
+      metric: "heart_rate",
+    });
   });
 
   it("rejects non-empty batches when MQTT publication fails", async () => {

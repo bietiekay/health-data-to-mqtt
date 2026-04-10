@@ -30,6 +30,7 @@ Version headers must match the `version` field in `package.json`.
 - Added JSON wrapper deserialization for encoded batch and sample data.
 - Added batch-level debug logging for incoming body keys, metrics, sample keys, counter routing, and MQTT publish counts.
 - Added `502` handling for MQTT publish failures so failed batches are not counted as accepted.
+- Added optional raw batch NDJSON storage with per-context monthly files for replay/readout use cases.
 - Added unit and API integration tests.
 - Added test strategy and test matrix documentation.
 - Documented the upstream Health Data Hub reference project and required HealthSave iOS client.

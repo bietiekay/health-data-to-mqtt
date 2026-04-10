@@ -24,6 +24,7 @@ Unit tests cover small deterministic behavior:
 - future metric mappers,
 - topic rendering,
 - raw MQTT payload construction,
+- raw batch archive path handling,
 - idempotency key generation.
 
 ### API Integration Tests
@@ -37,6 +38,7 @@ API integration tests cover the HealthSave-facing contract:
 - status counters,
 - optional API-key behavior.
 - prefixed context endpoints.
+- raw batch archive success, skip, and failure behavior.
 
 ### MQTT Tests
 

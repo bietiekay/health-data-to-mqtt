@@ -28,7 +28,10 @@ ENV LOG_ENABLED=true
 ENV LOG_LEVEL=info
 WORKDIR /app
 
-RUN addgroup -S app && adduser -S app -G app
+RUN addgroup -S app \
+  && adduser -S app -G app \
+  && mkdir -p /data \
+  && chown app:app /data
 
 COPY --from=production-dependencies /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

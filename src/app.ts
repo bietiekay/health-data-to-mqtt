@@ -8,11 +8,16 @@ import {
 import { registerAppleRoutes } from "./routes/apple.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { createMemoryStateStore, type StateStore } from "./state/store.js";
+import {
+  createRawBatchStorage,
+  type RawBatchStorage,
+} from "./storage/raw-batch-storage.js";
 
 interface BuildAppOptions {
   config?: AppConfig;
   stateStore?: StateStore;
   mqttPublisher?: HealthMqttPublisher;
+  rawBatchStorage?: RawBatchStorage;
 }
 
 export async function buildApp(
@@ -22,6 +27,8 @@ export async function buildApp(
   const stateStore = options.stateStore ?? createMemoryStateStore();
   const mqttPublisher =
     options.mqttPublisher ?? (await createMqttPublisher(config));
+  const rawBatchStorage =
+    options.rawBatchStorage ?? createRawBatchStorage(config);
 
   const app = Fastify({
     logger: config.logEnabled
@@ -45,6 +52,7 @@ export async function buildApp(
           context,
           stateStore,
           mqttPublisher,
+          rawBatchStorage,
         });
       },
       { prefix: context.prefix === "/" ? "" : context.prefix },

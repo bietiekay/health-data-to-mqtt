@@ -81,6 +81,7 @@ const envSchema = z
       .default("healthsave/normalized/{metric}"),
     MQTT_TOPIC_CURRENT: z.string().default("healthsave/current/{metric}"),
     STATE_BACKEND: z.enum(["memory", "sqlite", "redis"]).default("memory"),
+    RAW_STORAGE_PATH: z.string().optional().default(""),
   })
   .transform((env) => ({
     host: env.HOST,
@@ -103,6 +104,10 @@ const envSchema = z
       },
     },
     stateBackend: env.STATE_BACKEND,
+    rawStoragePath:
+      env.RAW_STORAGE_PATH.trim().length > 0
+        ? env.RAW_STORAGE_PATH.trim()
+        : undefined,
   }));
 
 type BaseAppConfig = z.infer<typeof envSchema>;
@@ -153,6 +158,11 @@ const fileConfigSchema = z
         backend: z.enum(["memory", "sqlite", "redis"]).optional(),
       })
       .optional(),
+    storage: z
+      .object({
+        rawDataPath: z.string().optional(),
+      })
+      .optional(),
   })
   .default({});
 
@@ -187,6 +197,7 @@ function fileConfigToEnv(config: FileConfig): Partial<NodeJS.ProcessEnv> {
     MQTT_TOPIC_NORMALIZED: config.mqtt?.topics?.normalized,
     MQTT_TOPIC_CURRENT: config.mqtt?.topics?.current,
     STATE_BACKEND: config.state?.backend,
+    RAW_STORAGE_PATH: config.storage?.rawDataPath,
   };
 }
 

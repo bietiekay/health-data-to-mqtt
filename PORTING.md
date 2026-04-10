@@ -326,6 +326,8 @@ src/
   state/
     store.ts
     sqlite-store.ts
+  storage/
+    raw-batch-storage.ts
   compat/
     timescale.ts
 test/
@@ -347,11 +349,12 @@ This structure can change if implementation reveals a simpler local pattern.
 3. Request schema validation accepts known and permissive client fields.
 4. Ingest router selects the metric mapper.
 5. Mapper parses timestamps/dates and normalizes fields.
-6. Idempotency layer filters duplicates where enabled.
-7. State store updates logical counters.
+6. Non-empty valid raw batches are optionally archived to local NDJSON storage.
+7. Idempotency layer filters duplicates where enabled.
 8. MQTT publisher emits raw, normalized, and current events using the active client context.
-9. Optional Timescale reference mode performs shadow write or comparison.
-10. API returns the reference-compatible response.
+9. State store updates logical counters.
+10. Optional Timescale reference mode performs shadow write or comparison.
+11. API returns the reference-compatible response.
 
 ## 9) MQTT Plan
 
@@ -446,7 +449,21 @@ contexts:
 | `IDEMPOTENCY_ENABLED` | `true` |
 | `IDEMPOTENCY_WINDOW_DAYS` | `30` |
 
-### 10.4 Timescale Reference Mode
+### 10.4 Raw Batch Storage
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `RAW_STORAGE_PATH` | empty | Optional raw NDJSON archive path. Empty disables raw storage. |
+
+When enabled, non-empty valid batch requests are appended before MQTT publication to:
+
+```text
+<RAW_STORAGE_PATH>/<context>/yyyy-mm
+```
+
+Each line preserves the parsed request body with minimal context, metric, batch, and ingestion metadata. Empty batches are skipped. Archive write failures reject the request before MQTT publishing or status counter updates.
+
+### 10.5 Timescale Reference Mode
 
 | Variable | Default | Notes |
 | --- | --- | --- |
@@ -488,6 +505,7 @@ Docker requirements:
 - non-root runtime user,
 - healthcheck against `/health`,
 - persistent `/data` volume for SQLite state,
+- optional raw batch archive under `/data/raw`,
 - service examples for API and MQTT broker,
 - optional TimescaleDB service for reference validation.
 
@@ -529,7 +547,16 @@ Cover:
 - QoS and retain settings,
 - MQTT-disabled behavior.
 
-### 13.4 Replay Tests
+### 13.4 Raw Storage Tests
+
+Cover:
+
+- raw archive config parsing,
+- newline-delimited batch append behavior,
+- context and month file layout,
+- storage failure behavior before MQTT and status updates.
+
+### 13.5 Replay Tests
 
 Create realistic replay fixtures with:
 
@@ -563,13 +590,14 @@ Create realistic replay fixtures with:
 - Implement dedicated metric mappers. Status: initial reference-compatible extraction complete.
 - Implement activity, sleep, workout, and generic fallback mappers. Status: initial reference-compatible extraction complete.
 - Publish normalized events. Status: initial normalized MQTT events complete.
-- Add mapper and replay tests. Status: mapper tests complete; replay fixtures still planned.
+- Add mapper and replay tests. Status: mapper tests and raw batch archive tests complete; replay fixtures still planned.
 
 ### Phase D: State and Idempotency
 
 - Add SQLite state store.
 - Track logical counters.
 - Add idempotency keys and retention.
+- Add optional raw batch archive. Status: initial NDJSON archive complete for non-empty valid batches.
 - Add duplicate replay tests.
 
 ### Phase E: Reference Validation
