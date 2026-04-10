@@ -20,6 +20,8 @@ The target service must remain compatible with HealthSave-compatible clients whi
 
 ## Commit Workflow
 
+- `.specstory/` is managed by external tooling. Agents do not create or maintain SpecStory files manually.
+- If `.specstory/` files are modified by the tooling, include those changes in commits when committing all current work.
 - Always use the app version from `package.json` as the single source of truth for release/version labels in `CHANGELOG.md`.
 - For every commit, compare the current app version with the newest release header in `CHANGELOG.md`.
 - If the newest `CHANGELOG.md` version does not match the app version, create a new top release section with that app version before adding changes.

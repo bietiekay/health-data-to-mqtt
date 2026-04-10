@@ -10610,11 +10610,208 @@ _**Agent (gpt-5.4 2026-04-10 10:46:42Z)**_
 
 <tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
 <summary>Tool use: **exec_command** `git add .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md .specstory/statistics.json && git commit -m "Update SpecStory history"`</summary>
+```
+Command: /bin/zsh -lc 'git add .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md .specstory/statistics.json && git commit -m "Update SpecStory history"'
+Chunk ID: 22a907
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 23
+Output:
+[main 246fdf2] Update SpecStory history
+ 2 files changed, 60 insertions(+), 6 deletions(-)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:46:46Z)**_
+
+Committed.
+
+Commits erstellt:
+- `cf73c5b Remove manual SpecStory commit instructions`
+- `246fdf2 Update SpecStory history`
+
+Vorher geprüft:
+- `npm test` bestanden: 4 Test-Dateien, 14 Tests
+- `package.json` Version `0.1.0` passt zum neuesten `CHANGELOG.md` Header `0.1.0`
+
+Hinweis: SpecStory schreibt nach Shell-Aktionen wieder live in seine History-Dateien, daher kann unmittelbar danach erneut ein kleiner `.specstory`-Diff entstehen. Das ist jetzt als externes Tooling-Verhalten akzeptiert.
+
+::git-commit{cwd="/Users/bietiekay/code/health-data-to-mqtt"}
+
+---
+
+_**User (2026-04-10 10:48:34Z)**_
+
+kannst du dir das verhalten merken (agents)
+
+
+---
+
+_**Agent (gpt-5.4 2026-04-10 10:48:38Z)**_
+
+Ja, ich verankere das direkt in `AGENTS.md`: `.specstory` wird vom externen Tooling verwaltet, Agenten sollen es nicht manuell pflegen, dürfen/ sollen vorhandene `.specstory`-Änderungen aber bei Commits mitnehmen.
+
+_**Agent (gpt-5.4 2026-04-10 10:48:40Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/AGENTS.md`**
+
+```diff
+@@
+ ## Commit Workflow
+ 
++- `.specstory/` is managed by external tooling. Agents do not create or maintain SpecStory files manually.
++- If `.specstory/` files are modified by the tooling, include those changes in commits when committing all current work.
+ - Always use the app version from `package.json` as the single source of truth for release/version labels in `CHANGELOG.md`.
+ - For every commit, compare the current app version with the newest release header in `CHANGELOG.md`.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:48:44Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/CHANGELOG.md`**
+
+```diff
+@@
+ - Fixed npm start scripts to use the built server entrypoint.
+ - Expanded README guidance for local development configuration.
+ - Removed manual SpecStory requirements from agent commit instructions.
++- Documented that external tooling manages `.specstory/` and generated changes may be committed.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:48:48Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm test`</summary>
+```
+Command: /bin/zsh -lc 'npm test'
+Chunk ID: cef401
+Wall time: 0.8425 seconds
+Process exited with code 0
+Original token count: 118
+Output:
+
+> health-data-to-mqtt@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/bietiekay/code/health-data-to-mqtt
+
+ ✓ test/unit/auth.test.ts (3 tests) 2ms
+ ✓ test/unit/ingest.test.ts (4 tests) 3ms
+ ✓ test/unit/config.test.ts (2 tests) 11ms
+ ✓ test/integration/app.test.ts (5 tests) 58ms
+
+ Test Files  4 passed (4)
+      Tests  14 passed (14)
+   Start at  12:48:48
+   Duration  444ms (transform 113ms, setup 0ms, collect 281ms, tests 74ms, environment 0ms, prepare 241ms)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:48:53Z)**_
+
+Ja, ist in [AGENTS.md](/Users/bietiekay/code/health-data-to-mqtt/AGENTS.md) festgehalten:
+
+- `.specstory/` wird von externem Tooling verwaltet.
+- Agenten erstellen oder pflegen SpecStory-Dateien nicht manuell.
+- Wenn `.specstory/` durch Tooling geändert wurde, dürfen/sollen diese Änderungen bei “commit all current work” mitcommitted werden.
+
+[CHANGELOG.md](/Users/bietiekay/code/health-data-to-mqtt/CHANGELOG.md) ist ebenfalls aktualisiert.
+
+Validierung:
+- `npm test` bestanden: 4 Test-Dateien, 14 Tests.
+
+---
+
+_**User (2026-04-10 10:50:24Z)**_
+
+comitte alles
+
+
+---
+
+_**Agent (gpt-5.4 2026-04-10 10:50:31Z)**_
+
+Ich committe die Agentenregel-Ergänzung und nehme die automatisch aktualisierten `.specstory`-Dateien mit. Vorher prüfe ich kurz Version/Changelog und Tests.
+
+_**Agent (gpt-5.4 2026-04-10 10:50:31Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `node -p "require('./package.json').version" && rg -n "^## " CHANGELOG.md`</summary>
+```
+Command: /bin/zsh -lc "node -p \"require('./package.json').version\" && rg -n \""'^## " CHANGELOG.md'
+Chunk ID: cdd1dd
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 5
+Output:
+0.1.0
+7:## 0.1.0
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:50:32Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm test`</summary>
+```
+Command: /bin/zsh -lc 'npm test'
+Chunk ID: 32182c
+Wall time: 0.7909 seconds
+Process exited with code 0
+Original token count: 118
+Output:
+
+> health-data-to-mqtt@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/bietiekay/code/health-data-to-mqtt
+
+ ✓ test/unit/ingest.test.ts (4 tests) 3ms
+ ✓ test/unit/auth.test.ts (3 tests) 3ms
+ ✓ test/unit/config.test.ts (2 tests) 12ms
+ ✓ test/integration/app.test.ts (5 tests) 52ms
+
+ Test Files  4 passed (4)
+      Tests  14 passed (14)
+   Start at  12:50:32
+   Duration  397ms (transform 98ms, setup 0ms, collect 274ms, tests 70ms, environment 0ms, prepare 220ms)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:50:32Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Command: /bin/zsh -lc 'git status --short'
+Chunk ID: ce95b7
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 33
+Output:
+ M .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md
+ M .specstory/statistics.json
+ M AGENTS.md
+ M CHANGELOG.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:50:35Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git add . && git commit -m "Document SpecStory tooling behavior"`</summary>
 
 **Input:**
 
-- cmd: `git add .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md .specstory/statistics.json && git commit -m "Update SpecStory history"`
-- command: `git add .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md .specstory/statistics.json && git commit -m "Update SpecStory history"`
+- cmd: `git add . && git commit -m "Document SpecStory tooling behavior"`
+- command: `git add . && git commit -m "Document SpecStory tooling behavior"`
 - max_output_tokens: `12000`
 - workdir: `/Users/bietiekay/code/health-data-to-mqtt`
 - yield_time_ms: `30000`
