@@ -20,10 +20,6 @@ The target service must remain compatible with HealthSave-compatible clients whi
 
 ## Commit Workflow
 
-- Before every commit that includes code or project changes, create a `.specstory` history entry for the current chat in `.specstory/history/`.
-- Use the existing timestamped filename style based on date and time and write the entry in Markdown.
-- Document all prompts, chats, and agent conversations in the `.specstory` entry, except source code.
-- Stage and include that `.specstory` file in the same commit.
 - Always use the app version from `package.json` as the single source of truth for release/version labels in `CHANGELOG.md`.
 - For every commit, compare the current app version with the newest release header in `CHANGELOG.md`.
 - If the newest `CHANGELOG.md` version does not match the app version, create a new top release section with that app version before adding changes.

@@ -10188,11 +10188,379 @@ _**Agent (gpt-5.4 2026-04-10 10:45:32Z)**_
 
 <tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
 <summary>Tool use: **exec_command** `git add .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md .specstory/statistics.json && git commit -m "Update SpecStory history after commit"`</summary>
+```
+Command: /bin/zsh -lc 'git add .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md .specstory/statistics.json && git commit -m "Update SpecStory history after commit"'
+Chunk ID: 9d8ab3
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 26
+Output:
+[main 275a58e] Update SpecStory history after commit
+ 2 files changed, 60 insertions(+), 6 deletions(-)
+```
+</details></tool-use>
+
+---
+
+_**User (2026-04-10 10:45:32Z)**_
+
+entferne die .specstory hinweise in der agents/ commit-agents anweisungen. Das externe tooling wirds übernehmen
+
+
+---
+
+_**Agent (gpt-5.4 2026-04-10 10:45:41Z)**_
+
+Verstanden, die `.specstory`-Pflicht nehme ich aus den Agenten-/Commit-Regeln raus. Das externe Tooling bleibt dann dafür zuständig, und Agenten müssen es nicht mehr manuell anfassen.
+
+_**Agent (gpt-5.4 2026-04-10 10:45:41Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "specstory|SpecStory|Commit Workflow|history entry|history/" AGENTS.md . || true`</summary>
+```
+Command: /bin/zsh -lc 'rg -n "specstory|SpecStory|Commit Workflow|history entry|history/" AGENTS.md . || true'
+Chunk ID: 39a6c8
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 192
+Output:
+AGENTS.md:21:## Commit Workflow
+AGENTS.md:23:- Before every commit that includes code or project changes, create a `.specstory` history entry for the current chat in `.specstory/history/`.
+AGENTS.md:25:- Document all prompts, chats, and agent conversations in the `.specstory` entry, except source code.
+AGENTS.md:26:- Stage and include that `.specstory` file in the same commit.
+./AGENTS.md:21:## Commit Workflow
+./AGENTS.md:23:- Before every commit that includes code or project changes, create a `.specstory` history entry for the current chat in `.specstory/history/`.
+./AGENTS.md:25:- Document all prompts, chats, and agent conversations in the `.specstory` entry, except source code.
+./AGENTS.md:26:- Stage and include that `.specstory` file in the same commit.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:45:41Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,90p' AGENTS.md`</summary>
+```
+Command: /bin/zsh -lc "sed -n '1,90p' AGENTS.md"
+Chunk ID: e6330e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1048
+Output:
+# Agent Instructions
+
+These instructions apply to all agents and maintainers working in this repository.
+
+## Repository Purpose
+
+This repository ports the original Health Data Hub server to a Node.js + TypeScript MQTT-first service.
+
+The target service must remain compatible with HealthSave-compatible clients while replacing TimescaleDB-first persistence with MQTT publishing and lightweight local state.
+
+## Hard Rules
+
+- `reference-implementation/` is read-only reference material.
+- Do not edit, format, rename, move, delete, or generate files inside `reference-implementation/`.
+- All commits, documentation, code comments, review comments, and repository text must be written in English.
+- Use current Node.js, current maintained frameworks, and established best practices at implementation time.
+- Self-hosting must be supported through `Dockerfile` and `docker-compose.yml`.
+- Tests must be added or updated with implementation changes.
+- Preserve the HealthSave client-facing API contract unless `PORTING.md` records an explicit decision to change it.
+
+## Commit Workflow
+
+- Before every commit that includes code or project changes, create a `.specstory` history entry for the current chat in `.specstory/history/`.
+- Use the existing timestamped filename style based on date and time and write the entry in Markdown.
+- Document all prompts, chats, and agent conversations in the `.specstory` entry, except source code.
+- Stage and include that `.specstory` file in the same commit.
+- Always use the app version from `package.json` as the single source of truth for release/version labels in `CHANGELOG.md`.
+- For every commit, compare the current app version with the newest release header in `CHANGELOG.md`.
+- If the newest `CHANGELOG.md` version does not match the app version, create a new top release section with that app version before adding changes.
+- Update `CHANGELOG.md` in the same commit following the app version.
+- Write commit messages in English.
+
+## Test Documentation Workflow
+
+- Keep test planning documents in `TEST_STRATEGY.md` and `TEST_MATRIX.md`.
+- Every change in tests must include a corresponding update in `TEST_MATRIX.md` in the same change.
+- Manage, update, and treat `TEST_MATRIX.md` as the current inventory of existing, planned, and blocked tests.
+- Run all tests.
+
+## Collaboration Preference
+
+- If the user writes a generic continuation message like "weiter machen", do not start implementing immediately.
+- In that case, either wait for a concrete follow-up input or ask first whether direct implementation should start now.
+
+## Documentation Roles
+
+Use the documentation files this way:
+
+| File | Role |
+| --- | --- |
+| `README.md` | User/operator documentation: purpose, usage, options, deployment |
+| `PORTING.md` | Living engineering plan: compatibility, phases, open decisions |
+| `AGENTS.md` | Agent and maintainer working rules |
+| `TEST_STRATEGY.md` | Test approach and testing layers |
+| `TEST_MATRIX.md` | Current test inventory |
+| `CHANGELOG.md` | Versioned project changes using `package.json` version |
+| `reference-implementation/` | Read-only behavior reference |
+
+When implementation decisions change, update `PORTING.md`.
+
+When user-visible behavior, configuration, deployment, or operation changes, update `README.md`.
+
+When repository working rules change, update `AGENTS.md`.
+
+## Reference Implementation Usage
+
+The reference implementation may be read to understand:
+
+- HTTP endpoint behavior,
+- request and response shapes,
+- API-key authentication,
+- metric routing,
+- field mappings,
+- status counter names,
+- persistence/upsert intent,
+- Docker composition of the original stack.
+
+The reference implementation must not be treated as editable source for the port. New code belongs outside `reference-implementation/`.
+
+## Implementation Expectations
+
+Prefer:
+
+- Node.js active LTS at implementation time,
+- TypeScript,
+- Fastify or another current, maintained HTTP framework,
+- structured validation for request and environment schemas,
+- structured logging with sensitive-field redaction,
+- explicit MQTT topic rendering,
+- clear module boundaries for routes, ingest mapping, state, MQTT, and compatibility code,
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:45:41Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Command: /bin/zsh -lc 'git status --short'
+Chunk ID: 0824ad
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 26
+Output:
+ M .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md
+ M .specstory/statistics.json
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:45:52Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/AGENTS.md`**
+
+```diff
+@@
+ ## Commit Workflow
+ 
+-- Before every commit that includes code or project changes, create a `.specstory` history entry for the current chat in `.specstory/history/`.
+-- Use the existing timestamped filename style based on date and time and write the entry in Markdown.
+-- Document all prompts, chats, and agent conversations in the `.specstory` entry, except source code.
+-- Stage and include that `.specstory` file in the same commit.
+ - Always use the app version from `package.json` as the single source of truth for release/version labels in `CHANGELOG.md`.
+ - For every commit, compare the current app version with the newest release header in `CHANGELOG.md`.
+ - If the newest `CHANGELOG.md` version does not match the app version, create a new top release section with that app version before adding changes.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:45:56Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/CHANGELOG.md`**
+
+```diff
+@@
+ - Added `npm run start:local` for local development config files.
+ - Fixed npm start scripts to use the built server entrypoint.
+ - Expanded README guidance for local development configuration.
++- Removed manual SpecStory requirements from agent commit instructions.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:46:02Z)**_
+
+Die manuellen `.specstory`-Pflichten sind aus dem Commit Workflow raus. Ich prüfe kurz, dass in `AGENTS.md` keine SpecStory-Hinweise mehr stehen.
+
+_**Agent (gpt-5.4 2026-04-10 10:46:02Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "specstory|SpecStory|history entry|history/" AGENTS.md || true`</summary>
+```
+Command: /bin/zsh -lc 'rg -n "specstory|SpecStory|history entry|history/" AGENTS.md || true'
+Chunk ID: fbc43b
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 0
+Output:
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:46:02Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '18,38p' AGENTS.md`</summary>
+```
+Command: /bin/zsh -lc "sed -n '18,38p' AGENTS.md"
+Chunk ID: b738df
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 290
+Output:
+- Tests must be added or updated with implementation changes.
+- Preserve the HealthSave client-facing API contract unless `PORTING.md` records an explicit decision to change it.
+
+## Commit Workflow
+
+- Always use the app version from `package.json` as the single source of truth for release/version labels in `CHANGELOG.md`.
+- For every commit, compare the current app version with the newest release header in `CHANGELOG.md`.
+- If the newest `CHANGELOG.md` version does not match the app version, create a new top release section with that app version before adding changes.
+- Update `CHANGELOG.md` in the same commit following the app version.
+- Write commit messages in English.
+
+## Test Documentation Workflow
+
+- Keep test planning documents in `TEST_STRATEGY.md` and `TEST_MATRIX.md`.
+- Every change in tests must include a corresponding update in `TEST_MATRIX.md` in the same change.
+- Manage, update, and treat `TEST_MATRIX.md` as the current inventory of existing, planned, and blocked tests.
+- Run all tests.
+
+## Collaboration Preference
+
+- If the user writes a generic continuation message like "weiter machen", do not start implementing immediately.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:46:02Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Command: /bin/zsh -lc 'git status --short'
+Chunk ID: 7be26e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 33
+Output:
+ M .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md
+ M .specstory/statistics.json
+ M AGENTS.md
+ M CHANGELOG.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:46:08Z)**_
+
+Erledigt. In [AGENTS.md](/Users/bietiekay/code/health-data-to-mqtt/AGENTS.md) sind die manuellen `.specstory`-Commitpflichten entfernt.
+
+Der `Commit Workflow` enthält jetzt nur noch:
+- `package.json` als Version Source of Truth für `CHANGELOG.md`
+- Changelog-Version vor Commits prüfen
+- Changelog im selben Commit aktualisieren
+- Commit Messages auf Englisch
+
+Ich habe außerdem [CHANGELOG.md](/Users/bietiekay/code/health-data-to-mqtt/CHANGELOG.md) passend ergänzt.
+
+Hinweis: `.specstory` hat durch das externe Tooling weiterhin automatisch zwei Dateien verändert. Das ist jetzt erwartungsgemäß externes Tooling-Verhalten, nicht mehr Agentenpflicht.
+
+---
+
+_**User (2026-04-10 10:46:22Z)**_
+
+comitte alles, du kannst .specstory dinge immer mitcommitten
+
+
+---
+
+_**Agent (gpt-5.4 2026-04-10 10:46:29Z)**_
+
+Alles klar, ich committe die Agentenregel-Änderung zusammen mit den automatisch aktualisierten `.specstory`-Dateien. Vorher einmal Tests, dann Commit.
+
+_**Agent (gpt-5.4 2026-04-10 10:46:29Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm test`</summary>
+```
+Command: /bin/zsh -lc 'npm test'
+Chunk ID: de179b
+Wall time: 0.8881 seconds
+Process exited with code 0
+Original token count: 118
+Output:
+
+> health-data-to-mqtt@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/bietiekay/code/health-data-to-mqtt
+
+ ✓ test/unit/auth.test.ts (3 tests) 1ms
+ ✓ test/unit/ingest.test.ts (4 tests) 3ms
+ ✓ test/unit/config.test.ts (2 tests) 14ms
+ ✓ test/integration/app.test.ts (5 tests) 71ms
+
+ Test Files  4 passed (4)
+      Tests  14 passed (14)
+   Start at  12:46:30
+   Duration  441ms (transform 108ms, setup 0ms, collect 305ms, tests 90ms, environment 0ms, prepare 229ms)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:46:29Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `node -p "require('./package.json').version" && rg -n "^## " CHANGELOG.md`</summary>
+```
+Command: /bin/zsh -lc "node -p \"require('./package.json').version\" && rg -n \""'^## " CHANGELOG.md'
+Chunk ID: 2473ab
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 5
+Output:
+0.1.0
+7:## 0.1.0
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:46:29Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Command: /bin/zsh -lc 'git status --short'
+Chunk ID: 89fdb1
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 33
+Output:
+ M .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md
+ M .specstory/statistics.json
+ M AGENTS.md
+ M CHANGELOG.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.4 2026-04-10 10:46:34Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git add . && git commit -m "Remove manual SpecStory commit instructions"`</summary>
 
 **Input:**
 
-- cmd: `git add .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md .specstory/statistics.json && git commit -m "Update SpecStory history after commit"`
-- command: `git add .specstory/history/2026-04-10_10-00-33Z-ubersetze-die-porting-md.md .specstory/statistics.json && git commit -m "Update SpecStory history after commit"`
+- cmd: `git add . && git commit -m "Remove manual SpecStory commit instructions"`
+- command: `git add . && git commit -m "Remove manual SpecStory commit instructions"`
 - max_output_tokens: `12000`
 - workdir: `/Users/bietiekay/code/health-data-to-mqtt`
 - yield_time_ms: `30000`

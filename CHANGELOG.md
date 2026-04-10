@@ -19,6 +19,7 @@ Version headers must match the `version` field in `package.json`.
 - Added `npm run start:local` for local development config files.
 - Fixed npm start scripts to use the built server entrypoint.
 - Expanded README guidance for local development configuration.
+- Removed manual SpecStory requirements from agent commit instructions.
 - Added initial MQTT topic rendering helper.
 - Added unit and API integration tests.
 - Added test strategy and test matrix documentation.
