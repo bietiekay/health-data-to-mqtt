@@ -13,18 +13,22 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Config | Contexts load from environment JSON | Existing | `test/unit/config.test.ts` | Covers Docker-friendly multi-client context configuration |
 | Config | Data path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers `DATA_PATH`, YAML `storage.dataPath`, and env override |
 | Config | Raw storage path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers opt-in `RAW_STORAGE_PATH`, YAML `storage.rawDataPath`, env override, and empty-path disabled behavior |
-| Ingest | Reference metrics map to status counters | Existing | `test/unit/ingest.test.ts` | Covers known initial routing table |
-| Ingest | Unknown metrics map to `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Reference-compatible fallback |
+| Ingest | Unknown metrics map to `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Reference-compatible fallback for generic quantity metrics |
 | Ingest | Batch schema applies reference-compatible defaults | Existing | `test/unit/ingest.test.ts` | Covers missing metric, batch fields, and samples |
 | Ingest | JSON-encoded batch and sample wrappers deserialize | Existing | `test/unit/ingest.test.ts` | Covers wrapped `data` payloads and sample-level JSON strings |
 | Ingest | Dedicated metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers heart rate timestamp, value, and source extraction |
 | Ingest | Blood oxygen aliases normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers HealthKit-style `oxygenSaturation` values and fractional saturation conversion |
+| Ingest | Daily quantity metrics normalize into `daily_activity` | Existing | `test/unit/ingest.test.ts` | Covers `step_count` routing and date-level deduped records |
+| Ingest | Non-summary daily metrics remain in `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Covers `apple_stand_time` fallback behavior |
 | Ingest | Generic quantity metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers unknown metric fallback fields |
 | Ingest | Activity summaries normalize aliases | Existing | `test/unit/ingest.test.ts` | Covers reference activity field aliases |
 | Ingest | Sleep stage samples aggregate into sessions | Existing | `test/unit/ingest.test.ts` | Covers reference stage bucket and duration behavior |
 | Ingest | Sleep sessions expose latest awake state | Existing | `test/unit/ingest.test.ts` | Covers normalized `awake` boolean from the latest sleep stage |
 | Ingest | Workouts normalize field variants | Existing | `test/unit/ingest.test.ts` | Covers start/end aliases and duration seconds conversion |
 | Ingest | Workout active energy normalizes from HealthSave aliases | Existing | `test/unit/ingest.test.ts` | Covers `workouts` calories from `activeEnergyBurned` plus sessionless active-energy fallback |
+| Ingest | Blood pressure correlations preserve inner metric names | Existing | `test/unit/ingest.test.ts` | Covers subtype-specific `quantity_samples` identities |
+| Ingest | Body temperature aliases normalize without public status entries | Existing | `test/unit/ingest.test.ts` | Covers `wrist_temperature` mapping to `body_temperature` |
+| Ingest | Device identity honors source aliases and `HealthSave` fallback | Existing | `test/unit/ingest.test.ts` | Covers `sourceName`, `deviceName`, and fallback handling |
 | Ingest | ISO timestamps normalize to UTC | Existing | `test/unit/ingest.test.ts` | Covers offset timestamp parsing |
 | MQTT | Topic template rendering | Existing | `test/unit/ingest.test.ts` | Covers `{metric}` and `{context}` placeholders |
 | MQTT | Raw event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies one raw event per sample, topic, QoS, retain, metadata, and idempotency key shape |
@@ -34,29 +38,34 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | MQTT | Context-specific topic templates | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies prefixed contexts can route to distinct topic templates |
 | Storage | Raw batch archive writes NDJSON by context and month | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies append-only lines, UTC month naming, and per-context directories |
 | Storage | Raw batch archive encodes unusual context names | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies context directory names do not allow path traversal |
-| State | File-backed status counters persist by context | Existing | `test/unit/state-store.test.ts` | Verifies JSON state reloads default and prefixed-context counters |
-| State | File-backed state writes under the configured path | Existing | `test/unit/state-store.test.ts` | Verifies the durable state file is created |
+| State | File-backed status ledger persists by context | Existing | `test/unit/state-store.test.ts` | Verifies prefixed contexts reload separate flat status objects |
+| State | File-backed status ledger deduplicates and tracks oldest/newest | Existing | `test/unit/state-store.test.ts` | Verifies duplicate observations are ignored and ranges update |
+| State | File-backed state writes NDJSON observations under the configured path | Existing | `test/unit/state-store.test.ts` | Verifies the durable status ledger file is created |
 | API | `GET /health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /api/health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
-| API | Batch happy path returns processed response | Existing | `test/integration/app.test.ts` | Counts accepted normalized datapoints |
-| API | Non-empty batches without normalized records still count as accepted | Existing | `test/integration/app.test.ts` | Verifies status counters and batch response use accepted sample count when normalized extraction returns zero records |
+| API | Batch happy path returns processed response | Existing | `test/integration/app.test.ts` | Counts valid deduplicated logical records |
+| API | Non-empty batches without normalized records return `records: 0` and unchanged status | Existing | `test/integration/app.test.ts` | Verifies invalid samples are skipped without inflating status |
 | API | Large batch payloads above Fastify default parser limit are accepted | Existing | `test/integration/app.test.ts` | Regression coverage for HealthSave sync batches larger than 1 MiB |
 | API | Empty batch returns reference-compatible empty response | Existing | `test/integration/app.test.ts` | No counter increment |
-| API | Status endpoint returns known counter keys | Existing | `test/integration/app.test.ts` | Verifies HRV counter after ingest |
-| API | Status endpoint counters survive app restart | Existing | `test/integration/app.test.ts` | Verifies `DATA_PATH/state.json` drives already-on-server counts |
+| API | Status endpoint returns flat metric objects | Existing | `test/integration/app.test.ts` | Verifies HRV status uses `{count, oldest, newest}` without wrapper keys |
+| API | Duplicate retries do not inflate status and oldest/newest expand correctly | Existing | `test/integration/app.test.ts` | Verifies deduplicated logical-record status behavior |
+| API | Status endpoint survives app restart | Existing | `test/integration/app.test.ts` | Verifies `DATA_PATH/status/<context>/observations.ndjson` rebuilds already-observed status |
 | API | Protected endpoints reject incorrect API keys | Existing | `test/integration/app.test.ts` | Verifies `401` and reference-compatible error body |
-| API | Prefixed context endpoints isolate status counters | Existing | `test/integration/app.test.ts` | Verifies `/prefix/api/...` uses context routing and separate counts |
+| API | Prefixed context endpoints isolate status objects | Existing | `test/integration/app.test.ts` | Verifies `/prefix/api/...` uses context routing and separate status ledgers |
+| API | Blood pressure correlations count as distinct quantity samples | Existing | `test/integration/app.test.ts` | Verifies systolic and diastolic rows do not collapse into one record |
+| API | Body temperature batches do not surface in public status | Existing | `test/integration/app.test.ts` | Verifies processed body temperature stays outside the public status keys |
 | MQTT | Batch route calls publisher | Existing | `test/integration/app.test.ts` | Verifies unknown metrics publish raw batches, extracted normalized datapoints, and current values before acceptance |
-| MQTT | Batch route publishes workout active energy as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies `workouts` `activeEnergy` payloads produce normalized records, current values, and workouts counter increments |
-| MQTT | Batch route publishes sleep awake state as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies sleep stage payloads produce normalized `awake`, current values, and sleep counter increments |
-| MQTT | Batch route publishes blood oxygen aliases as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies `blood_oxygen` `oxygenSaturation` payloads produce normalized records, current values, and blood oxygen counter increments |
-| MQTT | Publish failures reject batches | Existing | `test/integration/app.test.ts` | Verifies failed MQTT publication returns `502` without incrementing counters |
+| MQTT | Batch route publishes daily quantity data as `daily_activity` | Existing | `test/integration/app.test.ts` | Verifies `step_count` publishes normalized `daily_activity` records before acceptance |
+| MQTT | Batch route publishes workout active energy as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies `workouts` `activeEnergy` payloads produce normalized records, current values, and workout status observations |
+| MQTT | Batch route publishes sleep awake state as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies sleep stage payloads produce normalized `awake`, current values, and sleep status observations |
+| MQTT | Batch route publishes blood oxygen aliases as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies `blood_oxygen` `oxygenSaturation` payloads produce normalized records, current values, and blood oxygen status observations |
+| MQTT | Publish failures reject batches | Existing | `test/integration/app.test.ts` | Verifies failed MQTT publication returns `502` without status observation updates |
 | Storage | Batch route archives non-empty valid batches | Existing | `test/integration/app.test.ts` | Verifies the raw request body is stored before successful acceptance |
 | Storage | Batch route skips empty batch archive writes | Existing | `test/integration/app.test.ts` | Verifies empty batches do not create raw archive files |
-| Storage | Batch route rejects storage failures before side effects | Existing | `test/integration/app.test.ts` | Verifies storage failure returns `500` without MQTT publish or counter increments |
+| Storage | Batch route rejects storage failures before side effects | Existing | `test/integration/app.test.ts` | Verifies storage failure returns `500` without MQTT publish or status observation updates |
 | Storage | Prefixed contexts write to isolated archive directories | Existing | `test/integration/app.test.ts` | Verifies context-specific raw archive layout |
 | MQTT | Broker-backed raw publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | MQTT | Broker-backed normalized publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | Replay | Realistic multi-metric sync fixtures | Planned | Not implemented | Add with mapper implementation |
-| State | Persistent idempotency storage | Planned | Not implemented | Durable status counters exist; duplicate filtering still needs a persistent state layer |
+| State | Persistent idempotency storage | Planned | Not implemented | Durable status ledgers exist; broader duplicate filtering still needs a persistent state layer |
 | State | Idempotency key generation and duplicate filtering | Planned | Not implemented | Add with persistent state layer |

@@ -2,7 +2,7 @@
 
 Health Data to MQTT is a drop-in server for the [HealthSave iOS app](https://apps.apple.com/app/id6759843047). It accepts HealthKit-derived sync batches through the same HTTP API as the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
 
-The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, durable local status counters, optional raw batch storage, Docker support, and tests. Replay fixtures and persistent idempotency are still planned implementation phases.
+The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, optional raw batch storage, Docker support, and tests. Replay fixtures and persistent idempotency are still planned implementation phases.
 
 ![Health Data to MQTT screenshot](./screenshot.png)
 
@@ -18,7 +18,7 @@ The repository currently contains a Node.js + TypeScript Fastify server with com
 
 ## Current Status
 
-This repository contains the compatibility server, durable status counters, and initial raw plus normalized MQTT pipeline, not the final idempotent pipeline.
+This repository contains the compatibility server, a durable status ledger, and the initial raw plus normalized MQTT pipeline, not the final idempotent pipeline.
 
 Available now:
 
@@ -124,7 +124,7 @@ Supported client-facing endpoints:
 | `/health` | GET | Basic service health check |
 | `/api/health` | GET | App-compatible health check |
 | `/api/apple/batch` | POST | Receive one metric batch |
-| `/api/apple/status` | GET | Return sync/status counters |
+| `/api/apple/status` | GET | Return flat sync/status objects with `count`, `oldest`, and `newest` |
 
 ## Multiple Client Contexts
 
@@ -147,7 +147,7 @@ HealthSave still appends the same API paths, so a client configured with `/danie
 /daniel/api/apple/batch
 ```
 
-Each context has its own MQTT topic templates and status counters. This allows one self-hosted server to receive multiple clients while keeping MQTT output and `/api/apple/status` counts separated by context.
+Each context has its own MQTT topic templates and status ledger. This allows one self-hosted server to receive multiple clients while keeping MQTT output and `/api/apple/status` results separated by context.
 
 Context topic templates support:
 
@@ -238,15 +238,15 @@ Current payload:
 72
 ```
 
-Current messages use the same metric names as normalized topics, but the payload is only the scalar value. Current values are emitted for dedicated metrics, generic quantity samples, sleep awake state, and workout calories, such as `heart_rate`, `hrv`, `blood_oxygen`, `body_temperature`, `step_count`, `walking_speed`, `sleep_sessions`, or `workouts`. Blood oxygen accepts common saturation fields such as `qty`, `oxygenSaturation`, `spo2`, or `value`; fractional values like `0.97` are converted to percent before publishing. For sleep sessions, the current value is `true` when the latest stage is `awake` and `false` when the latest stage is a sleep stage. For workout session records, the current value uses normalized `calories` from `activeEnergy`, `activeEnergyBurned`, or `calories`. Multi-field records such as activity summaries stay on normalized topics until a specific scalar topic mapping is added.
+Current messages use the same metric names as normalized topics, but the payload is only the scalar value. Current values are emitted for dedicated metrics, generic quantity samples, sleep awake state, and workout calories, such as `heart_rate`, `hrv`, `blood_oxygen`, `body_temperature`, `walking_speed`, `sleep_sessions`, or `workouts`. Blood oxygen accepts common saturation fields such as `qty`, `oxygenSaturation`, `spo2`, or `value`; fractional values like `0.97` are converted to percent before publishing. For sleep sessions, the current value is `true` when the latest stage is `awake` and `false` when the latest stage is a sleep stage. For workout session records, the current value uses normalized `calories` from `activeEnergy`, `activeEnergyBurned`, or `calories`. Day-level metrics such as `step_count`, `distance_walking_running`, `active_energy_burned`, `basal_energy_burned`, `flights_climbed`, and `apple_exercise_time` are normalized into `daily_activity`, so they stay on normalized topics until a specific scalar topic mapping is added.
 
-Set `LOG_LEVEL=debug` while capturing new client payload shapes. Batch debug logs include top-level request field names, metric name, batch counters, record count, status counter bucket, the first sample's field names, and MQTT publish counts without logging complete health samples by default. Set `LOG_LEVEL=trace` only when you intentionally need raw request bodies in the logs.
+Set `LOG_LEVEL=debug` while capturing new client payload shapes. Batch debug logs include top-level request field names, metric name, batch counters, processed record count, status observation counts, the first sample's field names, and MQTT publish counts without logging complete health samples by default. Set `LOG_LEVEL=trace` only when you intentionally need raw request bodies in the logs.
 
 Exact normalized payload fields may still change while the porting plan is finalized. Compatibility requirements and open decisions are tracked in `PORTING.md`.
 
 ## Local State
 
-Status counters for `/api/apple/status` are stored in the configured data path when `STATE_BACKEND=file`. For non-empty batches, counters use the normalized datapoint count when records can be extracted. If a batch is accepted but no normalized datapoints can be extracted yet, counters fall back to the accepted source sample count so the HealthSave status check still reflects data that reached the server.
+`GET /api/apple/status` returns a flat JSON object whose top-level keys are the HealthSave status metrics. Each value has the shape `{ "count": number, "oldest": string | null, "newest": string | null }`. The file-backed implementation stores a deduplicated observation ledger when `STATE_BACKEND=file`, so retries do not inflate counts and `oldest` / `newest` survive restarts.
 
 Docker example:
 
@@ -255,13 +255,15 @@ DATA_PATH=/data
 STATE_BACKEND=file
 ```
 
-The state file is written to:
+The file-backed status ledger is written under:
 
 ```text
-<DATA_PATH>/state.json
+<DATA_PATH>/status/<context>/observations.ndjson
 ```
 
-Docker Compose mounts `/data` as a persistent volume, so the HealthSave app can see records that were already accepted by the server after container restarts. Set `STATE_BACKEND=memory` only for disposable local runs or tests.
+Docker Compose mounts `/data` as a persistent volume, so the HealthSave app can see already-observed records after container restarts. Set `STATE_BACKEND=memory` only for disposable local runs or tests.
+
+If you previously ran a build that stored counter-only data in `<DATA_PATH>/state.json`, that file is no longer used. The new flat status response needs per-record timestamps and dedupe keys, so operators should expect a one-time status reset or trigger a re-sync after upgrading.
 
 ## Raw Batch Storage
 
@@ -296,7 +298,7 @@ Files are newline-delimited JSON. Each line is one accepted batch request as Fas
 {"ingested_at":"2026-04-10T12:00:00.000Z","context":"default","metric":"heart_rate","batch_index":0,"total_batches":1,"body":{"metric":"heart_rate","batch_index":0,"total_batches":1,"samples":[{"date":"2026-04-10T12:00:00Z","qty":72}]}}
 ```
 
-Empty batches are intentionally skipped. If raw storage is enabled and the archive write fails, the batch is rejected before MQTT publishing and status counters are updated so the client can retry.
+Empty batches are intentionally skipped. If raw storage is enabled and the archive write fails, the batch is rejected before MQTT publishing and status observations are updated so the client can retry.
 
 ## Configuration Options
 
@@ -354,7 +356,7 @@ State and migration options:
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DATA_PATH` | `/data` | Persistent application data directory |
-| `STATE_BACKEND` | `file` | Local status counter backend. Use `file` for durable counters or `memory` for disposable runs. |
+| `STATE_BACKEND` | `file` | Local status ledger backend. Use `file` for durable status observations or `memory` for disposable runs. |
 | `IDEMPOTENCY_ENABLED` | `true` | Avoid duplicate processing where possible |
 | `IDEMPOTENCY_WINDOW_DAYS` | `30` | Retention window for idempotency keys |
 | `TIMESCALE_MODE` | `off` | Optional reference mode: `off`, `shadow`, or `bridge` |

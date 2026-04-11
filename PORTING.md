@@ -70,7 +70,7 @@ Do not use the reference implementation as the runtime target. The new service s
 | `/health` | GET | Return `{"status":"ok"}` |
 | `/api/health` | GET | Return `{"status":"ok"}` |
 | `/api/apple/batch` | POST | Receive and process one metric batch |
-| `/api/apple/status` | GET | Return status counters in reference-compatible shape |
+| `/api/apple/status` | GET | Return flat status objects in reference-compatible shape |
 
 ### 4.2 Authentication
 
@@ -89,24 +89,23 @@ Health endpoints should remain unauthenticated unless we explicitly decide other
 
 ### 4.3 Status Response
 
-`GET /api/apple/status` must return the known counter keys even when counts are zero:
+`GET /api/apple/status` must return a flat object whose top-level keys are the
+known HealthSave status metrics, even when they are empty:
 
 ```json
 {
-  "status": "ok",
-  "counts": {
-    "heart_rate": 0,
-    "hrv": 0,
-    "blood_oxygen": 0,
-    "daily_activity": 0,
-    "sleep_sessions": 0,
-    "workouts": 0,
-    "quantity_samples": 0
-  }
+  "heart_rate": { "count": 0, "oldest": null, "newest": null },
+  "hrv": { "count": 0, "oldest": null, "newest": null },
+  "blood_oxygen": { "count": 0, "oldest": null, "newest": null },
+  "daily_activity": { "count": 0, "oldest": null, "newest": null },
+  "sleep_sessions": { "count": 0, "oldest": null, "newest": null },
+  "workouts": { "count": 0, "oldest": null, "newest": null },
+  "quantity_samples": { "count": 0, "oldest": null, "newest": null }
 }
 ```
 
-Counters should represent accepted/processed logical records, not necessarily retained MQTT messages.
+Status values should represent deduplicated logical records, not request
+volume or retained MQTT messages.
 
 ## 5) Batch API Contract
 
@@ -165,7 +164,9 @@ After successful processing:
 }
 ```
 
-`records` should count samples that were valid enough to process, after metric-specific filtering and deduplication rules.
+`records` should count valid deduplicated logical records after metric-specific
+filtering and routing. Non-empty batches with no valid logical records still
+return `"status": "processed"` with `"records": 0`.
 
 ## 6) Metric Routing and Mapping
 
@@ -208,6 +209,20 @@ Field mappings from the reference:
 | `appleExerciseTime` | `active_minutes` |
 | `stand_hours` | `stand_hours` |
 | `appleStandHours` | `stand_hours` |
+
+Daily quantity metrics also map into `daily_activity`:
+
+| Incoming metric | Normalized field |
+| --- | --- |
+| `step_count` | `steps` |
+| `distance_walking_running` | `distance_m` |
+| `flights_climbed` | `floors_climbed` |
+| `active_energy_burned` | `active_calories` |
+| `basal_energy_burned` | `total_calories` |
+| `apple_exercise_time` | `active_minutes` |
+
+The reference keeps `apple_stand_time`, `distance_cycling`, and
+`distance_wheelchair` in `quantity_samples`.
 
 ### 6.3 Sleep Analysis
 
@@ -266,8 +281,6 @@ Reference-compatible fields:
 | `distance_m` | `distance_m`, `distance` |
 
 Workout session records publish current MQTT values from normalized `calories`. HealthSave can also send daily activity-style active energy samples as `workout` or as `workouts` without `endDate`/`end_date`; those samples are normalized as scalar `quantity_samples` records using `activeEnergyBurned` as the kilocalorie value so normalized and current MQTT topics still receive data.
-
-Open planning question: whether workout events should be deduplicated even though the reference does not strictly enforce this.
 
 ### 6.5 Generic Quantity Metrics
 
@@ -402,7 +415,7 @@ Clients configured with `http://host:8000/daniel` still send the reference API p
 /daniel/api/apple/status
 ```
 
-Each context owns topic templates and status counters. Topic templates support both `{metric}` and `{context}` placeholders.
+Each context owns topic templates and a separate status ledger. Topic templates support both `{metric}` and `{context}` placeholders.
 
 Example YAML:
 
@@ -454,7 +467,12 @@ contexts:
 | `IDEMPOTENCY_ENABLED` | `true` |
 | `IDEMPOTENCY_WINDOW_DAYS` | `30` |
 
-The initial durable state backend stores `/api/apple/status` counters in `<DATA_PATH>/state.json` so HealthSave clients can read records that are already accepted by the server after restarts. Non-empty accepted batches count normalized datapoints when extraction succeeds and fall back to source sample counts when extraction returns zero records. `STATE_BACKEND=memory` remains available for disposable local runs and tests. Persistent idempotency is still planned separately.
+The current durable state backend stores a deduplicated `/api/apple/status`
+ledger under `<DATA_PATH>/status/<context>/observations.ndjson`. The ledger is
+rebuilt on startup so HealthSave clients can read `count`, `oldest`, and
+`newest` after restarts without double-counting retries. `STATE_BACKEND=memory`
+remains available for disposable local runs and tests. Persistent idempotency
+is still planned separately.
 
 ### 10.4 Raw Batch Storage
 
@@ -541,7 +559,7 @@ Cover:
 - `GET /api/health`,
 - `POST /api/apple/batch` happy path,
 - empty batch response,
-- status counters,
+- flat status reporting,
 - incorrect API key returns `401`,
 - no configured API key accepts missing header.
 
@@ -602,8 +620,8 @@ Create realistic replay fixtures with:
 
 ### Phase D: State and Idempotency
 
-- Add file-backed local status state. Status: initial JSON counter store complete.
-- Track logical counters. Status: initial durable counters complete.
+- Add file-backed local status state. Status: deduplicated NDJSON observation ledger complete.
+- Track logical counters. Status: flat `count` / `oldest` / `newest` status objects complete.
 - Add idempotency keys and retention.
 - Add optional raw batch archive. Status: initial NDJSON archive complete for non-empty valid batches.
 - Add duplicate replay tests.
@@ -637,9 +655,6 @@ Create realistic replay fixtures with:
 ## 16) Open Decisions
 
 1. Should sleep analysis strictly reproduce reference session aggregation, or should MQTT publish raw stages plus minimal normalized sessions?
-2. Should workouts be deduplicated even though the reference does not strictly enforce deduplication?
-3. Should MQTT messages support signing or encryption beyond broker-level TLS/auth?
-4. Is Redis needed for horizontal scaling in the first implementation, or should SQLite remain the only initial state backend?
-5. Should invalid samples be reported only through logs, or should batch responses include skipped counts?
-6. Should `body_temperature` receive a status counter even though the reference status response does not include one?
-7. Should retained MQTT messages be allowed per metric or only globally configured?
+2. Should MQTT messages support signing or encryption beyond broker-level TLS/auth?
+3. Is Redis needed for horizontal scaling in the first implementation, or should SQLite remain the only initial state backend?
+4. Should retained MQTT messages be allowed per metric or only globally configured?

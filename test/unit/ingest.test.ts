@@ -1,28 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   batchRequestSchema,
-  counterForMetric,
+  createStatusObservations,
   normalizeBatch,
   parseTimestamp,
+  resolveDeviceIdentity,
 } from "../../src/ingest.js";
 import { renderMetricTopic } from "../../src/mqtt/topics.js";
-
-describe("counterForMetric", () => {
-  it("maps reference metrics to status counters", () => {
-    expect(counterForMetric("heart_rate")).toBe("heart_rate");
-    expect(counterForMetric("heart_rate_variability")).toBe("hrv");
-    expect(counterForMetric("blood_oxygen")).toBe("blood_oxygen");
-    expect(counterForMetric("oxygen_saturation")).toBe("blood_oxygen");
-    expect(counterForMetric("activity_summaries")).toBe("daily_activity");
-    expect(counterForMetric("sleep_analysis")).toBe("sleep_sessions");
-    expect(counterForMetric("workout")).toBe("workouts");
-    expect(counterForMetric("workouts")).toBe("workouts");
-  });
-
-  it("maps unknown metrics to quantity_samples", () => {
-    expect(counterForMetric("step_count")).toBe("quantity_samples");
-  });
-});
 
 describe("batchRequestSchema", () => {
   it("applies reference-compatible defaults", () => {
@@ -105,6 +89,54 @@ describe("normalizeBatch", () => {
       value: 1.4,
       unit: "m/s",
       source_id: "iPhone",
+    });
+  });
+
+  it("routes daily quantity metrics into daily_activity", () => {
+    expect(
+      normalizeBatch({
+        metric: "step_count",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            date: "2026-04-10T23:00:00Z",
+            qty: 1234.9,
+            sourceName: "HealthKit Statistics",
+          },
+        ],
+      })[0],
+    ).toMatchObject({
+      metric: "step_count",
+      normalizedMetric: "daily_activity",
+      deviceId: "HealthKit Statistics",
+      normalizedSample: {
+        date: "2026-04-10",
+        steps: 1234,
+      },
+    });
+  });
+
+  it("keeps non-summary daily metrics in quantity_samples", () => {
+    expect(
+      normalizeBatch({
+        metric: "apple_stand_time",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            date: "2026-04-10T12:00:00Z",
+            qty: 42,
+            source: "Watch",
+          },
+        ],
+      })[0],
+    ).toMatchObject({
+      normalizedMetric: "quantity_samples",
+      normalizedSample: {
+        metric_name: "apple_stand_time",
+        value: 42,
+      },
     });
   });
 
@@ -214,6 +246,31 @@ describe("normalizeBatch", () => {
     });
   });
 
+  it("normalizes wrist temperature as a body_temperature alias", () => {
+    expect(
+      normalizeBatch({
+        metric: "wrist_temperature",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            date: "2026-04-10T12:00:00Z",
+            qty: 32.5,
+            device: "Apple Watch",
+          },
+        ],
+      })[0],
+    ).toMatchObject({
+      normalizedMetric: "body_temperature",
+      deviceId: "Apple Watch",
+      normalizedSample: {
+        time: "2026-04-10T12:00:00.000Z",
+        temp_celsius: 32.5,
+        source_id: "Apple Watch",
+      },
+    });
+  });
+
   it("normalizes singular workout active energy as a scalar quantity", () => {
     expect(
       normalizeBatch({
@@ -234,7 +291,7 @@ describe("normalizeBatch", () => {
       metric_name: "workout",
       value: 1015.5210156402777,
       unit: "kcal",
-      source_id: "",
+      source_id: "HealthSave",
     });
   });
 
@@ -258,7 +315,112 @@ describe("normalizeBatch", () => {
       metric_name: "workouts",
       value: 1488.1677986518941,
       unit: "kcal",
+      source_id: "HealthSave",
     });
+  });
+
+  it("preserves sample-level metric names for blood pressure correlations", () => {
+    expect(
+      normalizeBatch({
+        metric: "blood_pressure",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            metric: "blood_pressure_systolic",
+            date: "2026-04-10T09:00:00Z",
+            qty: 120,
+            source: "Monitor",
+          },
+          {
+            metric: "blood_pressure_diastolic",
+            date: "2026-04-10T09:00:00Z",
+            qty: 80,
+            source: "Monitor",
+          },
+        ],
+      }).map((record) => record.normalizedSample.metric_name),
+    ).toEqual([
+      "blood_pressure_systolic",
+      "blood_pressure_diastolic",
+    ]);
+  });
+});
+
+describe("createStatusObservations", () => {
+  it("creates public status observations and skips body_temperature", () => {
+    const records = normalizeBatch({
+      metric: "heart_rate",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        { date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" },
+      ],
+    }).concat(
+      normalizeBatch({
+        metric: "wrist_temperature",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          { date: "2026-04-10T12:00:00Z", qty: 33.1, source: "Watch" },
+        ],
+      }),
+    );
+
+    expect(createStatusObservations(records)).toEqual([
+      {
+        statusMetric: "heart_rate",
+        identityKey: "Watch:2026-04-10T12:00:00.000Z",
+        observedAt: "2026-04-10T12:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("uses inner quantity metric names when building quantity sample identities", () => {
+    const records = normalizeBatch({
+      metric: "blood_pressure",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        {
+          metric: "blood_pressure_systolic",
+          date: "2026-04-10T09:00:00Z",
+          qty: 120,
+          source: "Monitor",
+        },
+        {
+          metric: "blood_pressure_diastolic",
+          date: "2026-04-10T09:00:00Z",
+          qty: 80,
+          source: "Monitor",
+        },
+      ],
+    });
+
+    expect(createStatusObservations(records)).toEqual([
+      {
+        statusMetric: "quantity_samples",
+        identityKey: "Monitor:blood_pressure_systolic:2026-04-10T09:00:00.000Z",
+        observedAt: "2026-04-10T09:00:00.000Z",
+      },
+      {
+        statusMetric: "quantity_samples",
+        identityKey: "Monitor:blood_pressure_diastolic:2026-04-10T09:00:00.000Z",
+        observedAt: "2026-04-10T09:00:00.000Z",
+      },
+    ]);
+  });
+});
+
+describe("resolveDeviceIdentity", () => {
+  it("uses source-like aliases and falls back to HealthSave", () => {
+    expect(resolveDeviceIdentity({ sourceName: "Apple Watch Ultra" })).toBe(
+      "Apple Watch Ultra",
+    );
+    expect(resolveDeviceIdentity({ deviceName: "Bluetooth Cuff" })).toBe(
+      "Bluetooth Cuff",
+    );
+    expect(resolveDeviceIdentity({})).toBe("HealthSave");
   });
 });
 

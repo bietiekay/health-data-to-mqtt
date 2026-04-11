@@ -96,6 +96,38 @@ function createRecordingMqttPublisher(): HealthMqttPublisher & {
   };
 }
 
+function emptyMetricStatus() {
+  return {
+    count: 0,
+    oldest: null,
+    newest: null,
+  };
+}
+
+function emptyStatusResponse() {
+  return {
+    heart_rate: emptyMetricStatus(),
+    hrv: emptyMetricStatus(),
+    blood_oxygen: emptyMetricStatus(),
+    daily_activity: emptyMetricStatus(),
+    sleep_sessions: emptyMetricStatus(),
+    workouts: emptyMetricStatus(),
+    quantity_samples: emptyMetricStatus(),
+  };
+}
+
+function metricStatus(
+  count: number,
+  oldest: string,
+  newest = oldest,
+) {
+  return {
+    count,
+    oldest,
+    newest,
+  };
+}
+
 afterEach(async () => {
   await app?.close();
   app = undefined;
@@ -198,7 +230,7 @@ describe("compatibility endpoints", () => {
     });
   });
 
-  it("tracks status counters for processed batches", async () => {
+  it("returns flat status objects for processed batches", async () => {
     const server = await createApp();
 
     await server.inject({
@@ -213,17 +245,51 @@ describe("compatibility endpoints", () => {
     const response = await server.inject({ method: "GET", url: "/api/apple/status" });
 
     expect(response.statusCode).toBe(200);
+    expect(response.json()).not.toHaveProperty("status");
+    expect(response.json()).not.toHaveProperty("counts");
     expect(response.json()).toEqual({
-      status: "ok",
-      counts: {
-        heart_rate: 0,
-        hrv: 1,
-        blood_oxygen: 0,
-        daily_activity: 0,
-        sleep_sessions: 0,
-        workouts: 0,
-        quantity_samples: 0,
+      ...emptyStatusResponse(),
+      hrv: metricStatus(1, "2026-04-10T12:00:00.000Z"),
+    });
+  });
+
+  it("expands oldest and newest without double-counting duplicate retries", async () => {
+    const server = await createApp();
+
+    await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
       },
+    });
+    await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-08T07:00:00Z", qty: 68, source: "Watch" }],
+      },
+    });
+    await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
+      },
+    });
+
+    const response = await server.inject({ method: "GET", url: "/api/apple/status" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      heart_rate: metricStatus(
+        2,
+        "2026-04-08T07:00:00.000Z",
+        "2026-04-10T12:00:00.000Z",
+      ),
     });
   });
 
@@ -283,13 +349,11 @@ describe("compatibility endpoints", () => {
 
     const status = await app.inject({ method: "GET", url: "/api/apple/status" });
     expect(status.json()).toMatchObject({
-      counts: {
-        blood_oxygen: 1,
-      },
+      blood_oxygen: metricStatus(1, "2026-04-10T12:00:00.000Z"),
     });
   });
 
-  it("counts accepted samples when a non-empty batch has no normalized records", async () => {
+  it("skips invalid samples in non-empty batches without changing status", async () => {
     const server = await createApp();
     const response = await server.inject({
       method: "POST",
@@ -309,15 +373,82 @@ describe("compatibility endpoints", () => {
     expect(response.json()).toMatchObject({
       status: "processed",
       metric: "walking_speed",
+      records: 0,
+    });
+
+    const status = await server.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toEqual(emptyStatusResponse());
+  });
+
+  it("counts blood pressure correlations as separate quantity samples", async () => {
+    const server = await createApp();
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "blood_pressure",
+        samples: [
+          {
+            metric: "blood_pressure_systolic",
+            date: "2026-04-10T09:00:00Z",
+            qty: 120,
+            source: "Monitor",
+          },
+          {
+            metric: "blood_pressure_diastolic",
+            date: "2026-04-10T09:00:00Z",
+            qty: 80,
+            source: "Monitor",
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "blood_pressure",
       records: 2,
     });
 
     const status = await server.inject({ method: "GET", url: "/api/apple/status" });
     expect(status.json()).toMatchObject({
-      counts: {
-        quantity_samples: 2,
+      quantity_samples: metricStatus(
+        2,
+        "2026-04-10T09:00:00.000Z",
+        "2026-04-10T09:00:00.000Z",
+      ),
+    });
+  });
+
+  it("processes body temperature without exposing it in public status", async () => {
+    const server = await createApp();
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "wrist_temperature",
+        samples: [
+          {
+            date: "2026-04-10T12:00:00Z",
+            qty: 32.6,
+            deviceName: "Apple Watch",
+          },
+        ],
       },
     });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "wrist_temperature",
+      records: 1,
+    });
+
+    const status = await server.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toEqual(emptyStatusResponse());
   });
 
   it("persists status counters in the configured data path", async () => {
@@ -348,13 +479,11 @@ describe("compatibility endpoints", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
-      counts: {
-        heart_rate: 1,
-      },
+      heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
     });
   });
 
-  it("publishes extracted datapoints to MQTT before accepting batches", async () => {
+  it("publishes daily quantity datapoints to MQTT before accepting batches", async () => {
     const mqttPublisher = createRecordingMqttPublisher();
     app = await buildApp({
       config: {
@@ -382,7 +511,7 @@ describe("compatibility endpoints", () => {
     expect(response.json()).toMatchObject({
       status: "processed",
       metric: "step_count",
-      records: 2,
+      records: 1,
     });
     expect(mqttPublisher.batches[0]).toMatchObject({
       context: { name: "default", prefix: "/" },
@@ -399,24 +528,29 @@ describe("compatibility endpoints", () => {
     expect(mqttPublisher.normalizedBatches[0]?.records).toMatchObject([
       {
         metric: "step_count",
-        normalizedMetric: "quantity_samples",
+        normalizedMetric: "daily_activity",
         normalizedSample: {
-          time: "2026-04-10T12:00:00.000Z",
-          metric_name: "step_count",
-          value: 120,
-        },
-      },
-      {
-        metric: "step_count",
-        normalizedMetric: "quantity_samples",
-        normalizedSample: {
-          time: "2026-04-10T12:01:00.000Z",
-          metric_name: "step_count",
-          value: 125,
+          date: "2026-04-10",
+          steps: 125,
         },
       },
     ]);
-    expect(mqttPublisher.currentBatches[0]?.records).toHaveLength(2);
+    expect(mqttPublisher.currentBatches[0]?.records).toMatchObject([
+      {
+        metric: "step_count",
+        normalizedMetric: "daily_activity",
+        normalizedSample: {
+          date: "2026-04-10",
+          steps: 125,
+        },
+      },
+    ]);
+
+    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toMatchObject({
+      daily_activity: metricStatus(1, "2026-04-10"),
+      quantity_samples: emptyMetricStatus(),
+    });
   });
 
   it("publishes workouts active energy as normalized and current data", async () => {
@@ -484,9 +618,7 @@ describe("compatibility endpoints", () => {
 
     const status = await app.inject({ method: "GET", url: "/api/apple/status" });
     expect(status.json()).toMatchObject({
-      counts: {
-        workouts: 1,
-      },
+      workouts: metricStatus(1, "2016-01-20T13:59:13.337Z"),
     });
   });
 
@@ -552,9 +684,7 @@ describe("compatibility endpoints", () => {
 
     const status = await app.inject({ method: "GET", url: "/api/apple/status" });
     expect(status.json()).toMatchObject({
-      counts: {
-        sleep_sessions: 1,
-      },
+      sleep_sessions: metricStatus(1, "2026-04-10T22:00:00.000Z"),
     });
   });
 
@@ -667,11 +797,7 @@ describe("compatibility endpoints", () => {
     expect(mqttPublisher.currentBatches).toHaveLength(0);
 
     const status = await app.inject({ method: "GET", url: "/api/apple/status" });
-    expect(status.json()).toMatchObject({
-      counts: {
-        heart_rate: 0,
-      },
-    });
+    expect(status.json()).toEqual(emptyStatusResponse());
   });
 
   it("supports prefixed context endpoints with isolated status counts", async () => {
@@ -716,11 +842,9 @@ describe("compatibility endpoints", () => {
       url: "/daniel/api/apple/status",
     });
 
-    expect(defaultStatus.json()).toMatchObject({
-      counts: { heart_rate: 0 },
-    });
+    expect(defaultStatus.json()).toEqual(emptyStatusResponse());
     expect(danielStatus.json()).toMatchObject({
-      counts: { heart_rate: 1 },
+      heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
     });
     expect(mqttPublisher.batches[0]?.context.name).toBe("daniel");
     expect(mqttPublisher.normalizedBatches[0]?.context.name).toBe("daniel");
@@ -817,11 +941,7 @@ describe("compatibility endpoints", () => {
     });
 
     const status = await app.inject({ method: "GET", url: "/api/apple/status" });
-    expect(status.json()).toMatchObject({
-      counts: {
-        heart_rate: 0,
-      },
-    });
+    expect(status.json()).toEqual(emptyStatusResponse());
   });
 
   it("requires the configured API key on protected endpoints", async () => {

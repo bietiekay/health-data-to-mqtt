@@ -3,7 +3,7 @@ import { getRequestApiKey, isAuthorized } from "../auth.js";
 import type { AppConfig, AppContextConfig } from "../config.js";
 import {
   batchRequestSchema,
-  counterForMetric,
+  createStatusObservations,
   normalizeBatch,
 } from "../ingest.js";
 import type { HealthMqttPublisher } from "../mqtt/publisher.js";
@@ -60,12 +60,10 @@ export async function registerAppleRoutes(
     }
 
     const batch = parsed.data;
-    const counter = counterForMetric(batch.metric);
     const rawRecords = batch.samples.length;
     const normalizedRecords = normalizeBatch(batch);
-    const normalizedRecordCount = normalizedRecords.length;
-    const acceptedRecords =
-      normalizedRecordCount > 0 ? normalizedRecordCount : rawRecords;
+    const processedRecords = normalizedRecords.length;
+    const statusObservations = createStatusObservations(normalizedRecords);
     request.log.debug(
       {
         context: options.context.name,
@@ -74,9 +72,8 @@ export async function registerAppleRoutes(
         batch_index: batch.batch_index,
         total_batches: batch.total_batches,
         raw_records: rawRecords,
-        normalized_records: normalizedRecordCount,
-        accepted_records: acceptedRecords,
-        counter,
+        processed_records: processedRecords,
+        status_observations: statusObservations.length,
         first_sample_keys: getFirstSampleKeys(batch.samples),
         mqtt_enabled: options.config.mqtt.enabled,
       },
@@ -141,8 +138,7 @@ export async function registerAppleRoutes(
           normalized_topics: normalizedPublishResult.topics,
           current_topics: currentPublishResult.topics,
           raw_records: rawRecords,
-          normalized_records: normalizedRecordCount,
-          accepted_records: acceptedRecords,
+          processed_records: processedRecords,
           raw_published_records: rawPublishResult.records,
           normalized_published_records: normalizedPublishResult.records,
           current_published_records: currentPublishResult.records,
@@ -158,7 +154,7 @@ export async function registerAppleRoutes(
           batch_index: batch.batch_index,
           total_batches: batch.total_batches,
           raw_records: rawRecords,
-          normalized_records: normalizedRecordCount,
+          processed_records: processedRecords,
         },
         "failed to publish apple health batch to mqtt",
       );
@@ -169,10 +165,19 @@ export async function registerAppleRoutes(
       });
     }
 
-    await options.stateStore.increment(
-      counter,
-      acceptedRecords,
+    const statusUpdate = await options.stateStore.applyObservations(
+      statusObservations,
       options.context.name,
+    );
+    request.log.debug(
+      {
+        context: options.context.name,
+        metric: batch.metric,
+        processed_records: processedRecords,
+        applied_status_observations: statusUpdate.applied,
+        duplicate_status_observations: statusUpdate.duplicates,
+      },
+      "updated apple health status ledger",
     );
 
     return {
@@ -180,7 +185,7 @@ export async function registerAppleRoutes(
       metric: batch.metric,
       batch: batch.batch_index,
       total_batches: batch.total_batches,
-      records: acceptedRecords,
+      records: processedRecords,
     };
   });
 
@@ -189,19 +194,16 @@ export async function registerAppleRoutes(
       return reply;
     }
 
-    const counts = await options.stateStore.getCounts(options.context.name);
+    const status = await options.stateStore.getStatus(options.context.name);
     request.log.debug(
       {
         context: options.context.name,
-        counts,
+        status,
       },
-      "returned apple health status counts",
+      "returned apple health status snapshot",
     );
 
-    return {
-      status: "ok",
-      counts,
-    };
+    return status;
   });
 }
 

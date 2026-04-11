@@ -9,6 +9,16 @@ Version headers must match the `version` field in `package.json`.
 ### Changed
 
 - Bumped the app version to 0.2.0.
+- Changed `GET /api/apple/status` to return flat per-metric status objects with `count`, `oldest`, and `newest`.
+- Changed batch `records` reporting to count valid deduplicated logical records and return `0` for non-empty batches whose samples are all invalid.
+- Changed daily quantity routing so `step_count`, `distance_walking_running`, `flights_climbed`, `active_energy_burned`, `basal_energy_burned`, and `apple_exercise_time` normalize into `daily_activity`.
+- Changed device identity extraction to honor the broader HealthSave source and device field aliases with a `HealthSave` fallback.
+
+### Added
+
+- Added a deduplicated file-backed status ledger under `<DATA_PATH>/status/<context>/observations.ndjson`.
+- Added coverage for flat status responses, duplicate-retry deduplication, blood-pressure subtype counting, body-temperature status exclusion, and daily-activity quantity routing.
+- Added documentation for the new status response shape, persistence layout, and upgrade expectation from the old counter-only state file.
 
 ## 0.1.0
 

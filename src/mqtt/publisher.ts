@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { connectAsync, type IClientOptions } from "mqtt";
 import type { AppConfig, AppContextConfig } from "../config.js";
 import type { BatchRequest, NormalizedRecord } from "../ingest.js";
+import { resolveDeviceIdentity } from "../ingest.js";
 import { renderMetricTopic } from "./topics.js";
 
 type MqttQos = 0 | 1 | 2;
@@ -291,17 +292,7 @@ function createNormalizedSampleEvent(
 }
 
 function getDeviceId(sample: Record<string, unknown>): string {
-  const candidate =
-    getStringValue(sample.device_id) ??
-    getStringValue(sample.deviceId) ??
-    getStringValue(sample.source_id) ??
-    getStringValue(sample.source);
-
-  return candidate && candidate.length > 0 ? candidate : "unknown";
-}
-
-function getStringValue(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
+  return resolveDeviceIdentity(sample);
 }
 
 function createIdempotencyKey(

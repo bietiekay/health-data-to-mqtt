@@ -1,5 +1,8 @@
 import { z } from "zod";
-import type { StatusCounterKey } from "./state/store.js";
+import type {
+  StatusMetricKey,
+  StatusObservation,
+} from "./state/store.js";
 
 const sampleSchema = z.preprocess(
   deserializeSampleValue,
@@ -75,23 +78,48 @@ const dedicatedMetricSpecs: Record<string, DedicatedMetricSpec> = {
     normalizedMetric: "body_temperature",
     valueField: "temp_celsius",
   },
+  wrist_temperature: {
+    normalizedMetric: "body_temperature",
+    valueField: "temp_celsius",
+  },
 };
 
-const metricCounters: Record<string, StatusCounterKey> = {
-  heart_rate: "heart_rate",
-  heart_rate_variability: "hrv",
-  blood_oxygen: "blood_oxygen",
-  oxygen_saturation: "blood_oxygen",
-  oxygenSaturation: "blood_oxygen",
-  activity_summaries: "daily_activity",
-  sleep_analysis: "sleep_sessions",
-  workout: "workouts",
-  workouts: "workouts",
+const dailyQuantityMetricSpecs: Record<
+  string,
+  { field: string; transformValue?: (value: number) => number }
+> = {
+  step_count: {
+    field: "steps",
+    transformValue: toInteger,
+  },
+  distance_walking_running: {
+    field: "distance_m",
+  },
+  flights_climbed: {
+    field: "floors_climbed",
+    transformValue: toInteger,
+  },
+  active_energy_burned: {
+    field: "active_calories",
+  },
+  basal_energy_burned: {
+    field: "total_calories",
+  },
+  apple_exercise_time: {
+    field: "active_minutes",
+    transformValue: toInteger,
+  },
 };
 
-export function counterForMetric(metric: string): StatusCounterKey {
-  return metricCounters[metric] ?? "quantity_samples";
-}
+const publicStatusMetrics = new Set<StatusMetricKey>([
+  "heart_rate",
+  "hrv",
+  "blood_oxygen",
+  "daily_activity",
+  "sleep_sessions",
+  "workouts",
+  "quantity_samples",
+]);
 
 const activityFields: Record<string, string> = {
   steps: "steps",
@@ -106,9 +134,36 @@ const activityFields: Record<string, string> = {
   appleStandHours: "stand_hours",
 };
 
+export function createStatusObservations(
+  records: NormalizedRecord[],
+): StatusObservation[] {
+  return records.flatMap((record) => {
+    const statusMetric = publicStatusMetricForRecord(record);
+    const observedAt = observedAtForRecord(record);
+    const identityKey = identityKeyForRecord(record);
+
+    if (!statusMetric || !observedAt || !identityKey) {
+      return [];
+    }
+
+    return [
+      {
+        statusMetric,
+        identityKey,
+        observedAt,
+      },
+    ];
+  });
+}
+
 export function normalizeBatch(batch: BatchRequest): NormalizedRecord[] {
   if (batch.metric === "activity_summaries") {
     return normalizeActivity(batch);
+  }
+
+  const dailyQuantitySpec = dailyQuantityMetricSpecs[batch.metric];
+  if (dailyQuantitySpec) {
+    return normalizeDailyQuantity(batch, dailyQuantitySpec);
   }
 
   if (batch.metric === "sleep_analysis") {
@@ -151,7 +206,7 @@ function normalizeDedicated(
     const normalizedSample = {
       time,
       [spec.valueField]: normalizedValue,
-      ...optionalStringField("source_id", sample.source),
+      source_id: resolveDeviceIdentity(sample),
       ...spec.defaults,
     };
 
@@ -189,10 +244,10 @@ function normalizeGenericQuantity(batch: BatchRequest): NormalizedRecord[] {
         sample,
         {
           time,
-          metric_name: batch.metric,
+          metric_name: getStringValue(sample.metric) ?? batch.metric,
           value,
           unit: getStringValue(sample.unit) ?? "",
-          source_id: getStringValue(sample.source) ?? "",
+          source_id: resolveDeviceIdentity(sample),
         },
       ),
     ];
@@ -201,7 +256,39 @@ function normalizeGenericQuantity(batch: BatchRequest): NormalizedRecord[] {
   return dedupeRecords(
     records,
     (record) =>
-      `${record.normalizedMetric}:${record.metric}:${record.deviceId}:${String(record.normalizedSample.time)}`,
+      `${record.normalizedMetric}:${String(record.normalizedSample.metric_name)}:${record.deviceId}:${String(record.normalizedSample.time)}`,
+  );
+}
+
+function normalizeDailyQuantity(
+  batch: BatchRequest,
+  spec: { field: string; transformValue?: (value: number) => number },
+): NormalizedRecord[] {
+  const records = batch.samples.flatMap((sample, sampleIndex) => {
+    const activityDate = parseDateValue(sample.date);
+    const rawValue = toNumber(sample.qty);
+    if (!activityDate || rawValue === undefined) {
+      return [];
+    }
+
+    return [
+      createNormalizedRecord(
+        batch.metric,
+        "daily_activity",
+        sampleIndex,
+        sample,
+        {
+          date: activityDate,
+          [spec.field]: spec.transformValue?.(rawValue) ?? rawValue,
+        },
+      ),
+    ];
+  });
+
+  return dedupeRecords(
+    records,
+    (record) =>
+      `${record.normalizedMetric}:${record.deviceId}:${String(record.normalizedSample.date)}`,
   );
 }
 
@@ -232,7 +319,7 @@ function normalizeActiveEnergyQuantity(batch: BatchRequest): NormalizedRecord[] 
           metric_name: batch.metric,
           value,
           unit: "kcal",
-          source_id: getStringValue(sample.source) ?? "",
+          source_id: resolveDeviceIdentity(sample),
         },
       ),
     ];
@@ -285,7 +372,7 @@ function normalizeSleep(batch: BatchRequest): NormalizedRecord[] {
     return aggregateSleepStages(batch);
   }
 
-  return batch.samples.flatMap((sample, sampleIndex) => {
+  const records = batch.samples.flatMap((sample, sampleIndex) => {
     const start = parseTimestamp(
       firstPresent(sample, "start_date", "startDate", "date"),
     );
@@ -313,6 +400,12 @@ function normalizeSleep(batch: BatchRequest): NormalizedRecord[] {
       ),
     ];
   });
+
+  return dedupeRecords(
+    records,
+    (record) =>
+      `${record.normalizedMetric}:${record.deviceId}:${String(record.normalizedSample.start_time)}`,
+  );
 }
 
 function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
@@ -427,7 +520,7 @@ function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
 }
 
 function normalizeWorkouts(batch: BatchRequest): NormalizedRecord[] {
-  return batch.samples.flatMap((sample, sampleIndex) => {
+  const records = batch.samples.flatMap((sample, sampleIndex) => {
     const start = parseTimestamp(
       firstPresent(sample, "start_date", "startDate", "start", "date"),
     );
@@ -468,6 +561,12 @@ function normalizeWorkouts(batch: BatchRequest): NormalizedRecord[] {
       ),
     ];
   });
+
+  return dedupeRecords(
+    records,
+    (record) =>
+      `${record.normalizedMetric}:${record.deviceId}:${String(record.normalizedSample.start_time)}`,
+  );
 }
 
 function createNormalizedRecord(
@@ -577,14 +676,91 @@ function getStringValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function deviceIdFromSample(sample: Record<string, unknown>): string {
+export function resolveDeviceIdentity(sample: Record<string, unknown>): string {
   return (
+    getStringValue(sample.source) ??
+    getStringValue(sample.source_id) ??
+    getStringValue(sample.sourceName) ??
+    getStringValue(sample.device) ??
+    getStringValue(sample.deviceName) ??
     getStringValue(sample.device_id) ??
     getStringValue(sample.deviceId) ??
-    getStringValue(sample.source_id) ??
-    getStringValue(sample.source) ??
-    "unknown"
+    "HealthSave"
   );
+}
+
+function deviceIdFromSample(sample: Record<string, unknown>): string {
+  return resolveDeviceIdentity(sample);
+}
+
+function publicStatusMetricForRecord(
+  record: NormalizedRecord,
+): StatusMetricKey | undefined {
+  return publicStatusMetrics.has(record.normalizedMetric as StatusMetricKey)
+    ? (record.normalizedMetric as StatusMetricKey)
+    : undefined;
+}
+
+function observedAtForRecord(record: NormalizedRecord): string | undefined {
+  if (
+    record.normalizedMetric === "heart_rate" ||
+    record.normalizedMetric === "hrv" ||
+    record.normalizedMetric === "blood_oxygen" ||
+    record.normalizedMetric === "quantity_samples"
+  ) {
+    return getStringValue(record.normalizedSample.time);
+  }
+
+  if (record.normalizedMetric === "daily_activity") {
+    return getStringValue(record.normalizedSample.date);
+  }
+
+  if (
+    record.normalizedMetric === "sleep_sessions" ||
+    record.normalizedMetric === "workouts"
+  ) {
+    return getStringValue(record.normalizedSample.start_time);
+  }
+
+  return undefined;
+}
+
+function identityKeyForRecord(record: NormalizedRecord): string | undefined {
+  if (
+    record.normalizedMetric === "heart_rate" ||
+    record.normalizedMetric === "hrv" ||
+    record.normalizedMetric === "blood_oxygen"
+  ) {
+    const time = getStringValue(record.normalizedSample.time);
+    return time ? `${record.deviceId}:${time}` : undefined;
+  }
+
+  if (record.normalizedMetric === "daily_activity") {
+    const date = getStringValue(record.normalizedSample.date);
+    return date ? `${record.deviceId}:${date}` : undefined;
+  }
+
+  if (
+    record.normalizedMetric === "sleep_sessions" ||
+    record.normalizedMetric === "workouts"
+  ) {
+    const startTime = getStringValue(record.normalizedSample.start_time);
+    return startTime ? `${record.deviceId}:${startTime}` : undefined;
+  }
+
+  if (record.normalizedMetric === "quantity_samples") {
+    const time = getStringValue(record.normalizedSample.time);
+    const metricName = getStringValue(record.normalizedSample.metric_name);
+    return time && metricName
+      ? `${record.deviceId}:${metricName}:${time}`
+      : undefined;
+  }
+
+  return undefined;
+}
+
+function toInteger(value: number): number {
+  return Math.trunc(value);
 }
 
 function durationMsBetween(start: Date, end: Date): number {
