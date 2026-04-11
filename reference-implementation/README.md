@@ -32,17 +32,21 @@ This starts:
 - **FastAPI** on port 8000
 - **Grafana** on port 3000 (default login: admin / your GRAFANA_PASSWORD)
 
+The database port is bound to `127.0.0.1` by default so it is available for
+local tooling without being exposed on your LAN.
+
 ## First 5 Minutes
 
 If this is your first run, this is the shortest path to confirming the stack is alive:
 
 1. Start the stack with `docker compose up -d`
 2. Check the API health endpoint at `http://localhost:8000/health`
-3. Open Grafana at `http://localhost:3000` and log in with `admin` and your `GRAFANA_PASSWORD`
-4. Confirm the `HealthSave` PostgreSQL datasource is present
-5. Open the `HealthSave Overview` dashboard
-6. In the [HealthSave](https://apps.apple.com/app/id6759843047) app, set Server Sync to the base server URL: `http://your-server-ip:8000`
-7. Run a sync and refresh Grafana
+3. Check the database readiness endpoint at `http://localhost:8000/ready`
+4. Open Grafana at `http://localhost:3000` and log in with `admin` and your `GRAFANA_PASSWORD`
+5. Confirm the `HealthSave` PostgreSQL datasource is present
+6. Open the `HealthSave Overview` dashboard
+7. In the [HealthSave](https://apps.apple.com/app/id6759843047) app, set Server Sync to the base server URL: `http://your-server-ip:8000`
+8. Run a sync and refresh Grafana
 
 What you should expect after the first successful sync:
 - `/api/apple/status` starts showing non-zero table counts
@@ -65,6 +69,9 @@ HealthSave expects a base server URL and appends the API paths itself:
 If you are building another client, the batch ingest endpoint is:
 
 `http://your-server-ip:8000/api/apple/batch`
+
+The full request/response contract, including the exact `/api/apple/status`
+shape expected by the iOS app, is documented in [API.md](API.md).
 
 ## What Gets Synced
 
@@ -113,6 +120,14 @@ Recommended flow:
 3. Copy `healthsave-package.yaml` into your Home Assistant packages directory
 4. Restart Home Assistant and adjust the example thresholds and entity IDs for your setup
 
+## Community Backends
+
+The ingest API is intentionally simple so anyone can build a compatible backend for their own stack. The first community implementation is already live:
+
+- **[health-data-to-mqtt](https://github.com/bietiekay/health-data-to-mqtt)** by [@bietiekay](https://github.com/bietiekay) — A lightweight Node.js server that stores raw JSON and forwards selected metrics to MQTT. Built for alerting and home automation pipelines where MQTT is the primary transport.
+
+If you've built a compatible backend, open an issue or PR and we'll add it here. The full API contract including every supported metric is documented in [API.md](API.md).
+
 ## Roadmap
 
 This community release is intentionally small and focused on the ingestion pipeline first.
@@ -149,17 +164,52 @@ Grafana (port 3000)
 |----------|--------|-------------|
 | `/health` | GET | Health check |
 | `/api/health` | GET | App-friendly health check |
+| `/ready` | GET | API plus database readiness check |
 | `/api/apple/batch` | POST | Receive metric batch from the client bridge |
-| `/api/apple/status` | GET | Return record counts |
+| `/api/apple/status` | GET | Return flat per-table status objects |
+
+`/api/apple/status` intentionally returns top-level metric objects, not a
+wrapped `{"status":"ok","counts":...}` payload. See [API.md](API.md) for
+the compatibility contract.
 
 ## Deduplication
 
 All ingestion is idempotent:
-- Unique indexes on `(time, device_id)` for every hypertable
+- Unique indexes on first-class metric identity columns
 - `INSERT ... ON CONFLICT DO UPDATE` for upsert behavior
 - In-memory dedup within each batch to avoid PG errors
 
 You can safely re-sync or retry without inflating your data.
+
+The API also stores each received batch in `raw_ingestion_log` before
+processing, then marks it processed after a successful commit. That gives you a
+minimal audit trail and a useful starting point if you ever need replay tooling.
+
+## Updating Existing Installs
+
+Fresh installs load `schema.sql` automatically. Existing Docker volumes keep
+their original schema, so apply migrations manually when upgrading:
+
+```bash
+docker compose exec -T db psql -U healthsave -d healthsave < migrations/001_audit_hardening.sql
+```
+
+## Development
+
+Local verification uses the same commands as CI:
+
+```bash
+python3.12 -m pip install -e ".[dev]"
+python3.12 -m ruff format --check .
+python3.12 -m ruff check .
+python3.12 -m pytest -q
+docker build -t health-data-hub-dev .
+```
+
+The project targets Python 3.12, matching the Docker image and CI runtime.
+
+The CI workflow runs formatting, linting, tests, and a Docker build on every
+push and pull request to `main`.
 
 ## HTTPS / Reverse Proxy
 
@@ -181,6 +231,13 @@ health.yourdomain.com {
     reverse_proxy api:8000
 }
 ```
+
+Recommended production posture:
+- Set a long random `API_KEY` in `.env` and in the HealthSave app.
+- Keep TimescaleDB bound to localhost or a private Docker network.
+- Terminate HTTPS at your reverse proxy.
+- Back up the `db_data` Docker volume regularly.
+- Upgrade `TIMESCALE_IMAGE` and `GRAFANA_IMAGE` deliberately, not via `latest`.
 
 ## Derived Metrics
 
