@@ -139,6 +139,79 @@ describe("MQTT publisher", () => {
     );
   });
 
+  it("uses sample-level metric names for quantity sample topics", async () => {
+    const client = createRecordingClient();
+    const config = loadConfig({
+      HOST: "127.0.0.1",
+      PORT: "0",
+      LOG_ENABLED: "false",
+      MQTT_URL: "mqtt://localhost:1883",
+      MQTT_TOPIC_NORMALIZED: "healthsave/normalized/{metric}",
+      MQTT_TOPIC_CURRENT: "healthsave/current/{metric}",
+    });
+    const publisher = createMqttPublisherFromClient(client, config);
+
+    const normalizedResult = await publisher.publishNormalizedBatch(
+      config.contexts[0]!,
+      {
+        metric: "blood_pressure",
+        batch_index: 1,
+        total_batches: 1,
+        samples: [],
+      },
+      [
+        {
+          metric: "blood_pressure",
+          normalizedMetric: "quantity_samples",
+          recordIndex: 0,
+          deviceId: "Monitor",
+          normalizedSample: {
+            time: "2026-04-10T09:00:00.000Z",
+            metric_name: "blood_pressure_systolic",
+            value: 120,
+            unit: "mmHg",
+          },
+        },
+      ],
+    );
+
+    expect(normalizedResult).toEqual({
+      records: 1,
+      topics: ["healthsave/normalized/blood_pressure_systolic"],
+    });
+    expect(client.publishCalls[0]?.topic).toBe(
+      "healthsave/normalized/blood_pressure_systolic",
+    );
+
+    client.publishCalls = [];
+
+    const currentResult = await publisher.publishCurrentBatch(config.contexts[0]!, [
+      {
+        metric: "blood_pressure",
+        normalizedMetric: "quantity_samples",
+        recordIndex: 0,
+        deviceId: "Monitor",
+        normalizedSample: {
+          time: "2026-04-10T09:00:00.000Z",
+          metric_name: "blood_pressure_systolic",
+          value: 120,
+          unit: "mmHg",
+        },
+      },
+    ]);
+
+    expect(currentResult).toEqual({
+      records: 1,
+      topics: ["healthsave/current/blood_pressure_systolic"],
+    });
+    expect(client.publishCalls).toMatchObject([
+      {
+        topic: "healthsave/current/blood_pressure_systolic",
+        message: "120",
+      },
+    ]);
+  });
+
   it("publishes current scalar values to logical topics", async () => {
     const client = createRecordingClient();
     const config = loadConfig({
@@ -183,48 +256,14 @@ describe("MQTT publisher", () => {
           spo2_pct: 97.3,
         },
       },
-      {
-        metric: "sleep_analysis",
-        normalizedMetric: "sleep_sessions",
-        recordIndex: 3,
-        deviceId: "Watch",
-        normalizedSample: {
-          start_time: "2026-04-10T22:00:00.000Z",
-          end_time: "2026-04-11T06:00:00.000Z",
-          awake: true,
-        },
-      },
-      {
-        metric: "workouts",
-        normalizedMetric: "workouts",
-        recordIndex: 4,
-        deviceId: "Runkeeper",
-        normalizedSample: {
-          start_time: "2016-01-20T13:59:13.337Z",
-          end_time: "2016-01-20T14:42:29.337Z",
-          calories: 366.3367462222223,
-        },
-      },
-      {
-        metric: "activity_summaries",
-        normalizedMetric: "daily_activity",
-        recordIndex: 5,
-        deviceId: "Phone",
-        normalizedSample: {
-          date: "2026-04-10",
-          steps: 1000,
-        },
-      },
     ]);
 
     expect(result).toEqual({
-      records: 5,
+      records: 3,
       topics: [
         "healthsave/current/heart_rate",
         "healthsave/current/walking_speed",
         "healthsave/current/blood_oxygen",
-        "healthsave/current/sleep_sessions",
-        "healthsave/current/workouts",
       ],
     });
     expect(client.publishCalls).toMatchObject([
@@ -240,13 +279,151 @@ describe("MQTT publisher", () => {
         topic: "healthsave/current/blood_oxygen",
         message: "97.3",
       },
+    ]);
+  });
+
+  it("publishes multi-field current values to subtopics", async () => {
+    const client = createRecordingClient();
+    const config = loadConfig({
+      HOST: "127.0.0.1",
+      PORT: "0",
+      LOG_ENABLED: "false",
+      MQTT_URL: "mqtt://localhost:1883",
+      MQTT_TOPIC_CURRENT: "healthsave/current/{metric}",
+    });
+    const publisher = createMqttPublisherFromClient(client, config);
+
+    const result = await publisher.publishCurrentBatch(config.contexts[0]!, [
+      {
+        metric: "step_count",
+        normalizedMetric: "daily_activity",
+        recordIndex: 0,
+        deviceId: "Phone",
+        normalizedSample: {
+          date: "2026-04-10",
+          steps: 1000,
+          active_calories: 450,
+          stand_hours: 10,
+        },
+      },
+      {
+        metric: "sleep_analysis",
+        normalizedMetric: "sleep_sessions",
+        recordIndex: 1,
+        deviceId: "Watch",
+        normalizedSample: {
+          start_time: "2026-04-10T22:00:00.000Z",
+          end_time: "2026-04-11T06:00:00.000Z",
+          awake: true,
+          total_duration_ms: 28800000,
+          deep_ms: 7200000,
+          rem_ms: 3600000,
+          light_ms: 18000000,
+          awake_ms: 0,
+        },
+      },
+      {
+        metric: "workouts",
+        normalizedMetric: "workouts",
+        recordIndex: 2,
+        deviceId: "Runkeeper",
+        normalizedSample: {
+          start_time: "2016-01-20T13:59:13.337Z",
+          end_time: "2016-01-20T14:42:29.337Z",
+          calories: 366.3367462222223,
+          duration_ms: 2596000,
+          avg_hr: 144,
+          max_hr: 168,
+          distance_m: 10000,
+        },
+      },
+    ]);
+
+    expect(result).toEqual({
+      records: 16,
+      topics: [
+        "healthsave/current/daily_activity/steps",
+        "healthsave/current/daily_activity/active_calories",
+        "healthsave/current/daily_activity/stand_hours",
+        "healthsave/current/sleep_sessions",
+        "healthsave/current/sleep_sessions/awake",
+        "healthsave/current/sleep_sessions/total_duration_ms",
+        "healthsave/current/sleep_sessions/deep_ms",
+        "healthsave/current/sleep_sessions/rem_ms",
+        "healthsave/current/sleep_sessions/light_ms",
+        "healthsave/current/sleep_sessions/awake_ms",
+        "healthsave/current/workouts",
+        "healthsave/current/workouts/calories",
+        "healthsave/current/workouts/duration_ms",
+        "healthsave/current/workouts/avg_hr",
+        "healthsave/current/workouts/max_hr",
+        "healthsave/current/workouts/distance_m",
+      ],
+    });
+    expect(client.publishCalls).toMatchObject([
+      {
+        topic: "healthsave/current/daily_activity/steps",
+        message: "1000",
+      },
+      {
+        topic: "healthsave/current/daily_activity/active_calories",
+        message: "450",
+      },
+      {
+        topic: "healthsave/current/daily_activity/stand_hours",
+        message: "10",
+      },
       {
         topic: "healthsave/current/sleep_sessions",
         message: "true",
       },
       {
+        topic: "healthsave/current/sleep_sessions/awake",
+        message: "true",
+      },
+      {
+        topic: "healthsave/current/sleep_sessions/total_duration_ms",
+        message: "28800000",
+      },
+      {
+        topic: "healthsave/current/sleep_sessions/deep_ms",
+        message: "7200000",
+      },
+      {
+        topic: "healthsave/current/sleep_sessions/rem_ms",
+        message: "3600000",
+      },
+      {
+        topic: "healthsave/current/sleep_sessions/light_ms",
+        message: "18000000",
+      },
+      {
+        topic: "healthsave/current/sleep_sessions/awake_ms",
+        message: "0",
+      },
+      {
         topic: "healthsave/current/workouts",
         message: "366.3367462222223",
+      },
+      {
+        topic: "healthsave/current/workouts/calories",
+        message: "366.3367462222223",
+      },
+      {
+        topic: "healthsave/current/workouts/duration_ms",
+        message: "2596000",
+      },
+      {
+        topic: "healthsave/current/workouts/avg_hr",
+        message: "144",
+      },
+      {
+        topic: "healthsave/current/workouts/max_hr",
+        message: "168",
+      },
+      {
+        topic: "healthsave/current/workouts/distance_m",
+        message: "10000",
       },
     ]);
   });

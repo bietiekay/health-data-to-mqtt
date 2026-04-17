@@ -13,6 +13,8 @@ Version headers must match the `version` field in `package.json`.
 - Changed batch `records` reporting to count valid deduplicated logical records and return `0` for non-empty batches whose samples are all invalid.
 - Changed daily quantity routing so `step_count`, `distance_walking_running`, `flights_climbed`, `active_energy_burned`, `basal_energy_burned`, and `apple_exercise_time` normalize into `daily_activity`.
 - Changed device identity extraction to honor the broader HealthSave source and device field aliases with a `HealthSave` fallback.
+- Changed MQTT quantity-sample topic routing to use the normalized per-sample `metric_name` so correlated metrics publish to distinct topics.
+- Changed current MQTT publication to fan out multi-field records like `daily_activity`, `sleep_sessions`, and `workouts` into field-specific subtopics while keeping legacy top-level sleep and workout topics.
 
 ### Added
 

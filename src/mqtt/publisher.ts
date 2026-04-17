@@ -31,6 +31,11 @@ export interface CurrentPublishResult {
   topics: string[];
 }
 
+interface CurrentMessage {
+  topicMetric: string;
+  value: unknown;
+}
+
 export interface HealthMqttPublisher {
   publishRawBatch(
     context: AppContextConfig,
@@ -216,21 +221,21 @@ class MqttHealthPublisher implements HealthMqttPublisher {
       qos: toMqttQos(this.config.mqtt.qos),
       retain: this.config.mqtt.retain,
     };
-    const currentMessages = records.flatMap((record) => {
-      const value = currentValueForRecord(record);
-      if (value === undefined) {
-        return [];
-      }
+    const currentMessages = records.flatMap((record) =>
+      currentMessagesForRecord(record).map((message) => {
+        const topic = renderMetricTopic(
+          context.mqtt.topics.current,
+          message.topicMetric,
+          context.name,
+        );
+        topics.add(topic);
 
-      const topic = renderMetricTopic(
-        context.mqtt.topics.current,
-        topicMetricForRecord(record),
-        context.name,
-      );
-      topics.add(topic);
-
-      return [{ topic, value }];
-    });
+        return {
+          topic,
+          value: message.value,
+        };
+      }),
+    );
 
     await Promise.all(
       currentMessages.map((message) =>
@@ -330,28 +335,100 @@ function createNormalizedIdempotencyKey(
 
 function topicMetricForRecord(record: NormalizedRecord): string {
   return record.normalizedMetric === "quantity_samples"
-    ? record.metric
+    ? getStringValue(record.normalizedSample.metric_name) ?? record.metric
     : record.normalizedMetric;
 }
 
-const currentValueFields: Record<string, string> = {
+const scalarCurrentFields: Record<string, string> = {
   heart_rate: "bpm",
   hrv: "value_ms",
   blood_oxygen: "spo2_pct",
   body_temperature: "temp_celsius",
-  sleep_sessions: "awake",
-  workouts: "calories",
   quantity_samples: "value",
 };
 
-function currentValueForRecord(record: NormalizedRecord): unknown {
-  const valueField = currentValueFields[record.normalizedMetric];
-  if (!valueField) {
-    return undefined;
+const dailyActivityCurrentFields = [
+  "steps",
+  "distance_m",
+  "floors_climbed",
+  "active_calories",
+  "total_calories",
+  "active_minutes",
+  "stand_hours",
+] as const;
+
+const sleepSessionCurrentFields = [
+  "awake",
+  "total_duration_ms",
+  "deep_ms",
+  "rem_ms",
+  "light_ms",
+  "awake_ms",
+  "respiratory_rate",
+] as const;
+
+const workoutCurrentFields = [
+  "calories",
+  "duration_ms",
+  "avg_hr",
+  "max_hr",
+  "distance_m",
+] as const;
+
+function currentMessagesForRecord(record: NormalizedRecord): CurrentMessage[] {
+  const scalarField = scalarCurrentFields[record.normalizedMetric];
+  if (scalarField) {
+    return scalarMessage(record, topicMetricForRecord(record), scalarField);
   }
 
+  if (record.normalizedMetric === "daily_activity") {
+    return subtopicMessages(
+      record,
+      record.normalizedMetric,
+      dailyActivityCurrentFields,
+    );
+  }
+
+  if (record.normalizedMetric === "sleep_sessions") {
+    return scalarMessage(record, record.normalizedMetric, "awake").concat(
+      subtopicMessages(
+        record,
+        record.normalizedMetric,
+        sleepSessionCurrentFields,
+      ),
+    );
+  }
+
+  if (record.normalizedMetric === "workouts") {
+    return scalarMessage(record, record.normalizedMetric, "calories").concat(
+      subtopicMessages(record, record.normalizedMetric, workoutCurrentFields),
+    );
+  }
+
+  return [];
+}
+
+function scalarMessage(
+  record: NormalizedRecord,
+  topicMetric: string,
+  valueField: string,
+): CurrentMessage[] {
   const value = record.normalizedSample[valueField];
-  return value === null ? undefined : value;
+  return value === undefined || value === null ? [] : [{ topicMetric, value }];
+}
+
+function subtopicMessages(
+  record: NormalizedRecord,
+  baseMetric: string,
+  valueFields: readonly string[],
+): CurrentMessage[] {
+  return valueFields.flatMap((valueField) =>
+    scalarMessage(record, `${baseMetric}/${valueField}`, valueField),
+  );
+}
+
+function getStringValue(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
 }
 
 function stableJson(value: unknown): string {

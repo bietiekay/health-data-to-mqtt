@@ -224,6 +224,12 @@ Daily quantity metrics also map into `daily_activity`:
 The reference keeps `apple_stand_time`, `distance_cycling`, and
 `distance_wheelchair` in `quantity_samples`.
 
+Current MQTT values for `daily_activity` fan out per normalized field so
+consumers can subscribe to scalar topics such as
+`healthsave/current/daily_activity/steps`,
+`healthsave/current/daily_activity/active_calories`, or
+`healthsave/current/daily_activity/stand_hours`.
+
 ### 6.3 Sleep Analysis
 
 Incoming metric:
@@ -398,6 +404,13 @@ Every MQTT event should include:
 - raw `sample` or `normalized_sample`
 
 Raw events preserve source fields where possible. Normalized events provide stable field names for consumers.
+
+For `quantity_samples`, MQTT topic selection uses the normalized `metric_name`
+field so correlated payloads such as blood pressure publish to
+`.../blood_pressure_systolic` and `.../blood_pressure_diastolic` instead of the
+outer batch metric. Current-value topics may also include field subpaths for
+multi-value records, such as `daily_activity/steps`, `sleep_sessions/awake`, or
+`workouts/distance_m`.
 
 ### 9.3 Multi-Client Contexts
 

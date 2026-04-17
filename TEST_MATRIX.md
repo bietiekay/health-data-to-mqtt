@@ -33,7 +33,9 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | MQTT | Topic template rendering | Existing | `test/unit/ingest.test.ts` | Covers `{metric}` and `{context}` placeholders |
 | MQTT | Raw event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies one raw event per sample, topic, QoS, retain, metadata, and idempotency key shape |
 | MQTT | Normalized event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical topics, normalized metadata, payload shape, and idempotency key shape |
-| MQTT | Current scalar value publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical current topics and value-only payloads |
+| MQTT | Quantity sample topics preserve sample-level metric names | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies normalized and current topics use `metric_name` such as blood pressure subtypes |
+| MQTT | Current scalar value publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical current topics and value-only payloads for dedicated and generic scalar metrics |
+| MQTT | Multi-field current values fan out to field subtopics | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies `daily_activity`, `sleep_sessions`, and `workouts` publish per-field scalar topics |
 | MQTT | Sleep current value publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies `sleep_sessions` publishes latest awake state as `true` or `false` |
 | MQTT | Context-specific topic templates | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies prefixed contexts can route to distinct topic templates |
 | Storage | Raw batch archive writes NDJSON by context and month | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies append-only lines, UTC month naming, and per-context directories |
