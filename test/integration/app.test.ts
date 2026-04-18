@@ -13,6 +13,10 @@ import type {
   NormalizedPublishResult,
   RawPublishResult,
 } from "../../src/mqtt/publisher.js";
+import {
+  createMqttPublisherFromClient,
+  type MqttPublishClient,
+} from "../../src/mqtt/publisher.js";
 import type { RawBatchStorage } from "../../src/storage/raw-batch-storage.js";
 
 const baseConfig = loadConfig({
@@ -25,6 +29,12 @@ const baseConfig = loadConfig({
 
 let app: FastifyInstance | undefined;
 let tempDirectory: string | undefined;
+
+interface PublishCall {
+  topic: string;
+  message: string | Buffer;
+  options?: { qos?: 0 | 1 | 2; retain?: boolean };
+}
 
 async function createApp(apiKey = "") {
   app = await buildApp({
@@ -92,6 +102,23 @@ function createRecordingMqttPublisher(): HealthMqttPublisher & {
     },
     async close() {
       return undefined;
+    },
+  };
+}
+
+function createRecordingPublishClient(): MqttPublishClient & {
+  publishCalls: PublishCall[];
+  closed: boolean;
+} {
+  return {
+    publishCalls: [],
+    closed: false,
+    async publishAsync(topic, message, options) {
+      this.publishCalls.push({ topic, message, options });
+      return undefined;
+    },
+    async endAsync() {
+      this.closed = true;
     },
   };
 }
@@ -736,6 +763,83 @@ describe("compatibility endpoints", () => {
     expect(mqttPublisher.batches).toHaveLength(1);
   });
 
+  it("archives the original wrapped request body and publishes real MQTT topics end-to-end", async () => {
+    tempDirectory = mkdtempSync(join(tmpdir(), "health-api-raw-storage-"));
+    const client = createRecordingPublishClient();
+    const mqttPublisher = createMqttPublisherFromClient(client, {
+      ...baseConfig,
+      logEnabled: false,
+    });
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+        rawStoragePath: tempDirectory,
+      },
+      mqttPublisher,
+    });
+
+    const rawPayload = {
+      metric: "ignored-by-parser",
+      batch_index: 99,
+      total_batches: 100,
+      data: JSON.stringify({
+        metric: "step_count",
+        batch_index: 3,
+        total_batches: 5,
+        samples: [
+          {
+            payload: JSON.stringify({
+              date: "2026-04-10T12:00:00Z",
+              qty: 120,
+            }),
+          },
+          {
+            payload: JSON.stringify({
+              date: "2026-04-10T12:01:00Z",
+              qty: 125,
+            }),
+          },
+        ],
+      }),
+    };
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: rawPayload,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "step_count",
+      batch: 3,
+      total_batches: 5,
+      records: 1,
+    });
+
+    const [archiveFile] = await readdir(join(tempDirectory, "default"));
+    const archiveContent = await readFile(
+      join(tempDirectory, "default", archiveFile!),
+      "utf8",
+    );
+    expect(JSON.parse(archiveContent.trim())).toMatchObject({
+      context: "default",
+      metric: "step_count",
+      batch_index: 3,
+      total_batches: 5,
+      body: rawPayload,
+    });
+
+    expect(client.publishCalls.map((call) => call.topic)).toEqual([
+      "healthsave/raw/step_count",
+      "healthsave/raw/step_count",
+      "healthsave/normalized/daily_activity",
+      "healthsave/current/daily_activity/steps",
+    ]);
+  });
+
   it("does not store empty batches", async () => {
     tempDirectory = mkdtempSync(join(tmpdir(), "health-api-raw-storage-"));
     app = await buildApp({
@@ -760,6 +864,60 @@ describe("compatibility endpoints", () => {
 
     expect(response.statusCode).toBe(200);
     await expect(readdir(join(tempDirectory, "default"))).rejects.toThrow();
+  });
+
+  it("publishes correlated quantity metrics to per-sample MQTT topics end-to-end", async () => {
+    const client = createRecordingPublishClient();
+    const mqttPublisher = createMqttPublisherFromClient(client, {
+      ...baseConfig,
+      logEnabled: false,
+    });
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "blood_pressure",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            metric: "blood_pressure_systolic",
+            date: "2026-04-10T09:00:00Z",
+            qty: 120,
+            source: "Monitor",
+          },
+          {
+            metric: "blood_pressure_diastolic",
+            date: "2026-04-10T09:00:00Z",
+            qty: 80,
+            source: "Monitor",
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "blood_pressure",
+      records: 2,
+    });
+    expect(client.publishCalls.map((call) => call.topic)).toEqual([
+      "healthsave/raw/blood_pressure",
+      "healthsave/raw/blood_pressure",
+      "healthsave/normalized/blood_pressure_systolic",
+      "healthsave/normalized/blood_pressure_diastolic",
+      "healthsave/current/blood_pressure_systolic",
+      "healthsave/current/blood_pressure_diastolic",
+    ]);
   });
 
   it("rejects batches before MQTT and status updates when raw storage fails", async () => {

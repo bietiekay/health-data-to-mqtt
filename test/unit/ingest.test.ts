@@ -117,6 +117,65 @@ describe("normalizeBatch", () => {
     });
   });
 
+  it("maps all supported daily quantity metrics into the expected daily_activity fields", () => {
+    const cases = [
+      {
+        metric: "step_count",
+        qty: 1234.9,
+        expected: { steps: 1234 },
+      },
+      {
+        metric: "distance_walking_running",
+        qty: 4567.8,
+        expected: { distance_m: 4567.8 },
+      },
+      {
+        metric: "flights_climbed",
+        qty: 12.9,
+        expected: { floors_climbed: 12 },
+      },
+      {
+        metric: "active_energy_burned",
+        qty: 321.5,
+        expected: { active_calories: 321.5 },
+      },
+      {
+        metric: "basal_energy_burned",
+        qty: 654.25,
+        expected: { total_calories: 654.25 },
+      },
+      {
+        metric: "apple_exercise_time",
+        qty: 42.8,
+        expected: { active_minutes: 42 },
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      expect(
+        normalizeBatch({
+          metric: testCase.metric,
+          batch_index: 0,
+          total_batches: 1,
+          samples: [
+            {
+              date: "2026-04-10T12:00:00Z",
+              qty: testCase.qty,
+              source: "HealthKit Statistics",
+            },
+          ],
+        })[0],
+      ).toMatchObject({
+        metric: testCase.metric,
+        normalizedMetric: "daily_activity",
+        normalizedSample: {
+          date: "2026-04-10",
+          ...testCase.expected,
+        },
+      });
+    }
+  });
+
   it("keeps non-summary daily metrics in quantity_samples", () => {
     expect(
       normalizeBatch({
@@ -182,6 +241,58 @@ describe("normalizeBatch", () => {
       active_calories: 456,
       active_minutes: 35,
     });
+  });
+
+  it("maps all activity summary field aliases into daily_activity fields", () => {
+    const cases = [
+      { sample: { steps: 1234 }, expected: { steps: 1234 } },
+      { sample: { distance: 4567.8 }, expected: { distance_m: 4567.8 } },
+      {
+        sample: { flights_climbed: 12.9 },
+        expected: { floors_climbed: 12.9 },
+      },
+      {
+        sample: { active_energy: 321.5 },
+        expected: { active_calories: 321.5 },
+      },
+      {
+        sample: { activeEnergyBurned: 333.5 },
+        expected: { active_calories: 333.5 },
+      },
+      {
+        sample: { basal_energy: 654.25 },
+        expected: { total_calories: 654.25 },
+      },
+      {
+        sample: { exercise_minutes: 42 },
+        expected: { active_minutes: 42 },
+      },
+      {
+        sample: { appleExerciseTime: 43 },
+        expected: { active_minutes: 43 },
+      },
+      { sample: { stand_hours: 11 }, expected: { stand_hours: 11 } },
+      { sample: { appleStandHours: 12 }, expected: { stand_hours: 12 } },
+    ] as const;
+
+    for (const testCase of cases) {
+      expect(
+        normalizeBatch({
+          metric: "activity_summaries",
+          batch_index: 0,
+          total_batches: 1,
+          samples: [
+            {
+              date: "2026-04-10T23:00:00Z",
+              ...testCase.sample,
+            },
+          ],
+        })[0]?.normalizedSample,
+      ).toEqual({
+        date: "2026-04-10",
+        ...testCase.expected,
+      });
+    }
   });
 
   it("aggregates sleep stage samples into sessions", () => {

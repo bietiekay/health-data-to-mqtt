@@ -19,9 +19,11 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Ingest | Dedicated metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers heart rate timestamp, value, and source extraction |
 | Ingest | Blood oxygen aliases normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers HealthKit-style `oxygenSaturation` values and fractional saturation conversion |
 | Ingest | Daily quantity metrics normalize into `daily_activity` | Existing | `test/unit/ingest.test.ts` | Covers `step_count` routing and date-level deduped records |
+| Ingest | Daily quantity mapping matrix stays complete | Existing | `test/unit/ingest.test.ts` | Covers every supported `daily_activity` quantity metric and field transform |
 | Ingest | Non-summary daily metrics remain in `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Covers `apple_stand_time` fallback behavior |
 | Ingest | Generic quantity metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers unknown metric fallback fields |
 | Ingest | Activity summaries normalize aliases | Existing | `test/unit/ingest.test.ts` | Covers reference activity field aliases |
+| Ingest | Activity summary alias matrix stays complete | Existing | `test/unit/ingest.test.ts` | Covers all supported activity summary source fields and aliases |
 | Ingest | Sleep stage samples aggregate into sessions | Existing | `test/unit/ingest.test.ts` | Covers reference stage bucket and duration behavior |
 | Ingest | Sleep sessions expose latest awake state | Existing | `test/unit/ingest.test.ts` | Covers normalized `awake` boolean from the latest sleep stage |
 | Ingest | Workouts normalize field variants | Existing | `test/unit/ingest.test.ts` | Covers start/end aliases and duration seconds conversion |
@@ -40,6 +42,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | MQTT | Context-specific topic templates | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies prefixed contexts can route to distinct topic templates |
 | Storage | Raw batch archive writes NDJSON by context and month | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies append-only lines, UTC month naming, and per-context directories |
 | Storage | Raw batch archive encodes unusual context names | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies context directory names do not allow path traversal |
+| Storage | Raw batch archive preserves original request body | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies wrapped payloads are stored unchanged instead of parsed replacements |
 | State | File-backed status ledger persists by context | Existing | `test/unit/state-store.test.ts` | Verifies prefixed contexts reload separate flat status objects |
 | State | File-backed status ledger deduplicates and tracks oldest/newest | Existing | `test/unit/state-store.test.ts` | Verifies duplicate observations are ignored and ranges update |
 | State | File-backed state writes NDJSON observations under the configured path | Existing | `test/unit/state-store.test.ts` | Verifies the durable status ledger file is created |
@@ -58,11 +61,14 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | API | Body temperature batches do not surface in public status | Existing | `test/integration/app.test.ts` | Verifies processed body temperature stays outside the public status keys |
 | MQTT | Batch route calls publisher | Existing | `test/integration/app.test.ts` | Verifies unknown metrics publish raw batches, extracted normalized datapoints, and current values before acceptance |
 | MQTT | Batch route publishes daily quantity data as `daily_activity` | Existing | `test/integration/app.test.ts` | Verifies `step_count` publishes normalized `daily_activity` records before acceptance |
+| MQTT | Batch route publishes real daily activity MQTT topics end-to-end | Existing | `test/integration/app.test.ts` | Verifies wrapped step payloads emit real raw, normalized, and field-specific current topics |
 | MQTT | Batch route publishes workout active energy as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies `workouts` `activeEnergy` payloads produce normalized records, current values, and workout status observations |
 | MQTT | Batch route publishes sleep awake state as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies sleep stage payloads produce normalized `awake`, current values, and sleep status observations |
 | MQTT | Batch route publishes blood oxygen aliases as normalized and current data | Existing | `test/integration/app.test.ts` | Verifies `blood_oxygen` `oxygenSaturation` payloads produce normalized records, current values, and blood oxygen status observations |
+| MQTT | Batch route publishes correlated quantity samples to per-sample topics | Existing | `test/integration/app.test.ts` | Verifies blood pressure subtype exports use preserved sample metric topics end-to-end |
 | MQTT | Publish failures reject batches | Existing | `test/integration/app.test.ts` | Verifies failed MQTT publication returns `502` without status observation updates |
 | Storage | Batch route archives non-empty valid batches | Existing | `test/integration/app.test.ts` | Verifies the raw request body is stored before successful acceptance |
+| Storage | Batch route preserves wrapped request bodies while exporting MQTT | Existing | `test/integration/app.test.ts` | Verifies the original wrapped request is archived alongside real MQTT exports |
 | Storage | Batch route skips empty batch archive writes | Existing | `test/integration/app.test.ts` | Verifies empty batches do not create raw archive files |
 | Storage | Batch route rejects storage failures before side effects | Existing | `test/integration/app.test.ts` | Verifies storage failure returns `500` without MQTT publish or status observation updates |
 | Storage | Prefixed contexts write to isolated archive directories | Existing | `test/integration/app.test.ts` | Verifies context-specific raw archive layout |

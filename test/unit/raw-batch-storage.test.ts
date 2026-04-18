@@ -86,4 +86,46 @@ describe("FileRawBatchStorage", () => {
     expect(encodeContextName("..")).toBe("%2E%2E");
     expect(encodeContextName("../alice")).not.toContain("/");
   });
+
+  it("stores the original raw request body without replacing it with the parsed batch", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T00:30:00.000Z"));
+    const basePath = createTempDirectory();
+    const storage = new FileRawBatchStorage(basePath);
+    const context = createContext("default");
+    const rawBody = {
+      metric: "ignored-by-parser",
+      data: JSON.stringify({
+        metric: "heart_rate",
+        batch_index: 7,
+        total_batches: 9,
+        samples: [
+          {
+            payload: JSON.stringify({
+              date: "2026-04-30T23:59:00Z",
+              qty: 72,
+            }),
+          },
+        ],
+      }),
+    };
+    const parsedBatch = {
+      metric: "heart_rate",
+      batch_index: 7,
+      total_batches: 9,
+      samples: [{ date: "2026-04-30T23:59:00Z", qty: 72 }],
+    };
+
+    await storage.storeBatch(context, parsedBatch, rawBody);
+
+    const content = await readFile(join(basePath, "default", "2026-05"), "utf8");
+    expect(JSON.parse(content.trim())).toEqual({
+      ingested_at: "2026-05-01T00:30:00.000Z",
+      context: "default",
+      metric: "heart_rate",
+      batch_index: 7,
+      total_batches: 9,
+      body: rawBody,
+    });
+  });
 });

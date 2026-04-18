@@ -20,6 +20,7 @@ Version headers must match the `version` field in `package.json`.
 
 - Added a deduplicated file-backed status ledger under `<DATA_PATH>/status/<context>/observations.ndjson`.
 - Added coverage for flat status responses, duplicate-retry deduplication, blood-pressure subtype counting, body-temperature status exclusion, and daily-activity quantity routing.
+- Added regression coverage for complete daily-activity mapping matrices, wrapped raw batch archive preservation, and end-to-end MQTT topic exports for wrapped step and blood-pressure payloads.
 - Added documentation for the new status response shape, persistence layout, and upgrade expectation from the old counter-only state file.
 
 ## 0.1.0
