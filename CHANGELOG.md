@@ -17,6 +17,7 @@ Version headers must match the `version` field in `package.json`.
 ### Changed
 
 - Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
+- Changed `GET /api/v2/sync/runs/latest` to return a `200` empty-state response before any sync-run receipt exists, while keeping specific unknown run IDs as `404`.
 - Documented `/api/insights/*` as out of scope and kept status timestamps as ISO UTC strings for API compatibility.
 
 ## 0.3.0

@@ -42,10 +42,7 @@ export async function registerV2Routes(
       options.context.name,
     );
     if (!latestRun) {
-      return reply.code(404).send({
-        status: "not_found",
-        error: "No sync runs have been recorded",
-      });
+      return emptyLatestSyncRunResponse();
     }
 
     return latestRun;
@@ -84,4 +81,32 @@ export async function registerV2Routes(
 
 function contextPath(context: AppContextConfig, path: string): string {
   return context.prefix === "/" ? path : `${context.prefix}${path}`;
+}
+
+function emptyLatestSyncRunResponse() {
+  return {
+    status: "empty",
+    sync_run_id: null,
+    receipt_id: null,
+    verification_level: "none",
+    records_received: 0,
+    records_accepted: 0,
+    records_inserted_new: null,
+    records_deduped_existing: null,
+    storage_result_level: "accepted_only",
+    records_skipped: 0,
+    records_rejected: 0,
+    records_deduped_in_batch: 0,
+    sample_window: {
+      min_sample_time: null,
+      max_sample_time: null,
+    },
+    latest_sample_time: null,
+    batches_seen: 0,
+    batches_processed: 0,
+    batches_failed: 0,
+    metrics: [],
+    oldest_received_at: null,
+    newest_receipt_at: null,
+  };
 }

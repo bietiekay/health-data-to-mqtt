@@ -73,7 +73,7 @@ Do not use the reference implementation as the runtime target. The new service s
 | `/api/apple/batch` | POST | Receive and process one metric batch |
 | `/api/apple/status` | GET | Return flat status objects in reference-compatible shape |
 | `/api/v2/setup/diagnostics` | GET | Return unauthenticated setup diagnostics for API base URL checks |
-| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
+| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt, or an empty success response before any sync-run receipt exists |
 | `/api/v2/sync/runs/{sync_run_id}` | GET | Return one run-specific delivery receipt summary |
 | `/api/v2/sync/coverage` | GET | Return metric-level sync receipt coverage |
 
@@ -96,6 +96,11 @@ This must apply to:
 Health, readiness, and setup diagnostics endpoints remain unauthenticated. This satisfies
 HealthSave 1.5 liveness behavior, which checks `/api/health` first and accepts
 `/health` as a fallback.
+
+`GET /api/v2/sync/runs/latest` returns HTTP `200` with `status: "empty"` when
+the endpoint is available but no `X-HealthSave-Sync-Run-ID` receipt has been
+recorded yet. Specific unknown run IDs still return HTTP `404` from
+`GET /api/v2/sync/runs/{sync_run_id}`.
 
 ### 4.3 Status Response
 

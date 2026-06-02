@@ -45,7 +45,7 @@ API integration tests cover the HealthSave-facing contract:
 - prefixed context endpoints.
 - raw batch archive success, skip, and failure behavior.
 - v2 setup diagnostics.
-- v2 sync receipt authorization, summaries, coverage, and 404 behavior.
+- v2 sync receipt authorization, empty latest responses, summaries, coverage, and specific-run 404 behavior.
 - idempotency replay and conflict behavior before ingest side effects.
 - failed sync-run receipt visibility.
 

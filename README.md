@@ -127,7 +127,7 @@ Supported client-facing endpoints:
 | `/api/apple/batch` | POST | Receive one metric batch |
 | `/api/apple/status` | GET | Return flat sync/status objects with `count`, `oldest`, and `newest` |
 | `/api/v2/setup/diagnostics` | GET | Unauthenticated setup diagnostics for confirming the API base URL |
-| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
+| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt, or an empty success response before any sync-run receipt exists |
 | `/api/v2/sync/runs/{sync_run_id}` | GET | Delivery receipt summary for one HealthSave sync run |
 | `/api/v2/sync/coverage` | GET | Metric-level receipt coverage summary |
 
@@ -258,6 +258,8 @@ Exact normalized payload fields may still change while the porting plan is final
 When HealthSave sends `Idempotency-Key`, the service records a lightweight idempotency entry for every successful batch so matching retries replay the original response without publishing or counting the same batch again. Reusing an idempotency key with a different `X-HealthSave-Payload-Hash` returns `409 Conflict`.
 
 When HealthSave also sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, the service records delivery receipts. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and can show both processed and failed batch attempts for a sync run.
+
+`GET /api/v2/sync/runs/latest` is always a supported route. Before the first sync-run receipt is recorded, it returns `200` with `status: "empty"`, zero counts, and no metrics. A request for a specific unknown sync run, such as `GET /api/v2/sync/runs/{sync_run_id}`, still returns `404`.
 
 Docker example:
 

@@ -618,10 +618,18 @@ describe("compatibility endpoints", () => {
       url: "/api/v2/sync/coverage",
     });
 
-    expect(latest.statusCode).toBe(404);
-    expect(latest.json()).toEqual({
-      status: "not_found",
-      error: "No sync runs have been recorded",
+    expect(latest.statusCode).toBe(200);
+    expect(latest.json()).toMatchObject({
+      status: "empty",
+      sync_run_id: null,
+      verification_level: "none",
+      records_received: 0,
+      records_accepted: 0,
+      records_rejected: 0,
+      batches_seen: 0,
+      batches_processed: 0,
+      batches_failed: 0,
+      metrics: [],
     });
     expect(run.statusCode).toBe(404);
     expect(run.json()).toEqual({
@@ -1298,7 +1306,12 @@ describe("compatibility endpoints", () => {
       latest_sync_endpoint: "/daniel/api/v2/sync/runs/latest",
       coverage_endpoint: "/daniel/api/v2/sync/coverage",
     });
-    expect(defaultLatest.statusCode).toBe(404);
+    expect(defaultLatest.statusCode).toBe(200);
+    expect(defaultLatest.json()).toMatchObject({
+      status: "empty",
+      sync_run_id: null,
+      metrics: [],
+    });
     expect(danielLatest.statusCode).toBe(200);
     expect(danielLatest.json()).toMatchObject({
       sync_run_id: "daniel-run-1",
@@ -1536,7 +1549,11 @@ describe("compatibility endpoints", () => {
     expect(unauthorized.statusCode).toBe(401);
     expect(unauthorized.json()).toEqual({ detail: "Invalid API key" });
     expect(diagnostics.statusCode).toBe(200);
-    expect(authorized.statusCode).toBe(404);
+    expect(authorized.statusCode).toBe(200);
+    expect(authorized.json()).toMatchObject({
+      status: "empty",
+      sync_run_id: null,
+    });
   });
 
   it("replays idempotency keys without sync run ids", async () => {
@@ -1578,7 +1595,13 @@ describe("compatibility endpoints", () => {
     expect(status.json()).toMatchObject({
       heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
     });
-    expect(latest.statusCode).toBe(404);
+    expect(latest.statusCode).toBe(200);
+    expect(latest.json()).toMatchObject({
+      status: "empty",
+      sync_run_id: null,
+      batches_seen: 0,
+      metrics: [],
+    });
   });
 
   it("rejects idempotency hash conflicts without sync run ids before side effects", async () => {
