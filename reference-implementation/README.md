@@ -1,146 +1,1460 @@
-# Health Data Hub
 
-Self-hosted server stack for ingesting HealthKit-derived data into TimescaleDB and visualizing it with Grafana.
 
-It currently works with the [HealthSave](https://apps.apple.com/app/id6759843047) iOS app, which acts as a thin HealthKit bridge with background sync, but the backend is intentionally named more broadly so it can evolve beyond a single client over time.
 
-**Stack:** FastAPI + TimescaleDB + Grafana
 
-## Why This Exists
 
-Apple Health is great for collection, but much less useful once you want long-term storage, custom queries, or home automation built on top of your own data.
 
-This server exists to make that data portable and useful:
-- Store full history in your own database
-- Query it with normal SQL and time-series tooling
-- Build Grafana dashboards without being limited to Apple's UI
-- Feed selected metrics into systems like Home Assistant
+<!DOCTYPE html>
+<html
+  lang="en"
+  
+  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"
+  data-a11y-animated-images="system" data-a11y-link-underlines="true"
+  
+  >
 
-The goal is not to replace the Health app. It is to provide a simple self-hosted backend that makes your health data easier to inspect, automate, and keep long-term.
 
-## Quick Start
 
-```bash
-cp .env.example .env
-# Edit .env with your passwords
 
-docker compose up -d
-```
+  <head>
+    <meta charset="utf-8">
+  <link rel="dns-prefetch" href="https://github.githubassets.com">
+  <link rel="dns-prefetch" href="https://avatars.githubusercontent.com">
+  <link rel="dns-prefetch" href="https://github-cloud.s3.amazonaws.com">
+  <link rel="dns-prefetch" href="https://user-images.githubusercontent.com/">
+  <link rel="preconnect" href="https://github.githubassets.com" crossorigin>
+  <link rel="preconnect" href="https://avatars.githubusercontent.com">
 
-This starts:
-- **TimescaleDB** on port 5432
-- **FastAPI** on port 8000
-- **Grafana** on port 3000 (default login: admin / your GRAFANA_PASSWORD)
+  
 
-The database port is bound to `127.0.0.1` by default so it is available for
-local tooling without being exposed on your LAN.
 
-## First 5 Minutes
+  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/light-4fded0090af0ad58.css" /><link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/light_high_contrast-cf8e26bc17e62ebc.css" /><link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/dark-06381ff23d863842.css" /><link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/dark_high_contrast-9023e6605402defb.css" /><link data-color-theme="light" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light-4fded0090af0ad58.css" /><link data-color-theme="light_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_high_contrast-cf8e26bc17e62ebc.css" /><link data-color-theme="light_colorblind" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_colorblind-3a437477a570cc40.css" /><link data-color-theme="light_colorblind_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_colorblind_high_contrast-39b6c209db5491c9.css" /><link data-color-theme="light_tritanopia" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_tritanopia-3822234d6c03b00b.css" /><link data-color-theme="light_tritanopia_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_tritanopia_high_contrast-33857254a8064bf7.css" /><link data-color-theme="dark" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark-06381ff23d863842.css" /><link data-color-theme="dark_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_high_contrast-9023e6605402defb.css" /><link data-color-theme="dark_colorblind" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_colorblind-37023bf69d8e0e34.css" /><link data-color-theme="dark_colorblind_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_colorblind_high_contrast-486bd43e01a2c0ec.css" /><link data-color-theme="dark_tritanopia" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_tritanopia-838ba2a5070c5b09.css" /><link data-color-theme="dark_tritanopia_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_tritanopia_high_contrast-2aa7245dc545d61f.css" /><link data-color-theme="dark_dimmed" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_dimmed-29ef2eb185e7de1c.css" /><link data-color-theme="dark_dimmed_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_dimmed_high_contrast-8eed6b212f10f1b9.css" />
 
-If this is your first run, this is the shortest path to confirming the stack is alive:
+  <style type="text/css">
+    :root {
+      --tab-size-preference: 4;
+    }
 
-1. Start the stack with `docker compose up -d`
-2. Check the API health endpoint at `http://localhost:8000/health`
-3. Check the database readiness endpoint at `http://localhost:8000/ready`
-4. Open Grafana at `http://localhost:3000` and log in with `admin` and your `GRAFANA_PASSWORD`
-5. Confirm the `HealthSave` PostgreSQL datasource is present
-6. Open the `HealthSave Overview` dashboard
-7. In the [HealthSave](https://apps.apple.com/app/id6759843047) app, set Server Sync to the base server URL: `http://your-server-ip:8000`
-8. Run a sync and refresh Grafana
+    pre, code {
+      tab-size: var(--tab-size-preference);
+    }
+  </style>
 
-What you should expect after the first successful sync:
-- `/api/apple/status` starts showing non-zero table counts
-- `HealthSave Overview` begins to populate with heart rate, HRV, SpO2, activity, sleep, and workout data
-- The activity and workout dashboards become useful immediately if those datasets were included in the sync
+    <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-primitives-b39ad27f3538ace3.css" />
+    <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-a33d805aa3bce2cb.css" />
+    <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/global-9c8f61f9f58ad7b2.css" />
+    <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/github-d92b5e5cec2d5a81.css" />
+  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/repository-5c3491d57145b94f.css" />
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/code-faf4e82192a865fe.css" />
 
-## Connect HealthSave
+  
 
-The easiest way to push HealthKit data into this stack is with the [HealthSave iOS app](https://apps.apple.com/app/id6759843047).
+  <script type="application/json" id="client-env">{"locale":"en","featureFlags":["actions_custom_images_storage_billing_ui_visibility","actions_image_version_event","actions_workflow_language_service_allow_concurrency_queue","agent_conflict_resolution","alternate_user_config_repo","arianotify_comprehensive_migration","artifact_ui_v2","billing_discount_threshold_notification","billing_user_level_budgets","billing_user_level_budgets_manage","code_scanning_dfa_degraded_experience_notice","codespaces_prebuild_region_target_update","coding_agent_model_selection","coding_agent_model_selection_all_skus","comment_viewer_copy_raw_markdown","contentful_form_phone_v2","contentful_primer_code_blocks","copilot_agent_snippy","copilot_api_agentic_issue_marshal_yaml","copilot_ask_mode_dropdown","copilot_automation_suggest_tools_enabled","copilot_automations_suggested_automations","copilot_chat_attach_multiple_images","copilot_chat_category_rate_limit_messages","copilot_chat_clear_model_selection_for_default_change","copilot_chat_contextual_suggestions_updated","copilot_chat_enable_tool_call_logs","copilot_chat_input_commands","copilot_chat_max_upsell","copilot_chat_models_via_backend","copilot_chat_opening_thread_switch","copilot_chat_prettify_pasted_code","copilot_chat_reduce_quota_checks","copilot_chat_search_bar_redirect","copilot_chat_structured_list_refs","copilot_chat_vision_in_claude","copilot_chat_vision_preview_gate","copilot_cli_install_cta_max_plan","copilot_cloud_agent_always_categorize_models_in_model_picker","copilot_coding_agent_tbb_quota_banner","copilot_custom_copilots","copilot_custom_copilots_feature_preview","copilot_delete_cli_sessions","copilot_diff_explain_conversation_intent","copilot_diff_reference_context","copilot_dotcom_chat_memoize_messages","copilot_duplicate_thread","copilot_extensions_hide_in_dotcom_chat","copilot_extensions_removal_on_marketplace","copilot_features_sql_server_logo","copilot_file_block_ref_matching","copilot_fix_failed_workflows","copilot_ftp_hyperspace_upgrade_prompt","copilot_hide_hovercard","copilot_icebreakers_experiment_dashboard","copilot_icebreakers_experiment_hyperspace","copilot_immersive_code_block_transition_wrap","copilot_immersive_embedded_deferred_payload","copilot_immersive_embedded_draggable","copilot_immersive_embedded_header_button","copilot_immersive_embedded_implicit_references","copilot_immersive_embedded_skip_copilot_api_token_for_dotcom_context","copilot_immersive_file_block_transition_open","copilot_immersive_file_preview_keep_mounted","copilot_immersive_job_result_preview","copilot_immersive_structured_model_picker","copilot_immersive_task_hyperlinking","copilot_immersive_task_within_chat_thread","copilot_mc_cli_resume_any_users_task","copilot_mission_control_agent_filtering","copilot_mission_control_agents_task_list","copilot_mission_control_always_send_integration_id","copilot_mission_control_cli_private_icon","copilot_mission_control_cli_session_status","copilot_mission_control_environment_list_icons","copilot_mission_control_initial_data_spinner","copilot_mission_control_logs_incremental","copilot_mission_control_session_filters","copilot_mission_control_task_alive_updates","copilot_mission_control_tasks_repo_filter","copilot_org_policy_page_focus_mode","copilot_redirect_header_button_to_agents","copilot_resource_panel","copilot_scroll_preview_tabs","copilot_share_active_subthread","copilot_spaces_ga","copilot_spaces_individual_policies_ga","copilot_spaces_pagination","copilot_spark_empty_state","copilot_spark_handle_nil_friendly_name","copilot_swe_agent_authorization_status_ui","copilot_swe_agent_hide_model_picker_if_only_auto","copilot_swe_agent_pr_comment_model_picker","copilot_swe_agent_pull_request_merged_trigger","copilot_swe_agent_pull_request_opened_trigger","copilot_swe_agent_pull_request_synchronize_trigger","copilot_swe_agent_use_subagents","copilot_task_api_github_rest_style","copilot_token_based_billing","copilot_unconfigured_is_inherited","copilot_usage_metrics_ga","copilot_user_can_upgrade_plan_field","copilot_workbench_slim_line_top_tabs","copilot_workbench_ubb","create_ghas_hard_budgets","custom_instructions_file_references","dashboard_indexeddb_caching","dashboard_lists_max_age_filter","dashboard_universe_2025_feedback_dialog","flex_cta_groups_mvp","global_nav_react","hyperspace_2025_logged_out_batch_1","hyperspace_2025_logged_out_batch_2","hyperspace_2025_logged_out_batch_3","ipm_budget_deep_linking","ipm_global_transactional_message_agents","ipm_global_transactional_message_copilot","ipm_global_transactional_message_issues","ipm_global_transactional_message_prs","ipm_global_transactional_message_repos","ipm_global_transactional_message_spaces","issue_cca_modal_open","issue_cca_multi_assign_modal","issue_cca_visualization","issue_fields_global_search","issues_expanded_file_types","issues_lazy_load_comment_box_suggestions","issues_react_chrome_container_query_fix","issues_search_type_gql","landing_pages_ninetailed","landing_pages_web_vitals_tracking","lifecycle_label_name_updates","low_quality_classifier","marketing_pages_search_explore_provider","memex_default_issue_create_repository","memex_live_update_hovercard","memex_mwl_filter_field_delimiter","memex_remove_deprecated_type_issue","merge_status_header_feedback","notifications_menu_defer_labels","oauth_authorize_clickjacking_protection","octocaptcha_origin_optimization","prs_conversations_react","prs_css_anchor_positioning","repos_contributors_limited_default_range","rules_insights_filter_bar_created","rules_required_reviewers_block_description","sample_network_conn_type","secret_scanning_pattern_alerts_link","security_center_artifact_filters_popover","session_logs_ungroup_reasoning_text","site_copilot_max_plans","site_features_copilot_universe","site_homepage_collaborate_video","spark_prompt_secret_scanning","spark_server_connection_status","suppress_automated_browser_vitals","viewscreen_sandbox","warn_inaccessible_attachments","webp_support","workbench_store_readonly"],"copilotApiOverrideUrl":"https://api.githubcopilot.com"}</script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/high-contrast-cookie-c1770ba1d19e9b2c.js"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/wp-runtime-35970562c246cfa6.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/fetch-utilities-b82d70fb3b7c15af.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/78205-a328faf42e1fde9e.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/85924-1f0f5f61600f9c8e.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/34646-b68e58c07f4b3de7.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/environment-d69fe59c085ecc72.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/runtime-helpers-6e561c87b9671d53.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/296-20965d7d607b213c.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/96232-069a02c82c8693ee.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/57131-79aa62319c40af83.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/816-774d14a8cd9b309c.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/37037-cd0fff8f542fa8f3.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/81683-58949462db0c5675.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/64458-4fb01b8fdc13f3ff.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/46740-4421ca06d57312cc.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/30058-4f7b63da3786282e.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/github-elements-1208a11884f03020.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/element-registry-9456276705f39107.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/react-core-4a56f172fcdec649.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/react-lib-e93338a8d08b8bb9.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/41260-0b9ff1337b067966.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/79039-f2b81734929d0b15.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/88475-92437d3f8c9a9747.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/2887-d67f71d8e1d3e1d8.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/26533-318ac47648fb7752.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/46477-596c4ee4da73ac9a.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/31606-6f583ce9bde98bfa.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/33232-a61b173cd548f3cb.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/46287-fc23b9847d26823b.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/28000-450a3042fe455862.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/89627-9ca1822c4cd2f9dd.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/55682-a358ec7c2f348fcf.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/49029-3a132de206358025.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/99328-c8f80b871b1483db.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/behaviors-787090bfc35f0bd1.js" defer="defer"></script>
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/react-core.ec8110258cfb5b9c.module.css" />
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/61272-d797d8a9ce83f9c1.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/notifications-global-be20ba1998b9a752.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/39890-cc66c6b70681d7fd.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/code-menu-30ce9fb4da681eeb.js" defer="defer"></script>
+  
+  <script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/primer-react-b2ec7a7e154b0b97.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/octicons-react-fa41822493eeb852.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/97458-20aca2fc91de9cc3.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/73694-c5efeea1f6f546c8.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/24949-7df9a84e133032e5.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/68751-3dce390992441fd6.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/437-c3d500f582b41be6.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/7463-3f2319a5b1d5fdf1.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/15272-37128cbcef9c407d.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/27600-4a93fc41fc8910c4.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/24564-14df7faa28380ddf.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/75521-9fa90ef1702b6b2b.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/58246-4ba5ac2265364faa.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/36311-a4f7563a98201f8b.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/16991-ec5fcaf7c62958d6.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/85542-b7dbf9541cd4eb3d.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/37494-8ad7eb20aa952a1d.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/68469-eb0c684e68896bcc.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/72094-86fb464e4e7ff942.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/40828-e6079551c5021285.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/63000-72d947f3c46087f0.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/30914-84a6fb11a38d78d8.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/33684-88b66083477394bd.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/1334-45a390001bd91c49.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/66231-7e90d1d205b44162.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/79407-7ed60e9afcb942a7.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/4916-17f9f95b53ebdbb3.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/68212-39f789b362f90992.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/2204-2ba7b35269e4e2ed.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/81959-45ce1bd801a17000.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/75577-f6389c0100ca31a1.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/15151-d56fdcef6cbca06e.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/53275-8145126227371aef.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/67092-e5c167dd95b2d37c.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/9094-bed5a523be5a5394.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/57412-e5882fe01e1ebde7.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/27562-2b99f3c38a6bfca0.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/2165-dac4d7932fbff3e1.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/83805-6febcda7878e1a09.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/50110-cd07f1297612087b.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/26497-f00527c3e73c4254.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/21622-7f46d23f91e76501.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/3861-434dcd3a76a723b6.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/code-view-fa3e919a3b24df7c.js" defer="defer"></script>
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react-css.c6bef8006da6a4d6.module.css" />
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/57412.2b46d101460bb87d.module.css" />
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/code-view.784d108442b048ea.module.css" />
 
-HealthSave expects a base server URL and appends the API paths itself:
+  <script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/65668-5bf3003ad0da99e7.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/notifications-subscriptions-menu-3487e7aa398a66b2.js" defer="defer"></script>
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react-css.c6bef8006da6a4d6.module.css" />
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/notifications-subscriptions-menu.da23c37c4813b1bd.module.css" />
 
-`http://your-server-ip:8000`
 
-1. Open HealthSave → Settings → Server Sync
-2. Set Server URL to: `http://your-server-ip:8000`
-3. (Optional) Set your API key if you configured one
-4. Tap "Sync New Data"
+  <title>health-data-hub/README.md at main · umutkeltek/health-data-hub · GitHub</title>
 
-If you are building another client, the batch ingest endpoint is:
 
-`http://your-server-ip:8000/api/apple/batch`
 
-The full request/response contract, including the exact `/api/apple/status`
-shape expected by the iOS app, is documented in [API.md](API.md).
+  <meta name="route-pattern" content="/:user_id/:repository/blob/*name(/*path)" data-turbo-transient>
+  <meta name="route-controller" content="blob" data-turbo-transient>
+  <meta name="route-action" content="show" data-turbo-transient>
+  <meta name="fetch-nonce" content="v2:ded83c0f-9710-c0ac-7a53-138850eed3b1">
 
-## What Gets Synced
+    
+  <meta name="current-catalog-service-hash" content="f3abb0cc802f3d7b95fc8762b94bdcb13bf39634c40c357301c4aa1d67a256fb">
 
-The server receives and stores 120+ HealthKit metrics:
 
-| Table | Data |
-|-------|------|
-| `heart_rate` | Continuous HR from Apple Watch / Whoop |
-| `hrv` | Heart rate variability (SDNN) |
-| `blood_oxygen` | SpO2 readings |
-| `daily_activity` | Steps, distance, calories, exercise minutes |
-| `sleep_sessions` | Sleep duration, stages, respiratory rate |
-| `workouts` | Workout type, duration, HR zones |
-| `quantity_samples` | Catch-all for any other HealthKit metric |
+  <meta name="request-id" content="FE87:21B6B5:105452E8:E374A2F:6A1EF94F" data-pjax-transient="true"/><meta name="html-safe-nonce" content="8470b91b3f9ce4d3cefd08e09d733125798baceb2e8f2345c267e2ea57247d00" data-pjax-transient="true"/><meta name="visitor-payload" content="eyJyZWZlcnJlciI6IiIsInJlcXVlc3RfaWQiOiJGRTg3OjIxQjZCNToxMDU0NTJFODpFMzc0QTJGOjZBMUVGOTRGIiwidmlzaXRvcl9pZCI6IjU5ODcwNzA5MzkzNjg0NTQ0NzkiLCJyZWdpb25fZWRnZSI6ImZyYSIsInJlZ2lvbl9yZW5kZXIiOiJmcmEifQ==" data-pjax-transient="true"/><meta name="visitor-hmac" content="5222b3085826473cd4d915aa1b1de1e0a535559e62c28a35d9ecb145b3eaa67b" data-pjax-transient="true"/>
 
-## Grafana Dashboards
 
-A curated starter dashboard set is included in `grafana/`, so a fresh `docker compose up -d` should bring Grafana up with the datasource and the supported dashboards already wired.
+    <meta name="hovercard-subject-tag" content="repository:1206479703" data-turbo-transient>
 
-Included files:
-- `grafana/provisioning/datasources/healthsave.yaml`
-- `grafana/provisioning/dashboards/default.yaml`
-- `grafana/dashboards/`
 
-Supported dashboards loaded automatically:
+  <meta name="github-keyboard-shortcuts" content="repository,source-code,file-tree,copilot" data-turbo-transient="true" />
+  
 
-| Dashboard | File | Depends On | Status | Notes |
-|-----------|------|------------|--------|-------|
-| HealthSave Overview | `grafana/dashboards/healthsave-overview.json` | `heart_rate`, `hrv`, `blood_oxygen`, `daily_activity`, `sleep_sessions`, `workouts` | Supported | Best first dashboard for a fresh install |
-| Activity & Movement | `grafana/dashboards/activity.json` | `daily_activity`, `quantity_samples` | Supported | Gait-related panels only populate if those optional metrics are synced |
-| Workouts | `grafana/dashboards/workouts.json` | `workouts` | Supported | Focused workout view with type, duration, calories, and HR panels |
+  <meta name="selected-link" value="repo_source" data-turbo-transient>
+  <link rel="assets" href="https://github.githubassets.com/">
 
-The datasource is auto-provisioned — no manual setup needed.
+    <meta name="google-site-verification" content="Apib7-x98H0j5cPqHWwSMm6dNU4GmODRoqxLiDzdx9I">
 
-## Home Assistant Examples
+<meta name="octolytics-url" content="https://collector.github.com/github/collect" />
 
-Example Home Assistant config is included in `home-assistant/` for people who want to query TimescaleDB directly and turn selected metrics into entities and automations.
 
-Included files:
-- `home-assistant/healthsave-package.yaml`
-- `home-assistant/secrets.example.yaml`
 
-Recommended flow:
-1. Add a read-only PostgreSQL user for Home Assistant if possible
-2. Point `healthsave_db_url` at your TimescaleDB instance
-3. Copy `healthsave-package.yaml` into your Home Assistant packages directory
-4. Restart Home Assistant and adjust the example thresholds and entity IDs for your setup
 
-## Community Backends
 
-The ingest API is intentionally simple so anyone can build a compatible backend for their own stack. The first community implementation is already live:
+  <meta name="analytics-location" content="/&lt;user-name&gt;/&lt;repo-name&gt;/blob/show" data-turbo-transient="true" />
 
-- **[health-data-to-mqtt](https://github.com/bietiekay/health-data-to-mqtt)** by [@bietiekay](https://github.com/bietiekay) — A lightweight Node.js server that stores raw JSON and forwards selected metrics to MQTT. Built for alerting and home automation pipelines where MQTT is the primary transport.
+  
 
-If you've built a compatible backend, open an issue or PR and we'll add it here. The full API contract including every supported metric is documented in [API.md](API.md).
 
-## Roadmap
 
-This community release is intentionally small and focused on the ingestion pipeline first.
 
-Next things to improve:
-- More dashboard polish and curation across recovery, workouts, and long-term trends
-- More Home Assistant examples for different trigger styles
-- Production deployment notes for reverse proxy, auth, backups, and retention
+    <meta name="user-login" content="">
 
-## Architecture
+  
 
-```
-iPhone (HealthSave app)
+    <meta name="viewport" content="width=device-width">
+
+    
+
+      <meta name="description" content="Self-hosted Apple Health server - sync HealthKit from iPhone/Apple Watch to TimescaleDB, visualize in Grafana, and get AI-written daily briefings via a local Ollama LLM. Private, zero-cloud, Docker-ready. Pairs with the HealthSave iOS app and Home Assistant. - health-data-hub/README.md at main · umutkeltek/health-data-hub">
+
+      <link rel="search" type="application/opensearchdescription+xml" href="/opensearch.xml" title="GitHub">
+
+    <link rel="fluid-icon" href="https://github.com/fluidicon.png" title="GitHub">
+    <meta property="fb:app_id" content="1401488693436528">
+    <meta name="apple-itunes-app" content="app-id=1477376905, app-argument=https://github.com/umutkeltek/health-data-hub/blob/main/README.md" />
+
+      <meta name="twitter:image" content="https://repository-images.githubusercontent.com/1206479703/f6cc8b7c-6e45-4fed-ba35-c51e2a3dfce0" /><meta name="twitter:site" content="@github" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content="health-data-hub/README.md at main · umutkeltek/health-data-hub" /><meta name="twitter:description" content="Self-hosted Apple Health server - sync HealthKit from iPhone/Apple Watch to TimescaleDB, visualize in Grafana, and get AI-written daily briefings via a local Ollama LLM. Private, zero-cloud, Docker..." />
+  <meta property="og:image" content="https://repository-images.githubusercontent.com/1206479703/f6cc8b7c-6e45-4fed-ba35-c51e2a3dfce0" /><meta property="og:image:alt" content="Self-hosted Apple Health server - sync HealthKit from iPhone/Apple Watch to TimescaleDB, visualize in Grafana, and get AI-written daily briefings via a local Ollama LLM. Private, zero-cloud, Docker..." /><meta property="og:site_name" content="GitHub" /><meta property="og:type" content="object" /><meta property="og:title" content="health-data-hub/README.md at main · umutkeltek/health-data-hub" /><meta property="og:url" content="https://github.com/umutkeltek/health-data-hub/blob/main/README.md" /><meta property="og:description" content="Self-hosted Apple Health server - sync HealthKit from iPhone/Apple Watch to TimescaleDB, visualize in Grafana, and get AI-written daily briefings via a local Ollama LLM. Private, zero-cloud, Docker..." />
+  
+
+
+
+
+      <meta name="hostname" content="github.com">
+
+
+
+        <meta name="expected-hostname" content="github.com">
+
+
+  <meta http-equiv="x-pjax-version" content="ca6acc6d982162bb33e41f2b94930f0dc0047425aafd0b13539639166caa9fc8" data-turbo-track="reload">
+  <meta http-equiv="x-pjax-csp-version" content="f53effb2a675c4091662fd06c1c9f58a7eef6c9c46c51c4f2ac6ff94d5e4967b" data-turbo-track="reload">
+  <meta http-equiv="x-pjax-css-version" content="75ed22795dd7d05a40521c01884e084fb34d435b5f163faf53a37883ee7981dd" data-turbo-track="reload">
+  <meta http-equiv="x-pjax-js-version" content="54a3b2770bfce9af48e72f150663a11521a8b1767c0db21ef9aa37d36e9a420a" data-turbo-track="reload">
+
+  <meta name="turbo-cache-control" content="no-preview" data-turbo-transient="">
+
+      <meta name="turbo-cache-control" content="no-cache" data-turbo-transient>
+
+    <meta data-hydrostats="publish">
+
+  <meta name="go-import" content="github.com/umutkeltek/health-data-hub git https://github.com/umutkeltek/health-data-hub.git">
+
+  <meta name="octolytics-dimension-user_id" content="35880258" /><meta name="octolytics-dimension-user_login" content="umutkeltek" /><meta name="octolytics-dimension-repository_id" content="1206479703" /><meta name="octolytics-dimension-repository_nwo" content="umutkeltek/health-data-hub" /><meta name="octolytics-dimension-repository_public" content="true" /><meta name="octolytics-dimension-repository_is_fork" content="false" /><meta name="octolytics-dimension-repository_network_root_id" content="1206479703" /><meta name="octolytics-dimension-repository_network_root_nwo" content="umutkeltek/health-data-hub" />
+  
+
+
+
+    
+
+    <meta name="turbo-body-classes" content="logged-out env-production page-responsive">
+  <meta name="disable-turbo" content="false">
+
+
+  <meta name="browser-stats-url" content="https://api.github.com/_private/browser/stats">
+
+  <meta name="browser-errors-url" content="https://api.github.com/_private/browser/errors">
+
+    <meta name="release" content="0b7891dbf8a84edfbdf6dbab2b55d789844e7873" data-turbo-track="reload">
+  <meta name="ui-target" content="full">
+
+  <link rel="mask-icon" href="https://github.githubassets.com/assets/pinned-octocat-093da3e6fa40.svg" color="#000000">
+  <link rel="alternate icon" class="js-site-favicon" type="image/png" href="https://github.githubassets.com/favicons/favicon.png">
+  <link rel="icon" class="js-site-favicon" type="image/svg+xml" href="https://github.githubassets.com/favicons/favicon.svg" data-base-href="https://github.githubassets.com/favicons/favicon">
+
+<meta name="theme-color" content="#1e2327">
+<meta name="color-scheme" content="light dark" />
+
+
+  <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials">
+
+  </head>
+
+  <body class="logged-out env-production page-responsive" style="word-wrap: break-word;" >
+    <div data-turbo-body class="logged-out env-production page-responsive" style="word-wrap: break-word;" >
+      <div id="__primerPortalRoot__" style="z-index: 1000; position: absolute; width: 100%;" data-turbo-permanent></div>
+      
+
+    <div class="position-relative header-wrapper js-header-wrapper ">
+      <a href="#start-of-content" data-skip-target-assigned="false" class="px-2 tmp-py-4 color-bg-accent-emphasis color-fg-on-emphasis show-on-focus js-skip-to-content">Skip to content</a>
+
+      <span data-view-component="true" class="progress-pjax-loader Progress position-fixed width-full">
+    <span style="width: 0%;" data-view-component="true" class="Progress-item progress-pjax-loader-bar left-0 top-0 color-bg-accent-emphasis"></span>
+</span>      
+      
+      <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react-css.c6bef8006da6a4d6.module.css" />
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/keyboard-shortcuts-dialog.6cd80e3134c32137.module.css" />
+
+<react-partial
+  partial-name="keyboard-shortcuts-dialog"
+  data-ssr="false"
+  data-attempted-ssr="false"
+  data-react-profiling="false"
+>
+  
+  <script type="application/json" data-target="react-partial.embeddedData">{"props":{"docsUrl":"https://docs.github.com/get-started/accessibility/keyboard-shortcuts"}}</script>
+  <div data-target="react-partial.reactRoot"></div>
+</react-partial>
+
+
+
+
+
+      
+
+          
+
+              
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/70666-351eb383f1ef4a9d.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/43406-46a76afebe05acef.js" defer="defer"></script>
+<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/sessions-3d4ee946e452d6db.js" defer="defer"></script>
+
+<style>
+  /* Override primer focus outline color for marketing header dropdown links for better contrast */
+  [data-color-mode="light"] .HeaderMenu-dropdown-link:focus-visible,
+  [data-color-mode="light"] .HeaderMenu-trailing-link a:focus-visible {
+    outline-color: var(--color-accent-fg);
+  }
+</style>
+
+<header class="HeaderMktg header-logged-out js-details-container js-header Details f4 tmp-py-3" role="banner" data-is-top="true" data-color-mode=auto data-light-theme=light data-dark-theme=dark>
+  <h2 class="sr-only">Navigation Menu</h2>
+
+  <button type="button" class="HeaderMktg-backdrop d-lg-none border-0 position-fixed top-0 left-0 width-full height-full js-details-target" aria-label="Toggle navigation">
+    <span class="d-none">Toggle navigation</span>
+  </button>
+
+  <div class="d-flex flex-column flex-lg-row flex-items-center tmp-px-3 tmp-px-md-4 tmp-px-lg-5 height-full position-relative z-1">
+    <div class="d-flex flex-justify-between flex-items-center width-full width-lg-auto">
+      <div class="flex-1">
+        <button aria-label="Toggle navigation" aria-expanded="false" type="button" data-view-component="true" class="js-details-target js-nav-padding-recalculate js-header-menu-toggle Button--link Button--medium Button d-lg-none color-fg-inherit p-1 tmp-p-1">  <span class="Button-content">
+    <span class="Button-label"><div class="HeaderMenu-toggle-bar rounded my-1"></div>
+            <div class="HeaderMenu-toggle-bar rounded my-1"></div>
+            <div class="HeaderMenu-toggle-bar rounded my-1"></div></span>
+  </span>
+</button>
+      </div>
+
+      <a class="tmp-mr-lg-3 color-fg-inherit flex-order-2 js-prevent-focus-on-mobile-nav"
+        href="/"
+        aria-label="Homepage"
+        data-analytics-event="{&quot;category&quot;:&quot;Marketing nav&quot;,&quot;action&quot;:&quot;click to go to homepage&quot;,&quot;label&quot;:&quot;ref_page:Marketing;ref_cta:Logomark;ref_loc:Header&quot;}">
+        <svg height="32" aria-hidden="true" data-component="Octicon" viewBox="0 0 24 24" version="1.1" width="32" data-view-component="true" class="octicon octicon-mark-github">
+    <path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"></path>
+</svg>
+      </a>
+
+      <div class="d-flex flex-1 flex-order-2 text-right d-lg-none gap-2 flex-justify-end">
+          <a
+            href="/login?return_to=https%3A%2F%2Fgithub.com%2Fumutkeltek%2Fhealth-data-hub%2Fblob%2Fmain%2FREADME.md"
+            class="HeaderMenu-link HeaderMenu-button d-inline-flex f5 no-underline border color-border-default rounded-2 px-2 py-1 color-fg-inherit js-prevent-focus-on-mobile-nav"
+            data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/umutkeltek/health-data-hub/blob/main/README.md&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="75529d40800c1bb6199597f4d00f318f1043816dac5cf6c58bf672b4625b8abb"
+            data-analytics-event="{&quot;category&quot;:&quot;Marketing nav&quot;,&quot;action&quot;:&quot;click to Sign in&quot;,&quot;label&quot;:&quot;ref_page:Marketing;ref_cta:Sign in;ref_loc:Header&quot;}"
+          >
+            Sign in
+          </a>
+              <div class="AppHeader-appearanceSettings">
+    <react-partial-anchor>
+      <button data-target="react-partial-anchor.anchor" id="icon-button-7253c08a-eaf4-4eb3-a82a-fe21e2e5df8f" aria-labelledby="tooltip-39a143ae-fbba-4cf0-b84f-4fb98ded97b6" type="button" disabled="disabled" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium AppHeader-button HeaderMenu-link border cursor-wait">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-sliders Button-visual">
+    <path d="M15 2.75a.75.75 0 0 1-.75.75h-4a.75.75 0 0 1 0-1.5h4a.75.75 0 0 1 .75.75Zm-8.5.75v1.25a.75.75 0 0 0 1.5 0v-4a.75.75 0 0 0-1.5 0V2H1.75a.75.75 0 0 0 0 1.5H6.5Zm1.25 5.25a.75.75 0 0 0 0-1.5h-6a.75.75 0 0 0 0 1.5h6ZM15 8a.75.75 0 0 1-.75.75H11.5V10a.75.75 0 1 1-1.5 0V6a.75.75 0 0 1 1.5 0v1.25h2.75A.75.75 0 0 1 15 8Zm-9 5.25v-2a.75.75 0 0 0-1.5 0v1.25H1.75a.75.75 0 0 0 0 1.5H4.5v1.25a.75.75 0 0 0 1.5 0v-2Zm9 0a.75.75 0 0 1-.75.75h-6a.75.75 0 0 1 0-1.5h6a.75.75 0 0 1 .75.75Z"></path>
+</svg>
+</button><tool-tip id="tooltip-39a143ae-fbba-4cf0-b84f-4fb98ded97b6" for="icon-button-7253c08a-eaf4-4eb3-a82a-fe21e2e5df8f" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Appearance settings</tool-tip>
+
+      <template data-target="react-partial-anchor.template">
+        <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react-css.c6bef8006da6a4d6.module.css" />
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/appearance-settings.0d1c5833260ecb07.module.css" />
+
+<react-partial
+  partial-name="appearance-settings"
+  data-ssr="false"
+  data-attempted-ssr="false"
+  data-react-profiling="false"
+>
+  
+  <script type="application/json" data-target="react-partial.embeddedData">{"props":{}}</script>
+  <div data-target="react-partial.reactRoot"></div>
+</react-partial>
+
+
+      </template>
+    </react-partial-anchor>
+  </div>
+
+      </div>
+    </div>
+
+
+    <div class="HeaderMenu js-header-menu height-fit position-lg-relative d-lg-flex flex-column flex-auto top-0">
+      <div class="HeaderMenu-wrapper d-flex flex-column flex-self-start flex-lg-row flex-auto rounded rounded-lg-0">
+          <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react-css.c6bef8006da6a4d6.module.css" />
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/marketing-navigation.b02c4a23543a2d83.module.css" />
+
+<react-partial
+  partial-name="marketing-navigation"
+  data-ssr="true"
+  data-attempted-ssr="true"
+  data-react-profiling="false"
+>
+  
+  <script type="application/json" data-target="react-partial.embeddedData">{"props":{"should_use_dotcom_links":true}}</script>
+  <div data-target="react-partial.reactRoot"><nav class="MarketingNavigation-module__nav__W0KYY" aria-label="Global"><ul class="MarketingNavigation-module__list__tFbMb"><li><div class="NavDropdown-module__container__l2YeI js-details-container js-header-menu-item"><button type="button" class="NavDropdown-module__button__PEHWX js-details-target" aria-expanded="false">Platform<svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavDropdown-module__buttonIcon__Tkl8_" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></button><div class="NavDropdown-module__dropdown__xm1jd"><ul class="NavDropdown-module__list__zuCgG"><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_5hb_">AI CODE CREATION</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_5hb_"><li><a href="https://github.com/features/copilot" data-analytics-event="{&quot;action&quot;:&quot;github_copilot&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;github_copilot_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-copilot NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M23.922 16.992c-.861 1.495-5.859 5.023-11.922 5.023-6.063 0-11.061-3.528-11.922-5.023A.641.641 0 0 1 0 16.736v-2.869a.841.841 0 0 1 .053-.22c.372-.935 1.347-2.292 2.605-2.656.167-.429.414-1.055.644-1.517a10.195 10.195 0 0 1-.052-1.086c0-1.331.282-2.499 1.132-3.368.397-.406.89-.717 1.474-.952 1.399-1.136 3.392-2.093 6.122-2.093 2.731 0 4.767.957 6.166 2.093.584.235 1.077.546 1.474.952.85.869 1.132 2.037 1.132 3.368 0 .368-.014.733-.052 1.086.23.462.477 1.088.644 1.517 1.258.364 2.233 1.721 2.605 2.656a.832.832 0 0 1 .053.22v2.869a.641.641 0 0 1-.078.256ZM12.172 11h-.344a4.323 4.323 0 0 1-.355.508C10.703 12.455 9.555 13 7.965 13c-1.725 0-2.989-.359-3.782-1.259a2.005 2.005 0 0 1-.085-.104L4 11.741v6.585c1.435.779 4.514 2.179 8 2.179 3.486 0 6.565-1.4 8-2.179v-6.585l-.098-.104s-.033.045-.085.104c-.793.9-2.057 1.259-3.782 1.259-1.59 0-2.738-.545-3.508-1.492a4.323 4.323 0 0 1-.355-.508h-.016.016Zm.641-2.935c.136 1.057.403 1.913.878 2.497.442.544 1.134.938 2.344.938 1.573 0 2.292-.337 2.657-.751.384-.435.558-1.15.558-2.361 0-1.14-.243-1.847-.705-2.319-.477-.488-1.319-.862-2.824-1.025-1.487-.161-2.192.138-2.533.529-.269.307-.437.808-.438 1.578v.021c0 .265.021.562.063.893Zm-1.626 0c.042-.331.063-.628.063-.894v-.02c-.001-.77-.169-1.271-.438-1.578-.341-.391-1.046-.69-2.533-.529-1.505.163-2.347.537-2.824 1.025-.462.472-.705 1.179-.705 2.319 0 1.211.175 1.926.558 2.361.365.414 1.084.751 2.657.751 1.21 0 1.902-.394 2.344-.938.475-.584.742-1.44.878-2.497Z"></path><path d="M14.5 14.25a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0v-2a1 1 0 0 1 1-1Zm-5 0a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0v-2a1 1 0 0 1 1-1Z"></path></svg><span class="NavLink-module__title__Q7t0p">GitHub Copilot</span><span class="NavLink-module__subtitle__X4gkW">Write better code with AI</span></div></a></li><li><a href="https://github.com/features/spark" data-analytics-event="{&quot;action&quot;:&quot;github_spark&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;github_spark_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-sparkle-fill NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M11.296 1.924c.24-.656 1.168-.656 1.408 0l.717 1.958a11.25 11.25 0 0 0 6.697 6.697l1.958.717c.657.24.657 1.168 0 1.408l-1.958.717a11.25 11.25 0 0 0-6.697 6.697l-.717 1.958c-.24.657-1.168.657-1.408 0l-.717-1.958a11.25 11.25 0 0 0-6.697-6.697l-1.958-.717c-.656-.24-.656-1.168 0-1.408l1.958-.717a11.25 11.25 0 0 0 6.697-6.697l.717-1.958Z"></path></svg><span class="NavLink-module__title__Q7t0p">GitHub Spark</span><span class="NavLink-module__subtitle__X4gkW">Build and deploy intelligent apps</span></div></a></li><li><a href="https://github.com/features/models" data-analytics-event="{&quot;action&quot;:&quot;github_models&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;github_models_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-ai-model NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M19.375 8.5a3.25 3.25 0 1 1-3.163 4h-3a3.252 3.252 0 0 1-4.443 2.509L7.214 17.76a3.25 3.25 0 1 1-1.342-.674l1.672-2.957A3.238 3.238 0 0 1 6.75 12c0-.907.371-1.727.97-2.316L6.117 6.846A3.253 3.253 0 0 1 1.875 3.75a3.25 3.25 0 1 1 5.526 2.32l1.603 2.836A3.25 3.25 0 0 1 13.093 11h3.119a3.252 3.252 0 0 1 3.163-2.5ZM10 10.25a1.75 1.75 0 1 0-.001 3.499A1.75 1.75 0 0 0 10 10.25ZM5.125 2a1.75 1.75 0 1 0 0 3.5 1.75 1.75 0 0 0 0-3.5Zm12.5 9.75a1.75 1.75 0 1 0 3.5 0 1.75 1.75 0 0 0-3.5 0Zm-14.25 8.5a1.75 1.75 0 1 0 3.501-.001 1.75 1.75 0 0 0-3.501.001Z"></path></svg><span class="NavLink-module__title__Q7t0p">GitHub Models</span><span class="NavLink-module__subtitle__X4gkW">Manage and compare prompts</span></div></a></li><li><a href="https://github.com/mcp" data-analytics-event="{&quot;action&quot;:&quot;mcp_registry&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;mcp_registry_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-mcp NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M9.795 1.694a4.287 4.287 0 0 1 6.061 0 4.28 4.28 0 0 1 1.181 3.819 4.282 4.282 0 0 1 3.819 1.181 4.287 4.287 0 0 1 0 6.061l-6.793 6.793a.249.249 0 0 0 0 .353l2.617 2.618a.75.75 0 1 1-1.061 1.061l-2.617-2.618a1.75 1.75 0 0 1 0-2.475l6.793-6.793a2.785 2.785 0 1 0-3.939-3.939l-5.9 5.9a.734.734 0 0 1-.249.165.749.749 0 0 1-.812-1.225l5.9-5.901a2.785 2.785 0 1 0-3.939-3.939L2.931 10.68A.75.75 0 1 1 1.87 9.619l7.925-7.925Z"></path><path d="M12.42 4.069a.752.752 0 0 1 1.061 0 .752.752 0 0 1 0 1.061L7.33 11.28a2.788 2.788 0 0 0 0 3.94 2.788 2.788 0 0 0 3.94 0l6.15-6.151a.752.752 0 0 1 1.061 0 .752.752 0 0 1 0 1.061l-6.151 6.15a4.285 4.285 0 1 1-6.06-6.06l6.15-6.151Z"></path></svg><span class="NavLink-module__title__Q7t0p">MCP Registry<sup class="NavLink-module__label__bil7n">New</sup></span><span class="NavLink-module__subtitle__X4gkW">Integrate external tools</span></div></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_9hb_">DEVELOPER WORKFLOWS</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_9hb_"><li><a href="https://github.com/features/actions" data-analytics-event="{&quot;action&quot;:&quot;actions&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;actions_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-workflow NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M1 3a2 2 0 0 1 2-2h6.5a2 2 0 0 1 2 2v6.5a2 2 0 0 1-2 2H7v4.063C7 16.355 7.644 17 8.438 17H12.5v-2.5a2 2 0 0 1 2-2H21a2 2 0 0 1 2 2V21a2 2 0 0 1-2 2h-6.5a2 2 0 0 1-2-2v-2.5H8.437A2.939 2.939 0 0 1 5.5 15.562V11.5H3a2 2 0 0 1-2-2Zm2-.5a.5.5 0 0 0-.5.5v6.5a.5.5 0 0 0 .5.5h6.5a.5.5 0 0 0 .5-.5V3a.5.5 0 0 0-.5-.5ZM14.5 14a.5.5 0 0 0-.5.5V21a.5.5 0 0 0 .5.5H21a.5.5 0 0 0 .5-.5v-6.5a.5.5 0 0 0-.5-.5Z"></path></svg><span class="NavLink-module__title__Q7t0p">Actions</span><span class="NavLink-module__subtitle__X4gkW">Automate any workflow</span></div></a></li><li><a href="https://github.com/features/codespaces" data-analytics-event="{&quot;action&quot;:&quot;codespaces&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;codespaces_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-codespaces NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.5 3.75C3.5 2.784 4.284 2 5.25 2h13.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 18.75 13H5.25a1.75 1.75 0 0 1-1.75-1.75Zm-2 12c0-.966.784-1.75 1.75-1.75h17.5c.966 0 1.75.784 1.75 1.75v4a1.75 1.75 0 0 1-1.75 1.75H3.25a1.75 1.75 0 0 1-1.75-1.75ZM5.25 3.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h13.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Zm-2 12a.25.25 0 0 0-.25.25v4c0 .138.112.25.25.25h17.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25Z"></path><path d="M10 17.75a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1-.75-.75Zm-4 0a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Z"></path></svg><span class="NavLink-module__title__Q7t0p">Codespaces</span><span class="NavLink-module__subtitle__X4gkW">Instant dev environments</span></div></a></li><li><a href="https://github.com/features/issues" data-analytics-event="{&quot;action&quot;:&quot;issues&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;issues_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-issue-opened NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M12 1c6.075 0 11 4.925 11 11s-4.925 11-11 11S1 18.075 1 12 5.925 1 12 1ZM2.5 12a9.5 9.5 0 0 0 9.5 9.5 9.5 9.5 0 0 0 9.5-9.5A9.5 9.5 0 0 0 12 2.5 9.5 9.5 0 0 0 2.5 12Zm9.5 2a2 2 0 1 1-.001-3.999A2 2 0 0 1 12 14Z"></path></svg><span class="NavLink-module__title__Q7t0p">Issues</span><span class="NavLink-module__subtitle__X4gkW">Plan and track work</span></div></a></li><li><a href="https://github.com/features/code-review" data-analytics-event="{&quot;action&quot;:&quot;code_review&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;code_review_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-code NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M15.22 4.97a.75.75 0 0 1 1.06 0l6.5 6.5a.75.75 0 0 1 0 1.06l-6.5 6.5a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L21.19 12l-5.97-5.97a.75.75 0 0 1 0-1.06Zm-6.44 0a.75.75 0 0 1 0 1.06L2.81 12l5.97 5.97a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215l-6.5-6.5a.75.75 0 0 1 0-1.06l6.5-6.5a.75.75 0 0 1 1.06 0Z"></path></svg><span class="NavLink-module__title__Q7t0p">Code Review</span><span class="NavLink-module__subtitle__X4gkW">Manage code changes</span></div></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_dhb_">APPLICATION SECURITY</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_dhb_"><li><a href="https://github.com/security/advanced-security" data-analytics-event="{&quot;action&quot;:&quot;github_advanced_security&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;github_advanced_security_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-shield-check NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M16.53 9.78a.75.75 0 0 0-1.06-1.06L11 13.19l-1.97-1.97a.75.75 0 0 0-1.06 1.06l2.5 2.5a.75.75 0 0 0 1.06 0l5-5Z"></path><path d="m12.54.637 8.25 2.675A1.75 1.75 0 0 1 22 4.976V10c0 6.19-3.771 10.704-9.401 12.83a1.704 1.704 0 0 1-1.198 0C5.77 20.705 2 16.19 2 10V4.976c0-.758.489-1.43 1.21-1.664L11.46.637a1.748 1.748 0 0 1 1.08 0Zm-.617 1.426-8.25 2.676a.249.249 0 0 0-.173.237V10c0 5.46 3.28 9.483 8.43 11.426a.199.199 0 0 0 .14 0C17.22 19.483 20.5 15.461 20.5 10V4.976a.25.25 0 0 0-.173-.237l-8.25-2.676a.253.253 0 0 0-.154 0Z"></path></svg><span class="NavLink-module__title__Q7t0p">GitHub Advanced Security</span><span class="NavLink-module__subtitle__X4gkW">Find and fix vulnerabilities</span></div></a></li><li><a href="https://github.com/security/advanced-security/code-security" data-analytics-event="{&quot;action&quot;:&quot;code_security&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;code_security_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-code-square NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M10.3 8.24a.75.75 0 0 1-.04 1.06L7.352 12l2.908 2.7a.75.75 0 1 1-1.02 1.1l-3.5-3.25a.75.75 0 0 1 0-1.1l3.5-3.25a.75.75 0 0 1 1.06.04Zm3.44 1.06a.75.75 0 1 1 1.02-1.1l3.5 3.25a.75.75 0 0 1 0 1.1l-3.5 3.25a.75.75 0 1 1-1.02-1.1l2.908-2.7-2.908-2.7Z"></path><path d="M2 3.75C2 2.784 2.784 2 3.75 2h16.5c.966 0 1.75.784 1.75 1.75v16.5A1.75 1.75 0 0 1 20.25 22H3.75A1.75 1.75 0 0 1 2 20.25Zm1.75-.25a.25.25 0 0 0-.25.25v16.5c0 .138.112.25.25.25h16.5a.25.25 0 0 0 .25-.25V3.75a.25.25 0 0 0-.25-.25Z"></path></svg><span class="NavLink-module__title__Q7t0p">Code security</span><span class="NavLink-module__subtitle__X4gkW">Secure your code as you build</span></div></a></li><li><a href="https://github.com/security/advanced-security/secret-protection" data-analytics-event="{&quot;action&quot;:&quot;secret_protection&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;secret_protection_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-lock NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6 9V7.25C6 3.845 8.503 1 12 1s6 2.845 6 6.25V9h.5a2.5 2.5 0 0 1 2.5 2.5v8a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 19.5v-8A2.5 2.5 0 0 1 5.5 9Zm-1.5 2.5v8a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-13a1 1 0 0 0-1 1Zm3-4.25V9h9V7.25c0-2.67-1.922-4.75-4.5-4.75-2.578 0-4.5 2.08-4.5 4.75Z"></path></svg><span class="NavLink-module__title__Q7t0p">Secret protection</span><span class="NavLink-module__subtitle__X4gkW">Stop leaks before they start</span></div></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ NavGroup-module__hasSeparator__FnMrN"><span class="NavGroup-module__title__Wzxz2" id="_R_hhb_">EXPLORE</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_hhb_"><li><a href="https://github.com/why-github" data-analytics-event="{&quot;action&quot;:&quot;why_github&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;why_github_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Why GitHub</span></a></li><li><a href="https://docs.github.com" data-analytics-event="{&quot;action&quot;:&quot;documentation&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;documentation_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">Documentation</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li><li><a href="https://github.blog" data-analytics-event="{&quot;action&quot;:&quot;blog&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;blog_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">Blog</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li><li><a href="https://github.blog/changelog" data-analytics-event="{&quot;action&quot;:&quot;changelog&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;changelog_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">Changelog</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li><li><a href="https://github.com/marketplace" data-analytics-event="{&quot;action&quot;:&quot;marketplace&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;marketplace_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Marketplace</span></a></li></ul></div></li></ul><div class="NavDropdown-module__trailingLinkContainer__VgJGL"><a href="https://github.com/features" data-analytics-event="{&quot;action&quot;:&quot;view_all_features&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;platform&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;view_all_features_link_platform_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">View all features</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavLink-module__arrowIcon__amekg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></a></div></div></div></li><li><div class="NavDropdown-module__container__l2YeI js-details-container js-header-menu-item"><button type="button" class="NavDropdown-module__button__PEHWX js-details-target" aria-expanded="false">Solutions<svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavDropdown-module__buttonIcon__Tkl8_" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></button><div class="NavDropdown-module__dropdown__xm1jd"><ul class="NavDropdown-module__list__zuCgG"><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_5ib_">BY COMPANY SIZE</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_5ib_"><li><a href="https://github.com/enterprise" data-analytics-event="{&quot;action&quot;:&quot;enterprises&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;enterprises_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Enterprises</span></a></li><li><a href="https://github.com/team" data-analytics-event="{&quot;action&quot;:&quot;small_and_medium_teams&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;small_and_medium_teams_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Small and medium teams</span></a></li><li><a href="https://github.com/enterprise/startups" data-analytics-event="{&quot;action&quot;:&quot;startups&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;startups_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Startups</span></a></li><li><a href="https://github.com/solutions/industry/nonprofits" data-analytics-event="{&quot;action&quot;:&quot;nonprofits&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;nonprofits_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Nonprofits</span></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_9ib_">BY USE CASE</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_9ib_"><li><a href="https://github.com/solutions/use-case/app-modernization" data-analytics-event="{&quot;action&quot;:&quot;app_modernization&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;app_modernization_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">App Modernization</span></a></li><li><a href="https://github.com/solutions/use-case/devsecops" data-analytics-event="{&quot;action&quot;:&quot;devsecops&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;devsecops_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">DevSecOps</span></a></li><li><a href="https://github.com/solutions/use-case/devops" data-analytics-event="{&quot;action&quot;:&quot;devops&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;devops_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">DevOps</span></a></li><li><a href="https://github.com/solutions/use-case/ci-cd" data-analytics-event="{&quot;action&quot;:&quot;ci/cd&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;ci/cd_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">CI/CD</span></a></li><li><a href="https://github.com/solutions/use-case" data-analytics-event="{&quot;action&quot;:&quot;view_all_use_cases&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;view_all_use_cases_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">View all use cases</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavLink-module__arrowIcon__amekg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_dib_">BY INDUSTRY</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_dib_"><li><a href="https://github.com/solutions/industry/healthcare" data-analytics-event="{&quot;action&quot;:&quot;healthcare&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;healthcare_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Healthcare</span></a></li><li><a href="https://github.com/solutions/industry/financial-services" data-analytics-event="{&quot;action&quot;:&quot;financial_services&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;financial_services_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Financial services</span></a></li><li><a href="https://github.com/solutions/industry/manufacturing" data-analytics-event="{&quot;action&quot;:&quot;manufacturing&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;manufacturing_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Manufacturing</span></a></li><li><a href="https://github.com/solutions/industry/government" data-analytics-event="{&quot;action&quot;:&quot;government&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;government_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Government</span></a></li><li><a href="https://github.com/solutions/industry" data-analytics-event="{&quot;action&quot;:&quot;view_all_industries&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;view_all_industries_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">View all industries</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavLink-module__arrowIcon__amekg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></a></li></ul></div></li></ul><div class="NavDropdown-module__trailingLinkContainer__VgJGL"><a href="https://github.com/solutions" data-analytics-event="{&quot;action&quot;:&quot;view_all_solutions&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;solutions&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;view_all_solutions_link_solutions_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">View all solutions</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavLink-module__arrowIcon__amekg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></a></div></div></div></li><li><div class="NavDropdown-module__container__l2YeI js-details-container js-header-menu-item"><button type="button" class="NavDropdown-module__button__PEHWX js-details-target" aria-expanded="false">Resources<svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavDropdown-module__buttonIcon__Tkl8_" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></button><div class="NavDropdown-module__dropdown__xm1jd"><ul class="NavDropdown-module__list__zuCgG"><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_5jb_">EXPLORE BY TOPIC</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_5jb_"><li><a href="https://github.com/resources/articles?topic=ai" data-analytics-event="{&quot;action&quot;:&quot;ai&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;ai_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">AI</span></a></li><li><a href="https://github.com/resources/articles?topic=software-development" data-analytics-event="{&quot;action&quot;:&quot;software_development&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;software_development_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Software Development</span></a></li><li><a href="https://github.com/resources/articles?topic=devops" data-analytics-event="{&quot;action&quot;:&quot;devops&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;devops_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">DevOps</span></a></li><li><a href="https://github.com/resources/articles?topic=security" data-analytics-event="{&quot;action&quot;:&quot;security&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;security_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Security</span></a></li><li><a href="https://github.com/resources/articles" data-analytics-event="{&quot;action&quot;:&quot;view_all_topics&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;view_all_topics_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">View all topics</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavLink-module__arrowIcon__amekg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_9jb_">EXPLORE BY TYPE</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_9jb_"><li><a href="https://github.com/customer-stories" data-analytics-event="{&quot;action&quot;:&quot;customer_stories&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;customer_stories_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Customer stories</span></a></li><li><a href="https://github.com/resources/events" data-analytics-event="{&quot;action&quot;:&quot;events__webinars&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;events__webinars_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Events &amp; webinars</span></a></li><li><a href="https://github.com/resources/whitepapers" data-analytics-event="{&quot;action&quot;:&quot;ebooks__reports&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;ebooks__reports_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Ebooks &amp; reports</span></a></li><li><a href="https://github.com/solutions/executive-insights" data-analytics-event="{&quot;action&quot;:&quot;business_insights&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;business_insights_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Business insights</span></a></li><li><a href="https://skills.github.com" data-analytics-event="{&quot;action&quot;:&quot;github_skills&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;github_skills_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">GitHub Skills</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_djb_">SUPPORT &amp; SERVICES</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_djb_"><li><a href="https://docs.github.com" data-analytics-event="{&quot;action&quot;:&quot;documentation&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;documentation_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">Documentation</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li><li><a href="https://support.github.com" data-analytics-event="{&quot;action&quot;:&quot;customer_support&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;customer_support_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">Customer support</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li><li><a href="https://github.com/orgs/community/discussions" data-analytics-event="{&quot;action&quot;:&quot;community_forum&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;community_forum_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Community forum</span></a></li><li><a href="https://github.com/trust-center" data-analytics-event="{&quot;action&quot;:&quot;trust_center&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;trust_center_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Trust center</span></a></li><li><a href="https://github.com/partners" data-analytics-event="{&quot;action&quot;:&quot;partners&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;partners_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Partners</span></a></li></ul></div></li></ul><div class="NavDropdown-module__trailingLinkContainer__VgJGL"><a href="https://github.com/resources" data-analytics-event="{&quot;action&quot;:&quot;view_all_resources&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;resources&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;view_all_resources_link_resources_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">View all resources</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavLink-module__arrowIcon__amekg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></a></div></div></div></li><li><div class="NavDropdown-module__container__l2YeI js-details-container js-header-menu-item"><button type="button" class="NavDropdown-module__button__PEHWX js-details-target" aria-expanded="false">Open Source<svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavDropdown-module__buttonIcon__Tkl8_" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></button><div class="NavDropdown-module__dropdown__xm1jd"><ul class="NavDropdown-module__list__zuCgG"><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_5kb_">COMMUNITY</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_5kb_"><li><a href="https://github.com/sponsors" data-analytics-event="{&quot;action&quot;:&quot;github_sponsors&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;github_sponsors_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-sponsor-tiers NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M16.004 1.25C18.311 1.25 20 3.128 20 5.75c0 2.292-1.23 4.464-3.295 6.485-.481.47-.98.909-1.482 1.31l.265 1.32 1.375 7.5a.75.75 0 0 1-.982.844l-3.512-1.207a.75.75 0 0 0-.488 0L8.37 23.209a.75.75 0 0 1-.982-.844l1.378-7.512.261-1.309c-.5-.4-1-.838-1.481-1.31C5.479 10.215 4.25 8.043 4.25 5.75c0-2.622 1.689-4.5 3.996-4.5 1.55 0 2.947.752 3.832 1.967l.047.067.047-.067a4.726 4.726 0 0 1 3.612-1.962l.22-.005ZM13.89 14.531c-.418.285-.828.542-1.218.77l-.18.103a.75.75 0 0 1-.734 0l-.071-.04-.46-.272c-.282-.173-.573-.36-.868-.562l-.121.605-1.145 6.239 2.3-.79a2.248 2.248 0 0 1 1.284-.054l.18.053 2.299.79-1.141-6.226-.125-.616ZM16.004 2.75c-1.464 0-2.731.983-3.159 2.459-.209.721-1.231.721-1.44 0-.428-1.476-1.695-2.459-3.16-2.459-1.44 0-2.495 1.173-2.495 3 0 1.811 1.039 3.647 2.844 5.412a19.624 19.624 0 0 0 3.734 2.84l-.019-.011-.184-.111.147-.088a19.81 19.81 0 0 0 3.015-2.278l.37-.352C17.46 9.397 18.5 7.561 18.5 5.75c0-1.827-1.055-3-2.496-3Z"></path></svg><span class="NavLink-module__title__Q7t0p">GitHub Sponsors</span><span class="NavLink-module__subtitle__X4gkW">Fund open source developers</span></div></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_9kb_">PROGRAMS</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_9kb_"><li><a href="https://securitylab.github.com" data-analytics-event="{&quot;action&quot;:&quot;security_lab&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;security_lab_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">Security Lab</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li><li><a href="https://maintainers.github.com" data-analytics-event="{&quot;action&quot;:&quot;maintainer_community&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;maintainer_community_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">Maintainer Community</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li><li><a href="https://github.com/accelerator" data-analytics-event="{&quot;action&quot;:&quot;accelerator&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;accelerator_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Accelerator</span></a></li><li><a href="https://stars.github.com" data-analytics-event="{&quot;action&quot;:&quot;github_stars&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;github_stars_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">GitHub Stars</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li><li><a href="https://archiveprogram.github.com" data-analytics-event="{&quot;action&quot;:&quot;archive_program&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;archive_program_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4" target="_blank" rel="noreferrer"><span class="NavLink-module__title__Q7t0p">Archive Program</span><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-link-external NavLink-module__externalIcon__eWIry" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2Zm6.854-1h4.146a.25.25 0 0 1 .25.25v4.146a.25.25 0 0 1-.427.177L13.03 4.03 9.28 7.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.75-3.75-1.543-1.543A.25.25 0 0 1 10.604 1Z"></path></svg></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_dkb_">REPOSITORIES</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_dkb_"><li><a href="https://github.com/topics" data-analytics-event="{&quot;action&quot;:&quot;topics&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;topics_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Topics</span></a></li><li><a href="https://github.com/trending" data-analytics-event="{&quot;action&quot;:&quot;trending&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;trending_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Trending</span></a></li><li><a href="https://github.com/collections" data-analytics-event="{&quot;action&quot;:&quot;collections&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;open_source&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;collections_link_open_source_navbar&quot;}" class="NavLink-module__link__EG3d4"><span class="NavLink-module__title__Q7t0p">Collections</span></a></li></ul></div></li></ul></div></div></li><li><div class="NavDropdown-module__container__l2YeI js-details-container js-header-menu-item"><button type="button" class="NavDropdown-module__button__PEHWX js-details-target" aria-expanded="false">Enterprise<svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-chevron-right NavDropdown-module__buttonIcon__Tkl8_" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"></path></svg></button><div class="NavDropdown-module__dropdown__xm1jd"><ul class="NavDropdown-module__list__zuCgG"><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_5lb_">ENTERPRISE SOLUTIONS</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_5lb_"><li><a href="https://github.com/enterprise" data-analytics-event="{&quot;action&quot;:&quot;enterprise_platform&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;enterprise&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;enterprise_platform_link_enterprise_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-stack NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M11.063 1.456a1.749 1.749 0 0 1 1.874 0l8.383 5.316a1.751 1.751 0 0 1 0 2.956l-8.383 5.316a1.749 1.749 0 0 1-1.874 0L2.68 9.728a1.751 1.751 0 0 1 0-2.956Zm1.071 1.267a.25.25 0 0 0-.268 0L3.483 8.039a.25.25 0 0 0 0 .422l8.383 5.316a.25.25 0 0 0 .268 0l8.383-5.316a.25.25 0 0 0 0-.422Z"></path><path d="M1.867 12.324a.75.75 0 0 1 1.035-.232l8.964 5.685a.25.25 0 0 0 .268 0l8.964-5.685a.75.75 0 0 1 .804 1.267l-8.965 5.685a1.749 1.749 0 0 1-1.874 0l-8.965-5.685a.75.75 0 0 1-.231-1.035Z"></path><path d="M1.867 16.324a.75.75 0 0 1 1.035-.232l8.964 5.685a.25.25 0 0 0 .268 0l8.964-5.685a.75.75 0 0 1 .804 1.267l-8.965 5.685a1.749 1.749 0 0 1-1.874 0l-8.965-5.685a.75.75 0 0 1-.231-1.035Z"></path></svg><span class="NavLink-module__title__Q7t0p">Enterprise platform</span><span class="NavLink-module__subtitle__X4gkW">AI-powered developer platform</span></div></a></li></ul></div></li><li><div class="NavGroup-module__group__W8SqJ"><span class="NavGroup-module__title__Wzxz2" id="_R_9lb_">AVAILABLE ADD-ONS</span><ul class="NavGroup-module__list__UCOFy" aria-labelledby="_R_9lb_"><li><a href="https://github.com/security/advanced-security" data-analytics-event="{&quot;action&quot;:&quot;github_advanced_security&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;enterprise&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;github_advanced_security_link_enterprise_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-shield-check NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M16.53 9.78a.75.75 0 0 0-1.06-1.06L11 13.19l-1.97-1.97a.75.75 0 0 0-1.06 1.06l2.5 2.5a.75.75 0 0 0 1.06 0l5-5Z"></path><path d="m12.54.637 8.25 2.675A1.75 1.75 0 0 1 22 4.976V10c0 6.19-3.771 10.704-9.401 12.83a1.704 1.704 0 0 1-1.198 0C5.77 20.705 2 16.19 2 10V4.976c0-.758.489-1.43 1.21-1.664L11.46.637a1.748 1.748 0 0 1 1.08 0Zm-.617 1.426-8.25 2.676a.249.249 0 0 0-.173.237V10c0 5.46 3.28 9.483 8.43 11.426a.199.199 0 0 0 .14 0C17.22 19.483 20.5 15.461 20.5 10V4.976a.25.25 0 0 0-.173-.237l-8.25-2.676a.253.253 0 0 0-.154 0Z"></path></svg><span class="NavLink-module__title__Q7t0p">GitHub Advanced Security</span><span class="NavLink-module__subtitle__X4gkW">Enterprise-grade security features</span></div></a></li><li><a href="https://github.com/features/copilot/copilot-business" data-analytics-event="{&quot;action&quot;:&quot;copilot_for_business&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;enterprise&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;copilot_for_business_link_enterprise_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-copilot NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M23.922 16.992c-.861 1.495-5.859 5.023-11.922 5.023-6.063 0-11.061-3.528-11.922-5.023A.641.641 0 0 1 0 16.736v-2.869a.841.841 0 0 1 .053-.22c.372-.935 1.347-2.292 2.605-2.656.167-.429.414-1.055.644-1.517a10.195 10.195 0 0 1-.052-1.086c0-1.331.282-2.499 1.132-3.368.397-.406.89-.717 1.474-.952 1.399-1.136 3.392-2.093 6.122-2.093 2.731 0 4.767.957 6.166 2.093.584.235 1.077.546 1.474.952.85.869 1.132 2.037 1.132 3.368 0 .368-.014.733-.052 1.086.23.462.477 1.088.644 1.517 1.258.364 2.233 1.721 2.605 2.656a.832.832 0 0 1 .053.22v2.869a.641.641 0 0 1-.078.256ZM12.172 11h-.344a4.323 4.323 0 0 1-.355.508C10.703 12.455 9.555 13 7.965 13c-1.725 0-2.989-.359-3.782-1.259a2.005 2.005 0 0 1-.085-.104L4 11.741v6.585c1.435.779 4.514 2.179 8 2.179 3.486 0 6.565-1.4 8-2.179v-6.585l-.098-.104s-.033.045-.085.104c-.793.9-2.057 1.259-3.782 1.259-1.59 0-2.738-.545-3.508-1.492a4.323 4.323 0 0 1-.355-.508h-.016.016Zm.641-2.935c.136 1.057.403 1.913.878 2.497.442.544 1.134.938 2.344.938 1.573 0 2.292-.337 2.657-.751.384-.435.558-1.15.558-2.361 0-1.14-.243-1.847-.705-2.319-.477-.488-1.319-.862-2.824-1.025-1.487-.161-2.192.138-2.533.529-.269.307-.437.808-.438 1.578v.021c0 .265.021.562.063.893Zm-1.626 0c.042-.331.063-.628.063-.894v-.02c-.001-.77-.169-1.271-.438-1.578-.341-.391-1.046-.69-2.533-.529-1.505.163-2.347.537-2.824 1.025-.462.472-.705 1.179-.705 2.319 0 1.211.175 1.926.558 2.361.365.414 1.084.751 2.657.751 1.21 0 1.902-.394 2.344-.938.475-.584.742-1.44.878-2.497Z"></path><path d="M14.5 14.25a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0v-2a1 1 0 0 1 1-1Zm-5 0a1 1 0 0 1 1 1v2a1 1 0 0 1-2 0v-2a1 1 0 0 1 1-1Z"></path></svg><span class="NavLink-module__title__Q7t0p">Copilot for Business</span><span class="NavLink-module__subtitle__X4gkW">Enterprise-grade AI features</span></div></a></li><li><a href="https://github.com/premium-support" data-analytics-event="{&quot;action&quot;:&quot;premium_support&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;enterprise&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;premium_support_link_enterprise_navbar&quot;}" class="NavLink-module__link__EG3d4"><div class="NavLink-module__text__XvpLQ"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-comment-discussion NavLink-module__icon__ltGNM" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v9.5A1.75 1.75 0 0 1 14.25 14H8.061l-2.574 2.573A1.458 1.458 0 0 1 3 15.543V14H1.75A1.75 1.75 0 0 1 0 12.25v-9.5C0 1.784.784 1 1.75 1ZM1.5 2.75v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25Z"></path><path d="M22.5 8.75a.25.25 0 0 0-.25-.25h-3.5a.75.75 0 0 1 0-1.5h3.5c.966 0 1.75.784 1.75 1.75v9.5A1.75 1.75 0 0 1 22.25 20H21v1.543a1.457 1.457 0 0 1-2.487 1.03L15.939 20H10.75A1.75 1.75 0 0 1 9 18.25v-1.465a.75.75 0 0 1 1.5 0v1.465c0 .138.112.25.25.25h5.5a.75.75 0 0 1 .53.22l2.72 2.72v-2.19a.75.75 0 0 1 .75-.75h2a.25.25 0 0 0 .25-.25v-9.5Z"></path></svg><span class="NavLink-module__title__Q7t0p">Premium Support</span><span class="NavLink-module__subtitle__X4gkW">Enterprise-grade 24/7 support</span></div></a></li></ul></div></li></ul></div></div></li><li><a href="https://github.com/pricing" data-analytics-event="{&quot;action&quot;:&quot;pricing&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;context&quot;:&quot;pricing&quot;,&quot;location&quot;:&quot;navbar&quot;,&quot;label&quot;:&quot;pricing_link_pricing_navbar&quot;}" class="NavLink-module__link__EG3d4 MarketingNavigation-module__navLink__hUomM"><span class="NavLink-module__title__Q7t0p">Pricing</span></a></li></ul></nav><script type="application/json" id="__PRIMER_DATA__R_0___">{"resolvedServerColorMode":"day"}</script></div>
+</react-partial>
+
+
+
+        <div class="d-flex flex-column flex-lg-row width-full flex-justify-end flex-lg-items-center text-center tmp-mt-3 tmp-mt-lg-0 text-lg-left tmp-ml-lg-3">
+                
+
+
+<qbsearch-input class="search-input" data-scope="repo:umutkeltek/health-data-hub" data-custom-scopes-path="/search/custom_scopes" data-delete-custom-scopes-csrf="uujFoMjq2cka1ullga_wE_vv9_rcW21Fc-fnzdb6lCChzlm8xOQmiMWAwPamdx1xPLtSvp8GMvaHvse9rdYC-w" data-max-custom-scopes="10" data-header-redesign-enabled="false" data-initial-value="" data-blackbird-suggestions-path="/search/suggestions" data-jump-to-suggestions-path="/_graphql/GetSuggestedNavigationDestinations" data-current-repository="umutkeltek/health-data-hub" data-current-org="" data-current-owner="umutkeltek" data-logged-in="false" data-copilot-chat-enabled="false" data-nl-search-enabled="false" data-retain-scroll-position="true">
+  <div
+    class="search-input-container search-with-dialog position-relative d-flex flex-row flex-items-center tmp-mr-4 rounded"
+    data-action="click:qbsearch-input#searchInputContainerClicked"
+  >
+      <button
+        type="button"
+        class="header-search-button placeholder  input-button form-control d-flex flex-1 flex-self-stretch flex-items-center no-wrap width-full py-0 pl-2 pr-0 text-left border-0 box-shadow-none"
+        data-target="qbsearch-input.inputButton"
+        aria-label="Search or jump to…"
+        aria-haspopup="dialog"
+        placeholder="Search or jump to..."
+        data-hotkey=s,/
+        autocapitalize="off"
+        data-analytics-event="{&quot;location&quot;:&quot;navbar&quot;,&quot;action&quot;:&quot;searchbar&quot;,&quot;context&quot;:&quot;global&quot;,&quot;tag&quot;:&quot;input&quot;,&quot;label&quot;:&quot;searchbar_input_global_navbar&quot;}"
+        data-action="click:qbsearch-input#handleExpand"
+      >
+        <div class="mr-2 color-fg-muted">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-search">
+    <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path>
+</svg>
+        </div>
+        <span class="flex-1" data-target="qbsearch-input.inputButtonText">Search or jump to...</span>
+          <div class="d-flex" data-target="qbsearch-input.hotkeyIndicator">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="20" aria-hidden="true" class="mr-1"><path fill="none" stroke="#979A9C" opacity=".4" d="M3.5.5h12c1.7 0 3 1.3 3 3v13c0 1.7-1.3 3-3 3h-12c-1.7 0-3-1.3-3-3v-13c0-1.7 1.3-3 3-3z"></path><path fill="#979A9C" d="M11.8 6L8 15.1h-.9L10.8 6h1z"></path></svg>
+          </div>
+      </button>
+
+    <input type="hidden" name="type" class="js-site-search-type-field">
+
+    
+<div class="Overlay--hidden " data-modal-dialog-overlay>
+  <modal-dialog data-action="close:qbsearch-input#handleClose cancel:qbsearch-input#handleClose" data-target="qbsearch-input.searchSuggestionsDialog" role="dialog" id="search-suggestions-dialog" aria-modal="true" aria-labelledby="search-suggestions-dialog-header" data-view-component="true" class="Overlay Overlay--width-large Overlay--height-auto">
+      <h1 id="search-suggestions-dialog-header" class="sr-only">Search code, repositories, users, issues, pull requests...</h1>
+    <div class="Overlay-body Overlay-body--paddingNone">
+      
+          <div data-view-component="true">        <div class="search-suggestions position-fixed width-full color-shadow-large border color-fg-default color-bg-default overflow-hidden d-flex flex-column query-builder-container"
+          style="border-radius: 12px;"
+          data-target="qbsearch-input.queryBuilderContainer"
+          hidden
+        >
+          <!-- '"` --><!-- </textarea></xmp> --></option></form><form id="query-builder-test-form" action="" accept-charset="UTF-8" method="get">
+  <query-builder data-target="qbsearch-input.queryBuilder" id="query-builder-query-builder-test" data-filter-key=":" data-view-component="true" class="QueryBuilder search-query-builder">
+    <div class="FormControl FormControl--fullWidth">
+      <label id="query-builder-test-label" for="query-builder-test" class="FormControl-label sr-only">
+        Search
+      </label>
+      <div
+        class="QueryBuilder-StyledInput width-fit "
+        data-target="query-builder.styledInput"
+      >
+          <span id="query-builder-test-leadingvisual-wrap" class="FormControl-input-leadingVisualWrap QueryBuilder-leadingVisualWrap">
+            <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-search FormControl-input-leadingVisual">
+    <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path>
+</svg>
+          </span>
+        <div data-target="query-builder.styledInputContainer" class="QueryBuilder-StyledInputContainer">
+          <div
+            aria-hidden="true"
+            class="QueryBuilder-StyledInputContent"
+            data-target="query-builder.styledInputContent"
+          ></div>
+          <div class="QueryBuilder-InputWrapper">
+            <div aria-hidden="true" class="QueryBuilder-Sizer" data-target="query-builder.sizer"></div>
+            <input id="query-builder-test" name="query-builder-test" value="" autocomplete="off" type="text" role="combobox" spellcheck="false" aria-expanded="false" aria-describedby="validation-c86ae1d7-2e7b-4b03-9deb-b3224b3f4aca" data-target="query-builder.input" data-action="
+          input:query-builder#inputChange
+          blur:query-builder#inputBlur
+          keydown:query-builder#inputKeydown
+          focus:query-builder#inputFocus
+        " data-view-component="true" class="FormControl-input QueryBuilder-Input FormControl-medium" />
+          </div>
+        </div>
+          <span data-target="query-builder.clearButton" hidden>
+            <span class="sr-only" id="query-builder-test-clear">Clear</span>
+            <button role="button" id="query-builder-test-clear-button" aria-labelledby="query-builder-test-clear query-builder-test-label" data-action="
+                  click:query-builder#clear
+                  focus:query-builder#clearButtonFocus
+                  blur:query-builder#clearButtonBlur
+                " variant="small" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium mr-1 tmp-mr-1 px-2 tmp-px-2 py-0 tmp-py-0 d-flex flex-items-center rounded-1 color-fg-muted">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x-circle-fill Button-visual">
+    <path d="M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z"></path>
+</svg>
+</button>
+
+          </span>
+      </div>
+      <template id="search-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-search">
+    <path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path>
+</svg>
+</template>
+
+<template id="code-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code">
+    <path d="m11.28 3.22 4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L13.94 8l-3.72-3.72a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Zm-6.56 0a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L2.06 8l3.72 3.72a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L.47 8.53a.75.75 0 0 1 0-1.06Z"></path>
+</svg>
+</template>
+
+<template id="file-code-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-file-code">
+    <path d="M4 1.75C4 .784 4.784 0 5.75 0h5.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v8.586A1.75 1.75 0 0 1 14.25 15h-9a.75.75 0 0 1 0-1.5h9a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 10 4.25V1.5H5.75a.25.25 0 0 0-.25.25v2.5a.75.75 0 0 1-1.5 0Zm1.72 4.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l1.47-1.47-1.47-1.47a.75.75 0 0 1 0-1.06ZM3.28 7.78 1.81 9.25l1.47 1.47a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Zm8.22-6.218V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z"></path>
+</svg>
+</template>
+
+<template id="history-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-history">
+    <path d="m.427 1.927 1.215 1.215a8.002 8.002 0 1 1-1.6 5.685.75.75 0 1 1 1.493-.154 6.5 6.5 0 1 0 1.18-4.458l1.358 1.358A.25.25 0 0 1 3.896 6H.25A.25.25 0 0 1 0 5.75V2.104a.25.25 0 0 1 .427-.177ZM7.75 4a.75.75 0 0 1 .75.75v2.992l2.028.812a.75.75 0 0 1-.557 1.392l-2.5-1A.751.751 0 0 1 7 8.25v-3.5A.75.75 0 0 1 7.75 4Z"></path>
+</svg>
+</template>
+
+<template id="repo-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-repo">
+    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"></path>
+</svg>
+</template>
+
+<template id="bookmark-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-bookmark">
+    <path d="M3 2.75C3 1.784 3.784 1 4.75 1h6.5c.966 0 1.75.784 1.75 1.75v11.5a.75.75 0 0 1-1.227.579L8 11.722l-3.773 3.107A.751.751 0 0 1 3 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.91l3.023-2.489a.75.75 0 0 1 .954 0l3.023 2.49V2.75a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+</template>
+
+<template id="plus-circle-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-plus-circle">
+    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm7.25-3.25v2.5h2.5a.75.75 0 0 1 0 1.5h-2.5v2.5a.75.75 0 0 1-1.5 0v-2.5h-2.5a.75.75 0 0 1 0-1.5h2.5v-2.5a.75.75 0 0 1 1.5 0Z"></path>
+</svg>
+</template>
+
+<template id="circle-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-dot-fill">
+    <path d="M8 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"></path>
+</svg>
+</template>
+
+<template id="trash-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-trash">
+    <path d="M11 1.75V3h2.25a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1 0-1.5H5V1.75C5 .784 5.784 0 6.75 0h2.5C10.216 0 11 .784 11 1.75ZM4.496 6.675l.66 6.6a.25.25 0 0 0 .249.225h5.19a.25.25 0 0 0 .249-.225l.66-6.6a.75.75 0 0 1 1.492.149l-.66 6.6A1.748 1.748 0 0 1 10.595 15h-5.19a1.75 1.75 0 0 1-1.741-1.575l-.66-6.6a.75.75 0 1 1 1.492-.15ZM6.5 1.75V3h3V1.75a.25.25 0 0 0-.25-.25h-2.5a.25.25 0 0 0-.25.25Z"></path>
+</svg>
+</template>
+
+<template id="team-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-people">
+    <path d="M2 5.5a3.5 3.5 0 1 1 5.898 2.549 5.508 5.508 0 0 1 3.034 4.084.75.75 0 1 1-1.482.235 4 4 0 0 0-7.9 0 .75.75 0 0 1-1.482-.236A5.507 5.507 0 0 1 3.102 8.05 3.493 3.493 0 0 1 2 5.5ZM11 4a3.001 3.001 0 0 1 2.22 5.018 5.01 5.01 0 0 1 2.56 3.012.749.749 0 0 1-.885.954.752.752 0 0 1-.549-.514 3.507 3.507 0 0 0-2.522-2.372.75.75 0 0 1-.574-.73v-.352a.75.75 0 0 1 .416-.672A1.5 1.5 0 0 0 11 5.5.75.75 0 0 1 11 4Zm-5.5-.5a2 2 0 1 0-.001 3.999A2 2 0 0 0 5.5 3.5Z"></path>
+</svg>
+</template>
+
+<template id="project-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-project">
+    <path d="M1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25V1.75C0 .784.784 0 1.75 0ZM1.5 1.75v12.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25ZM11.75 3a.75.75 0 0 1 .75.75v7.5a.75.75 0 0 1-1.5 0v-7.5a.75.75 0 0 1 .75-.75Zm-8.25.75a.75.75 0 0 1 1.5 0v5.5a.75.75 0 0 1-1.5 0ZM8 3a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 3Z"></path>
+</svg>
+</template>
+
+<template id="pencil-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-pencil">
+    <path d="M11.013 1.427a1.75 1.75 0 0 1 2.474 0l1.086 1.086a1.75 1.75 0 0 1 0 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 0 1-.927-.928l.929-3.25c.081-.286.235-.547.445-.758l8.61-8.61Zm.176 4.823L9.75 4.81l-6.286 6.287a.253.253 0 0 0-.064.108l-.558 1.953 1.953-.558a.253.253 0 0 0 .108-.064Zm1.238-3.763a.25.25 0 0 0-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 0 0 0-.354Z"></path>
+</svg>
+</template>
+
+<template id="copilot-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copilot">
+    <path d="M7.998 15.035c-4.562 0-7.873-2.914-7.998-3.749V9.338c.085-.628.677-1.686 1.588-2.065.013-.07.024-.143.036-.218.029-.183.06-.384.126-.612-.201-.508-.254-1.084-.254-1.656 0-.87.128-1.769.693-2.484.579-.733 1.494-1.124 2.724-1.261 1.206-.134 2.262.034 2.944.765.05.053.096.108.139.165.044-.057.094-.112.143-.165.682-.731 1.738-.899 2.944-.765 1.23.137 2.145.528 2.724 1.261.566.715.693 1.614.693 2.484 0 .572-.053 1.148-.254 1.656.066.228.098.429.126.612.012.076.024.148.037.218.924.385 1.522 1.471 1.591 2.095v1.872c0 .766-3.351 3.795-8.002 3.795Zm0-1.485c2.28 0 4.584-1.11 5.002-1.433V7.862l-.023-.116c-.49.21-1.075.291-1.727.291-1.146 0-2.059-.327-2.71-.991A3.222 3.222 0 0 1 8 6.303a3.24 3.24 0 0 1-.544.743c-.65.664-1.563.991-2.71.991-.652 0-1.236-.081-1.727-.291l-.023.116v4.255c.419.323 2.722 1.433 5.002 1.433ZM6.762 2.83c-.193-.206-.637-.413-1.682-.297-1.019.113-1.479.404-1.713.7-.247.312-.369.789-.369 1.554 0 .793.129 1.171.308 1.371.162.181.519.379 1.442.379.853 0 1.339-.235 1.638-.54.315-.322.527-.827.617-1.553.117-.935-.037-1.395-.241-1.614Zm4.155-.297c-1.044-.116-1.488.091-1.681.297-.204.219-.359.679-.242 1.614.091.726.303 1.231.618 1.553.299.305.784.54 1.638.54.922 0 1.28-.198 1.442-.379.179-.2.308-.578.308-1.371 0-.765-.123-1.242-.37-1.554-.233-.296-.693-.587-1.713-.7Z"></path><path d="M6.25 9.037a.75.75 0 0 1 .75.75v1.501a.75.75 0 0 1-1.5 0V9.787a.75.75 0 0 1 .75-.75Zm4.25.75v1.501a.75.75 0 0 1-1.5 0V9.787a.75.75 0 0 1 1.5 0Z"></path>
+</svg>
+</template>
+
+<template id="copilot-error-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copilot-error">
+    <path d="M16 11.24c0 .112-.072.274-.21.467L13 9.688V7.862l-.023-.116c-.49.21-1.075.291-1.727.291-.198 0-.388-.009-.571-.029L6.833 5.226a4.01 4.01 0 0 0 .17-.782c.117-.935-.037-1.395-.241-1.614-.193-.206-.637-.413-1.682-.297-.683.076-1.115.231-1.395.415l-1.257-.91c.579-.564 1.413-.877 2.485-.996 1.206-.134 2.262.034 2.944.765.05.053.096.108.139.165.044-.057.094-.112.143-.165.682-.731 1.738-.899 2.944-.765 1.23.137 2.145.528 2.724 1.261.566.715.693 1.614.693 2.484 0 .572-.053 1.148-.254 1.656.066.228.098.429.126.612.012.076.024.148.037.218.924.385 1.522 1.471 1.591 2.095Zm-5.083-8.707c-1.044-.116-1.488.091-1.681.297-.204.219-.359.679-.242 1.614.091.726.303 1.231.618 1.553.299.305.784.54 1.638.54.922 0 1.28-.198 1.442-.379.179-.2.308-.578.308-1.371 0-.765-.123-1.242-.37-1.554-.233-.296-.693-.587-1.713-.7Zm2.511 11.074c-1.393.776-3.272 1.428-5.43 1.428-4.562 0-7.873-2.914-7.998-3.749V9.338c.085-.628.677-1.686 1.588-2.065.013-.07.024-.143.036-.218.029-.183.06-.384.126-.612-.18-.455-.241-.963-.252-1.475L.31 4.107A.747.747 0 0 1 0 3.509V3.49a.748.748 0 0 1 .625-.73c.156-.026.306.047.435.139l14.667 10.578a.592.592 0 0 1 .227.264.752.752 0 0 1 .046.249v.022a.75.75 0 0 1-1.19.596Zm-1.367-.991L5.635 7.964a5.128 5.128 0 0 1-.889.073c-.652 0-1.236-.081-1.727-.291l-.023.116v4.255c.419.323 2.722 1.433 5.002 1.433 1.539 0 3.089-.505 4.063-.934Z"></path>
+</svg>
+</template>
+
+<template id="workflow-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-workflow">
+    <path d="M0 1.75C0 .784.784 0 1.75 0h3.5C6.216 0 7 .784 7 1.75v3.5A1.75 1.75 0 0 1 5.25 7H4v4a1 1 0 0 0 1 1h4v-1.25C9 9.784 9.784 9 10.75 9h3.5c.966 0 1.75.784 1.75 1.75v3.5A1.75 1.75 0 0 1 14.25 16h-3.5A1.75 1.75 0 0 1 9 14.25v-.75H5A2.5 2.5 0 0 1 2.5 11V7h-.75A1.75 1.75 0 0 1 0 5.25Zm1.75-.25a.25.25 0 0 0-.25.25v3.5c0 .138.112.25.25.25h3.5a.25.25 0 0 0 .25-.25v-3.5a.25.25 0 0 0-.25-.25Zm9 9a.25.25 0 0 0-.25.25v3.5c0 .138.112.25.25.25h3.5a.25.25 0 0 0 .25-.25v-3.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+</template>
+
+<template id="book-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-book">
+    <path d="M0 1.75A.75.75 0 0 1 .75 1h4.253c1.227 0 2.317.59 3 1.501A3.743 3.743 0 0 1 11.006 1h4.245a.75.75 0 0 1 .75.75v10.5a.75.75 0 0 1-.75.75h-4.507a2.25 2.25 0 0 0-1.591.659l-.622.621a.75.75 0 0 1-1.06 0l-.622-.621A2.25 2.25 0 0 0 5.258 13H.75a.75.75 0 0 1-.75-.75Zm7.251 10.324.004-5.073-.002-2.253A2.25 2.25 0 0 0 5.003 2.5H1.5v9h3.757a3.75 3.75 0 0 1 1.994.574ZM8.755 4.75l-.004 7.322a3.752 3.752 0 0 1 1.992-.572H14.5v-9h-3.495a2.25 2.25 0 0 0-2.25 2.25Z"></path>
+</svg>
+</template>
+
+<template id="code-review-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code-review">
+    <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v8.5A1.75 1.75 0 0 1 14.25 13H8.061l-2.574 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25v-8.5C0 1.784.784 1 1.75 1ZM1.5 2.75v8.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25Zm5.28 1.72a.75.75 0 0 1 0 1.06L5.31 7l1.47 1.47a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018l-2-2a.75.75 0 0 1 0-1.06l2-2a.75.75 0 0 1 1.06 0Zm2.44 0a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L10.69 7 9.22 5.53a.75.75 0 0 1 0-1.06Z"></path>
+</svg>
+</template>
+
+<template id="codespaces-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-codespaces">
+    <path d="M0 11.25c0-.966.784-1.75 1.75-1.75h12.5c.966 0 1.75.784 1.75 1.75v3A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25Zm2-9.5C2 .784 2.784 0 3.75 0h8.5C13.216 0 14 .784 14 1.75v5a1.75 1.75 0 0 1-1.75 1.75h-8.5A1.75 1.75 0 0 1 2 6.75Zm1.75-.25a.25.25 0 0 0-.25.25v5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-5a.25.25 0 0 0-.25-.25Zm-2 9.5a.25.25 0 0 0-.25.25v3c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-3a.25.25 0 0 0-.25-.25Z"></path><path d="M7 12.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Zm-4 0a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Z"></path>
+</svg>
+</template>
+
+<template id="comment-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-comment">
+    <path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+</template>
+
+<template id="comment-discussion-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-comment-discussion">
+    <path d="M1.75 1h8.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 10.25 10H7.061l-2.574 2.573A1.458 1.458 0 0 1 2 11.543V10h-.25A1.75 1.75 0 0 1 0 8.25v-5.5C0 1.784.784 1 1.75 1ZM1.5 2.75v5.5c0 .138.112.25.25.25h1a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h3.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13 2a.25.25 0 0 0-.25-.25h-.5a.75.75 0 0 1 0-1.5h.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 14.25 12H14v1.543a1.458 1.458 0 0 1-2.487 1.03L9.22 12.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l2.22 2.22v-2.19a.75.75 0 0 1 .75-.75h1a.25.25 0 0 0 .25-.25Z"></path>
+</svg>
+</template>
+
+<template id="organization-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-organization">
+    <path d="M1.75 16A1.75 1.75 0 0 1 0 14.25V1.75C0 .784.784 0 1.75 0h8.5C11.216 0 12 .784 12 1.75v12.5c0 .085-.006.168-.018.25h2.268a.25.25 0 0 0 .25-.25V8.285a.25.25 0 0 0-.111-.208l-1.055-.703a.749.749 0 1 1 .832-1.248l1.055.703c.487.325.779.871.779 1.456v5.965A1.75 1.75 0 0 1 14.25 16h-3.5a.766.766 0 0 1-.197-.026c-.099.017-.2.026-.303.026h-3a.75.75 0 0 1-.75-.75V14h-1v1.25a.75.75 0 0 1-.75.75Zm-.25-1.75c0 .138.112.25.25.25H4v-1.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 .75.75v1.25h2.25a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25ZM3.75 6h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1 0-1.5ZM3 3.75A.75.75 0 0 1 3.75 3h.5a.75.75 0 0 1 0 1.5h-.5A.75.75 0 0 1 3 3.75Zm4 3A.75.75 0 0 1 7.75 6h.5a.75.75 0 0 1 0 1.5h-.5A.75.75 0 0 1 7 6.75ZM7.75 3h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1 0-1.5ZM3 9.75A.75.75 0 0 1 3.75 9h.5a.75.75 0 0 1 0 1.5h-.5A.75.75 0 0 1 3 9.75ZM7.75 9h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1 0-1.5Z"></path>
+</svg>
+</template>
+
+<template id="rocket-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-rocket">
+    <path d="M14.064 0h.186C15.216 0 16 .784 16 1.75v.186a8.752 8.752 0 0 1-2.564 6.186l-.458.459c-.314.314-.641.616-.979.904v3.207c0 .608-.315 1.172-.833 1.49l-2.774 1.707a.749.749 0 0 1-1.11-.418l-.954-3.102a1.214 1.214 0 0 1-.145-.125L3.754 9.816a1.218 1.218 0 0 1-.124-.145L.528 8.717a.749.749 0 0 1-.418-1.11l1.71-2.774A1.748 1.748 0 0 1 3.31 4h3.204c.288-.338.59-.665.904-.979l.459-.458A8.749 8.749 0 0 1 14.064 0ZM8.938 3.623h-.002l-.458.458c-.76.76-1.437 1.598-2.02 2.5l-1.5 2.317 2.143 2.143 2.317-1.5c.902-.583 1.74-1.26 2.499-2.02l.459-.458a7.25 7.25 0 0 0 2.123-5.127V1.75a.25.25 0 0 0-.25-.25h-.186a7.249 7.249 0 0 0-5.125 2.123ZM3.56 14.56c-.732.732-2.334 1.045-3.005 1.148a.234.234 0 0 1-.201-.064.234.234 0 0 1-.064-.201c.103-.671.416-2.273 1.15-3.003a1.502 1.502 0 1 1 2.12 2.12Zm6.94-3.935c-.088.06-.177.118-.266.175l-2.35 1.521.548 1.783 1.949-1.2a.25.25 0 0 0 .119-.213ZM3.678 8.116 5.2 5.766c.058-.09.117-.178.176-.266H3.309a.25.25 0 0 0-.213.119l-1.2 1.95ZM12 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>
+</svg>
+</template>
+
+<template id="shield-check-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-shield-check">
+    <path d="m8.533.133 5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667l5.25-1.68a1.748 1.748 0 0 1 1.066 0Zm-.61 1.429.001.001-5.25 1.68a.251.251 0 0 0-.174.237V7c0 1.36.275 2.666 1.057 3.859.784 1.194 2.121 2.342 4.366 3.298a.196.196 0 0 0 .154 0c2.245-.957 3.582-2.103 4.366-3.297C13.225 9.666 13.5 8.358 13.5 7V3.48a.25.25 0 0 0-.174-.238l-5.25-1.68a.25.25 0 0 0-.153 0ZM11.28 6.28l-3.5 3.5a.75.75 0 0 1-1.06 0l-1.5-1.5a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l.97.97 2.97-2.97a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"></path>
+</svg>
+</template>
+
+<template id="heart-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-heart">
+    <path d="m8 14.25.345.666a.75.75 0 0 1-.69 0l-.008-.004-.018-.01a7.152 7.152 0 0 1-.31-.17 22.055 22.055 0 0 1-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.066 22.066 0 0 1-3.744 2.584l-.018.01-.006.003h-.002ZM4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.58 20.58 0 0 0 8 13.393a20.58 20.58 0 0 0 3.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.749.749 0 0 1-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5Z"></path>
+</svg>
+</template>
+
+<template id="server-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-server">
+    <path d="M1.75 1h12.5c.966 0 1.75.784 1.75 1.75v4c0 .372-.116.717-.314 1 .198.283.314.628.314 1v4a1.75 1.75 0 0 1-1.75 1.75H1.75A1.75 1.75 0 0 1 0 12.75v-4c0-.358.109-.707.314-1a1.739 1.739 0 0 1-.314-1v-4C0 1.784.784 1 1.75 1ZM1.5 2.75v4c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25Zm.25 5.75a.25.25 0 0 0-.25.25v4c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-4a.25.25 0 0 0-.25-.25ZM7 4.75A.75.75 0 0 1 7.75 4h4.5a.75.75 0 0 1 0 1.5h-4.5A.75.75 0 0 1 7 4.75ZM7.75 10h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM3 4.75A.75.75 0 0 1 3.75 4h.5a.75.75 0 0 1 0 1.5h-.5A.75.75 0 0 1 3 4.75ZM3.75 10h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1 0-1.5Z"></path>
+</svg>
+</template>
+
+<template id="globe-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-globe">
+    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM5.78 8.75a9.64 9.64 0 0 0 1.363 4.177c.255.426.542.832.857 1.215.245-.296.551-.705.857-1.215A9.64 9.64 0 0 0 10.22 8.75Zm4.44-1.5a9.64 9.64 0 0 0-1.363-4.177c-.307-.51-.612-.919-.857-1.215a9.927 9.927 0 0 0-.857 1.215A9.64 9.64 0 0 0 5.78 7.25Zm-5.944 1.5H1.543a6.507 6.507 0 0 0 4.666 5.5c-.123-.181-.24-.365-.352-.552-.715-1.192-1.437-2.874-1.581-4.948Zm-2.733-1.5h2.733c.144-2.074.866-3.756 1.58-4.948.12-.197.237-.381.353-.552a6.507 6.507 0 0 0-4.666 5.5Zm10.181 1.5c-.144 2.074-.866 3.756-1.58 4.948-.12.197-.237.381-.353.552a6.507 6.507 0 0 0 4.666-5.5Zm2.733-1.5a6.507 6.507 0 0 0-4.666-5.5c.123.181.24.365.353.552.714 1.192 1.436 2.874 1.58 4.948Z"></path>
+</svg>
+</template>
+
+<template id="issue-opened-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-issue-opened">
+    <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"></path>
+</svg>
+</template>
+
+<template id="device-mobile-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-device-mobile">
+    <path d="M3.75 0h8.5C13.216 0 14 .784 14 1.75v12.5A1.75 1.75 0 0 1 12.25 16h-8.5A1.75 1.75 0 0 1 2 14.25V1.75C2 .784 2.784 0 3.75 0ZM3.5 1.75v12.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25ZM8 13a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path>
+</svg>
+</template>
+
+<template id="package-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-package">
+    <path d="m8.878.392 5.25 3.045c.54.314.872.89.872 1.514v6.098a1.75 1.75 0 0 1-.872 1.514l-5.25 3.045a1.75 1.75 0 0 1-1.756 0l-5.25-3.045A1.75 1.75 0 0 1 1 11.049V4.951c0-.624.332-1.201.872-1.514L7.122.392a1.75 1.75 0 0 1 1.756 0ZM7.875 1.69l-4.63 2.685L8 7.133l4.755-2.758-4.63-2.685a.248.248 0 0 0-.25 0ZM2.5 5.677v5.372c0 .09.047.171.125.216l4.625 2.683V8.432Zm6.25 8.271 4.625-2.683a.25.25 0 0 0 .125-.216V5.677L8.75 8.432Z"></path>
+</svg>
+</template>
+
+<template id="credit-card-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-credit-card">
+    <path d="M10.75 9a.75.75 0 0 0 0 1.5h1.5a.75.75 0 0 0 0-1.5h-1.5Z"></path><path d="M0 3.75C0 2.784.784 2 1.75 2h12.5c.966 0 1.75.784 1.75 1.75v8.5A1.75 1.75 0 0 1 14.25 14H1.75A1.75 1.75 0 0 1 0 12.25ZM14.5 6.5h-13v5.75c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25Zm0-2.75a.25.25 0 0 0-.25-.25H1.75a.25.25 0 0 0-.25.25V5h13Z"></path>
+</svg>
+</template>
+
+<template id="play-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-play">
+    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm4.879-2.773 4.264 2.559a.25.25 0 0 1 0 .428l-4.264 2.559A.25.25 0 0 1 6 10.559V5.442a.25.25 0 0 1 .379-.215Z"></path>
+</svg>
+</template>
+
+<template id="gift-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-gift">
+    <path d="M2 2.75A2.75 2.75 0 0 1 4.75 0c.983 0 1.873.42 2.57 1.232.268.318.497.668.68 1.042.183-.375.411-.725.68-1.044C9.376.42 10.266 0 11.25 0a2.75 2.75 0 0 1 2.45 4h.55c.966 0 1.75.784 1.75 1.75v2c0 .698-.409 1.301-1 1.582v4.918A1.75 1.75 0 0 1 13.25 16H2.75A1.75 1.75 0 0 1 1 14.25V9.332C.409 9.05 0 8.448 0 7.75v-2C0 4.784.784 4 1.75 4h.55c-.192-.375-.3-.8-.3-1.25ZM7.25 9.5H2.5v4.75c0 .138.112.25.25.25h4.5Zm1.5 0v5h4.5a.25.25 0 0 0 .25-.25V9.5Zm0-4V8h5.5a.25.25 0 0 0 .25-.25v-2a.25.25 0 0 0-.25-.25Zm-7 0a.25.25 0 0 0-.25.25v2c0 .138.112.25.25.25h5.5V5.5h-5.5Zm3-4a1.25 1.25 0 0 0 0 2.5h2.309c-.233-.818-.542-1.401-.878-1.793-.43-.502-.915-.707-1.431-.707ZM8.941 4h2.309a1.25 1.25 0 0 0 0-2.5c-.516 0-1 .205-1.43.707-.337.392-.646.975-.879 1.793Z"></path>
+</svg>
+</template>
+
+<template id="code-square-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code-square">
+    <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25Zm7.47 3.97a.75.75 0 0 1 1.06 0l2 2a.75.75 0 0 1 0 1.06l-2 2a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L10.69 8 9.22 6.53a.75.75 0 0 1 0-1.06ZM6.78 6.53 5.31 8l1.47 1.47a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215l-2-2a.75.75 0 0 1 0-1.06l2-2a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"></path>
+</svg>
+</template>
+
+<template id="device-desktop-icon">
+  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-device-desktop">
+    <path d="M14.25 1c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 14.25 12h-3.727c.099 1.041.52 1.872 1.292 2.757A.752.752 0 0 1 11.25 16h-6.5a.75.75 0 0 1-.565-1.243c.772-.885 1.192-1.716 1.292-2.757H1.75A1.75 1.75 0 0 1 0 10.25v-7.5C0 1.784.784 1 1.75 1ZM1.75 2.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25ZM9.018 12H6.982a5.72 5.72 0 0 1-.765 2.5h3.566a5.72 5.72 0 0 1-.765-2.5Z"></path>
+</svg>
+</template>
+
+        <div class="position-relative">
+                        <ul
+              role="listbox"
+              class="ActionListWrap QueryBuilder-ListWrap"
+              aria-label="Suggestions"
+              data-action="
+                combobox-commit:query-builder#comboboxCommit
+                mousedown:query-builder#resultsMousedown
+              "
+              data-target="query-builder.resultsList"
+              data-persist-list=false
+              id="query-builder-test-results"
+              tabindex="-1"
+            ></ul>
+
+        </div>
+      <div class="FormControl-inlineValidation" id="validation-c86ae1d7-2e7b-4b03-9deb-b3224b3f4aca" hidden="hidden">
+        <span class="FormControl-inlineValidation--visual">
+          <svg aria-hidden="true" data-component="Octicon" height="12" viewBox="0 0 12 12" version="1.1" width="12" data-view-component="true" class="octicon octicon-alert-fill">
+    <path d="M4.855.708c.5-.896 1.79-.896 2.29 0l4.675 8.351a1.312 1.312 0 0 1-1.146 1.954H1.33A1.313 1.313 0 0 1 .183 9.058ZM7 7V3H5v4Zm-1 3a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"></path>
+</svg>
+        </span>
+        <span></span>
+</div>    </div>
+    <div data-target="query-builder.screenReaderFeedback" aria-live="polite" aria-atomic="true" class="sr-only"></div>
+</query-builder></form>
+          <div class="d-flex flex-row color-fg-muted tmp-px-3 text-small color-bg-default search-feedback-prompt">
+            <a target="_blank" href="https://docs.github.com/search-github/github-code-search/understanding-github-code-search-syntax" data-view-component="true" class="Link color-fg-accent text-normal ml-2 tmp-ml-2">Search syntax tips</a>            <div class="d-flex flex-1"></div>
+          </div>
+        </div>
+</div>
+
+    </div>
+</modal-dialog></div>
+  </div>
+  <div data-action="click:qbsearch-input#retract" class="dark-backdrop position-fixed" hidden data-target="qbsearch-input.darkBackdrop"></div>
+  <div class="color-fg-default">
+    
+<dialog-helper>
+  <dialog data-target="qbsearch-input.feedbackDialog" data-action="close:qbsearch-input#handleDialogClose cancel:qbsearch-input#handleDialogClose" id="feedback-dialog" aria-modal="true" aria-labelledby="feedback-dialog-title" aria-describedby="feedback-dialog-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="feedback-dialog-title">
+        Provide feedback
+      </h1>
+        
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="feedback-dialog" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path>
+</svg></button>
+    </div>
+  </div>
+  
+</div>
+      <scrollable-region data-labelled-by="feedback-dialog-title">
+        <div data-view-component="true" class="Overlay-body">        <!-- '"` --><!-- </textarea></xmp> --></option></form><form id="code-search-feedback-form" data-turbo="false" action="/search/feedback" accept-charset="UTF-8" method="post"><input type="hidden" data-csrf="true" name="authenticity_token" value="Fs/mL6YaYYS6wGruyJrQUQaNidXaLlIImHJtlwA581FIcoZqhw4wqqyqNjQTZahikgXyiReKIxEF0m4jfBubnQ==" />
+          <p>We read every piece of feedback, and take your input very seriously.</p>
+          <textarea name="feedback" class="form-control width-full mb-2" style="height: 120px" id="feedback"></textarea>
+          <input name="include_email" id="include_email" aria-label="Include my email address so I can be contacted" class="form-control mr-2" type="checkbox">
+          <label for="include_email" style="font-weight: normal">Include my email address so I can be contacted</label>
+</form></div>
+      </scrollable-region>
+      <div data-view-component="true" class="Overlay-footer Overlay-footer--alignEnd">          <button data-close-dialog-id="feedback-dialog" type="button" data-view-component="true" class="btn">    Cancel
+</button>
+          <button form="code-search-feedback-form" data-action="click:qbsearch-input#submitFeedback" type="submit" data-view-component="true" class="btn-primary btn">    Submit feedback
+</button>
+</div>
+</dialog></dialog-helper>
+
+    <custom-scopes data-target="qbsearch-input.customScopesManager">
+    
+<dialog-helper>
+  <dialog data-target="custom-scopes.customScopesModalDialog" data-action="close:qbsearch-input#handleDialogClose cancel:qbsearch-input#handleDialogClose" id="custom-scopes-dialog" aria-modal="true" aria-labelledby="custom-scopes-dialog-title" aria-describedby="custom-scopes-dialog-description" data-view-component="true" class="Overlay Overlay-whenNarrow Overlay--size-medium Overlay--motion-scaleFade Overlay--disableScroll">
+    <div data-view-component="true" class="Overlay-header Overlay-header--divided">
+  <div class="Overlay-headerContentWrap">
+    <div class="Overlay-titleWrap">
+      <h1 class="Overlay-title " id="custom-scopes-dialog-title">
+        Saved searches
+      </h1>
+        <h2 id="custom-scopes-dialog-description" class="Overlay-description">Use saved searches to filter your results more quickly</h2>
+    </div>
+    <div class="Overlay-actionWrap">
+      <button data-close-dialog-id="custom-scopes-dialog" aria-label="Close" aria-label="Close" type="button" data-view-component="true" class="close-button Overlay-closeButton"><svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path>
+</svg></button>
+    </div>
+  </div>
+  
+</div>
+      <scrollable-region data-labelled-by="custom-scopes-dialog-title">
+        <div data-view-component="true" class="Overlay-body">        <div data-target="custom-scopes.customScopesModalDialogFlash"></div>
+
+        <div hidden class="create-custom-scope-form" data-target="custom-scopes.createCustomScopeForm">
+        <!-- '"` --><!-- </textarea></xmp> --></option></form><form id="custom-scopes-dialog-form" data-turbo="false" action="/search/custom_scopes" accept-charset="UTF-8" method="post"><input type="hidden" data-csrf="true" name="authenticity_token" value="1n6fl4cnkuJOzAEJk1xUceL/am3y0+Knz5wDBMZb+2MvPzIMzoXT5FHrgMy8fmNpDgtTwruYRiFRvOYJei6w2Q==" />
+          <div data-target="custom-scopes.customScopesModalDialogFlash"></div>
+
+          <input type="hidden" id="custom_scope_id" name="custom_scope_id" data-target="custom-scopes.customScopesIdField">
+
+          <div class="form-group">
+            <label for="custom_scope_name">Name</label>
+            <auto-check src="/search/custom_scopes/check_name" required>
+              <input
+                type="text"
+                name="custom_scope_name"
+                id="custom_scope_name"
+                data-target="custom-scopes.customScopesNameField"
+                class="form-control"
+                autocomplete="off"
+                placeholder="github-ruby"
+                required
+                maxlength="50">
+              <input type="hidden" data-csrf="true" value="KhiRDY3crYFaiyvQBFzaAXQJ96L4X4Kv48CBkgMla0WHZL1HNRubOOSKkh1SdFZdmhPEjV6JgBcgLg5IgyeRxA==" />
+            </auto-check>
+          </div>
+
+          <div class="form-group">
+            <label for="custom_scope_query">Query</label>
+            <input
+              type="text"
+              name="custom_scope_query"
+              id="custom_scope_query"
+              data-target="custom-scopes.customScopesQueryField"
+              class="form-control"
+              autocomplete="off"
+              placeholder="(repo:mona/a OR repo:mona/b) AND lang:python"
+              required
+              maxlength="500">
+          </div>
+
+          <p class="text-small color-fg-muted">
+            To see all available qualifiers, see our <a class="Link--inTextBlock" href="https://docs.github.com/search-github/github-code-search/understanding-github-code-search-syntax">documentation</a>.
+          </p>
+</form>        </div>
+
+        <div data-target="custom-scopes.manageCustomScopesForm">
+          <div data-target="custom-scopes.list"></div>
+        </div>
+
+</div>
+      </scrollable-region>
+      <div data-view-component="true" class="Overlay-footer Overlay-footer--alignEnd Overlay-footer--divided">          <button data-action="click:custom-scopes#customScopesCancel" type="button" data-view-component="true" class="btn">    Cancel
+</button>
+          <button form="custom-scopes-dialog-form" data-action="click:custom-scopes#customScopesSubmit" data-target="custom-scopes.customScopesSubmitButton" type="submit" data-view-component="true" class="btn-primary btn">    Create saved search
+</button>
+</div>
+</dialog></dialog-helper>
+    </custom-scopes>
+  </div>
+</qbsearch-input>
+
+
+            <div class="position-relative HeaderMenu-link-wrap d-lg-inline-block">
+              <a
+                href="/login?return_to=https%3A%2F%2Fgithub.com%2Fumutkeltek%2Fhealth-data-hub%2Fblob%2Fmain%2FREADME.md"
+                class="HeaderMenu-link HeaderMenu-link--sign-in HeaderMenu-button flex-shrink-0 no-underline d-none d-lg-inline-flex border border-lg-0 rounded px-2 py-1"
+                style="margin-left: 12px;"
+                data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/umutkeltek/health-data-hub/blob/main/README.md&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="75529d40800c1bb6199597f4d00f318f1043816dac5cf6c58bf672b4625b8abb"
+                data-analytics-event="{&quot;category&quot;:&quot;Marketing nav&quot;,&quot;action&quot;:&quot;click to go to homepage&quot;,&quot;label&quot;:&quot;ref_page:Marketing;ref_cta:Sign in;ref_loc:Header&quot;}"
+              >
+                Sign in
+              </a>
+            </div>
+
+              <a href="/signup?ref_cta=Sign+up&amp;ref_loc=header+logged+out&amp;ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Fblob%2Fshow&amp;source=header-repo&amp;source_repo=umutkeltek%2Fhealth-data-hub"
+                class="HeaderMenu-link HeaderMenu-link--sign-up HeaderMenu-button flex-shrink-0 d-flex d-lg-inline-flex no-underline border color-border-default rounded px-2 py-1"
+                data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;site header menu&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;SIGN_UP&quot;,&quot;originating_url&quot;:&quot;https://github.com/umutkeltek/health-data-hub/blob/main/README.md&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="75529d40800c1bb6199597f4d00f318f1043816dac5cf6c58bf672b4625b8abb"
+                data-analytics-event="{&quot;category&quot;:&quot;Sign up&quot;,&quot;action&quot;:&quot;click to sign up for account&quot;,&quot;label&quot;:&quot;ref_page:/&lt;user-name&gt;/&lt;repo-name&gt;/blob/show;ref_cta:Sign up;ref_loc:header logged out&quot;}"
+              >
+                Sign up
+              </a>
+
+                <div class="AppHeader-appearanceSettings">
+    <react-partial-anchor>
+      <button data-target="react-partial-anchor.anchor" id="icon-button-de1b42a2-2e61-4ae6-ab4d-057e6139325f" aria-labelledby="tooltip-5bf5ea9c-79a5-40a0-8696-4b9caf8f489c" type="button" disabled="disabled" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium AppHeader-button HeaderMenu-link border cursor-wait">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-sliders Button-visual">
+    <path d="M15 2.75a.75.75 0 0 1-.75.75h-4a.75.75 0 0 1 0-1.5h4a.75.75 0 0 1 .75.75Zm-8.5.75v1.25a.75.75 0 0 0 1.5 0v-4a.75.75 0 0 0-1.5 0V2H1.75a.75.75 0 0 0 0 1.5H6.5Zm1.25 5.25a.75.75 0 0 0 0-1.5h-6a.75.75 0 0 0 0 1.5h6ZM15 8a.75.75 0 0 1-.75.75H11.5V10a.75.75 0 1 1-1.5 0V6a.75.75 0 0 1 1.5 0v1.25h2.75A.75.75 0 0 1 15 8Zm-9 5.25v-2a.75.75 0 0 0-1.5 0v1.25H1.75a.75.75 0 0 0 0 1.5H4.5v1.25a.75.75 0 0 0 1.5 0v-2Zm9 0a.75.75 0 0 1-.75.75h-6a.75.75 0 0 1 0-1.5h6a.75.75 0 0 1 .75.75Z"></path>
+</svg>
+</button><tool-tip id="tooltip-5bf5ea9c-79a5-40a0-8696-4b9caf8f489c" for="icon-button-de1b42a2-2e61-4ae6-ab4d-057e6139325f" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Appearance settings</tool-tip>
+
+      <template data-target="react-partial-anchor.template">
+        <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react-css.c6bef8006da6a4d6.module.css" />
+<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/appearance-settings.0d1c5833260ecb07.module.css" />
+
+<react-partial
+  partial-name="appearance-settings"
+  data-ssr="false"
+  data-attempted-ssr="false"
+  data-react-profiling="false"
+>
+  
+  <script type="application/json" data-target="react-partial.embeddedData">{"props":{}}</script>
+  <div data-target="react-partial.reactRoot"></div>
+</react-partial>
+
+
+      </template>
+    </react-partial-anchor>
+  </div>
+
+          <button type="button" class="sr-only js-header-menu-focus-trap d-block d-lg-none">Resetting focus</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div hidden="hidden" data-view-component="true" class="js-stale-session-flash stale-session-flash flash flash-warn flash-full">
+  
+        <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-alert">
+    <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>
+</svg>
+        <span class="js-stale-session-flash-signed-in" hidden>You signed in with another tab or window. <a class="Link--inTextBlock" href="">Reload</a> to refresh your session.</span>
+        <span class="js-stale-session-flash-signed-out" hidden>You signed out in another tab or window. <a class="Link--inTextBlock" href="">Reload</a> to refresh your session.</span>
+        <span class="js-stale-session-flash-switched" hidden>You switched accounts on another tab or window. <a class="Link--inTextBlock" href="">Reload</a> to refresh your session.</span>
+
+    <button id="icon-button-e03683b7-9271-4000-83e2-e51baea32054" aria-labelledby="tooltip-6017fb42-79b4-4e73-b91e-b15bae7b6391" type="button" data-view-component="true" class="Button Button--iconOnly Button--invisible Button--medium flash-close js-flash-close">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x Button-visual">
+    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path>
+</svg>
+</button><tool-tip id="tooltip-6017fb42-79b4-4e73-b91e-b15bae7b6391" for="icon-button-e03683b7-9271-4000-83e2-e51baea32054" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Dismiss alert</tool-tip>
+
+
+  
+</div>
+    </div>
+
+  <div id="start-of-content" class="show-on-focus"></div>
+
+
+
+
+
+
+
+
+    <div id="js-flash-container" class="flash-container" data-turbo-replace>
+
+
+
+
+  <template class="js-flash-template">
+    
+<div class="flash flash-full   {{ className }}">
+  <div >
+    <button autofocus class="flash-close js-flash-close" type="button" aria-label="Dismiss this message">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path>
+</svg>
+    </button>
+    <div aria-atomic="true" role="alert" class="js-flash-alert">
+      
+      <div>{{ message }}</div>
+
+    </div>
+  </div>
+</div>
+  </template>
+</div>
+
+
+    
+
+
+
+
+
+
+  <div
+    class="application-main "
+    data-commit-hovercards-enabled
+    data-discussion-hovercards-enabled
+    data-issue-and-pr-hovercards-enabled
+    data-project-hovercards-enabled
+  >
+        <div itemscope itemtype="http://schema.org/SoftwareSourceCode" class="">
+    <main id="js-repo-pjax-container" >
+      
+      
+
+
+
+
+
+
+  
+
+  <div id="repository-container-header"  class="tmp-pt-3 hide-full-screen" style="background-color: var(--page-header-bgColor, var(--color-page-header-bg));" data-turbo-replace>
+
+      <div class="d-flex flex-nowrap flex-justify-end tmp-mb-3  tmp-px-3 tmp-px-lg-5" style="gap: 1rem;">
+
+        <div class="flex-auto min-width-0 width-fit">
+            
+  <div class=" d-flex flex-wrap flex-items-center wb-break-word f3 text-normal">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-repo color-fg-muted mr-2 tmp-mr-2">
+    <path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z"></path>
+</svg>
+    
+    <span class="author flex-self-stretch" itemprop="author">
+      <a class="url fn" rel="author" data-hovercard-type="user" data-hovercard-url="/users/umutkeltek/hovercard" data-octo-click="hovercard-link-click" data-octo-dimensions="link_type:self" href="/umutkeltek">
+        umutkeltek
+</a>    </span>
+    <span class="mx-1 flex-self-stretch color-fg-muted">/</span>
+    <strong itemprop="name" class="mr-2 flex-self-stretch">
+      <a data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" href="/umutkeltek/health-data-hub">health-data-hub</a>
+    </strong>
+
+    <span></span><span class="Label Label--secondary v-align-middle mr-1">Public</span>
+  </div>
+
+
+        </div>
+
+        <div id="repository-details-container" class="flex-shrink-0" data-turbo-replace style="max-width: 70%;">
+            <ul class="pagehead-actions flex-shrink-0 d-none d-md-inline" style="padding: 2px 0;">
+    
+      
+
+  <li>
+            <a href="/login?return_to=%2Fumutkeltek%2Fhealth-data-hub" rel="nofollow" id="repository-details-watch-button" data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;notification subscription menu watch&quot;,&quot;repository_id&quot;:null,&quot;auth_type&quot;:&quot;LOG_IN&quot;,&quot;originating_url&quot;:&quot;https://github.com/umutkeltek/health-data-hub/blob/main/README.md&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="2511dee9461f0cb5fa58e6b3f1d75929fd31c710cb543628828b649d985c56e3" aria-label="You must be signed in to change notification settings" data-view-component="true" class="btn-sm btn">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-bell mr-2 tmp-mr-2">
+    <path d="M8 16a2 2 0 0 0 1.985-1.75c.017-.137-.097-.25-.235-.25h-3.5c-.138 0-.252.113-.235.25A2 2 0 0 0 8 16ZM3 5a5 5 0 0 1 10 0v2.947c0 .05.015.098.042.139l1.703 2.555A1.519 1.519 0 0 1 13.482 13H2.518a1.516 1.516 0 0 1-1.263-2.36l1.703-2.554A.255.255 0 0 0 3 7.947Zm5-3.5A3.5 3.5 0 0 0 4.5 5v2.947c0 .346-.102.683-.294.97l-1.703 2.556a.017.017 0 0 0-.003.01l.001.006c0 .002.002.004.004.006l.006.004.007.001h10.964l.007-.001.006-.004.004-.006.001-.007a.017.017 0 0 0-.003-.01l-1.703-2.554a1.745 1.745 0 0 1-.294-.97V5A3.5 3.5 0 0 0 8 1.5Z"></path>
+</svg>Notifications
+</a>    <tool-tip id="tooltip-31008c55-6f45-4e25-a12b-f932882dfbdf" for="repository-details-watch-button" popover="manual" data-direction="s" data-type="description" data-view-component="true" class="sr-only position-absolute">You must be signed in to change notification settings</tool-tip>
+
+  </li>
+
+  <li>
+          <a icon="repo-forked" id="fork-button" href="/login?return_to=%2Fumutkeltek%2Fhealth-data-hub" rel="nofollow" data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;repo details fork button&quot;,&quot;repository_id&quot;:1206479703,&quot;auth_type&quot;:&quot;LOG_IN&quot;,&quot;originating_url&quot;:&quot;https://github.com/umutkeltek/health-data-hub/blob/main/README.md&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="ae36a5e018ca9f71d6c8f5a4e7e6d932c1179fa61848a2a8adc6100949c16c36" data-view-component="true" class="btn-sm btn">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-repo-forked mr-2 tmp-mr-2">
+    <path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"></path>
+</svg>Fork
+    <span id="repo-network-counter" data-pjax-replace="true" data-turbo-replace="true" title="1" data-view-component="true" class="Counter">1</span>
+</a>
+  </li>
+
+  <li>
+        <div data-view-component="true" class="BtnGroup d-flex">
+        <a href="/login?return_to=%2Fumutkeltek%2Fhealth-data-hub" rel="nofollow" data-hydro-click="{&quot;event_type&quot;:&quot;authentication.click&quot;,&quot;payload&quot;:{&quot;location_in_page&quot;:&quot;star button&quot;,&quot;repository_id&quot;:1206479703,&quot;auth_type&quot;:&quot;LOG_IN&quot;,&quot;originating_url&quot;:&quot;https://github.com/umutkeltek/health-data-hub/blob/main/README.md&quot;,&quot;user_id&quot;:null}}" data-hydro-click-hmac="4eac6d9d01f02e1ff1cd8a18981b52c96f1965e35ababe37009008665d37fb64" aria-label="You must be signed in to star a repository" data-view-component="true" class="tooltipped tooltipped-sw btn-sm btn">    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-star v-align-text-bottom d-inline-block mr-2 tmp-mr-2">
+    <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Zm0 2.445L6.615 5.5a.75.75 0 0 1-.564.41l-3.097.45 2.24 2.184a.75.75 0 0 1 .216.664l-.528 3.084 2.769-1.456a.75.75 0 0 1 .698 0l2.77 1.456-.53-3.084a.75.75 0 0 1 .216-.664l2.24-2.183-3.096-.45a.75.75 0 0 1-.564-.41L8 2.694Z"></path>
+</svg><span data-view-component="true" class="d-inline">
+          Star
+</span>          <span id="repo-stars-counter-star" aria-label="9 users starred this repository" data-singular-suffix="user starred this repository" data-plural-suffix="users starred this repository" data-turbo-replace="true" title="9" data-view-component="true" class="Counter js-social-count">9</span>
+</a></div>
+  </li>
+
+</ul>
+
+        </div>
+      </div>
+
+        <div id="responsive-meta-container" data-turbo-replace>
+</div>
+
+
+          <nav data-pjax="#js-repo-pjax-container" aria-label="Repository" data-view-component="true" class="js-repo-nav js-sidenav-container-pjax js-responsive-underlinenav overflow-hidden UnderlineNav px-3 tmp-px-3 px-md-4 tmp-px-md-4 px-lg-5 tmp-px-lg-5">
+
+  <ul data-view-component="true" class="UnderlineNav-body list-style-none">
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="code-tab" href="/umutkeltek/health-data-hub" data-tab-item="i0code-tab" data-selected-links="repo_source repo_downloads repo_commits repo_releases repo_tags repo_branches repo_packages repo_deployments repo_attestations /umutkeltek/health-data-hub" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g c" data-command-id="repositories:go-to-code" data-react-nav="code-view" data-react-nav-anchor="code-view-repo-link" data-analytics-event="{&quot;category&quot;:&quot;Underline navbar&quot;,&quot;action&quot;:&quot;Click tab&quot;,&quot;label&quot;:&quot;Code&quot;,&quot;target&quot;:&quot;UNDERLINE_NAV.TAB&quot;}" aria-current="page" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item selected">
+    
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code UnderlineNav-octicon d-none d-sm-inline">
+    <path d="m11.28 3.22 4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L13.94 8l-3.72-3.72a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Zm-6.56 0a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L2.06 8l3.72 3.72a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L.47 8.53a.75.75 0 0 1 0-1.06Z"></path>
+</svg>
+        <span data-content="Code">Code</span>
+          <span id="code-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="Not available" data-view-component="true" class="Counter"></span>
+
+
+    
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="issues-tab" href="/umutkeltek/health-data-hub/issues" data-tab-item="i1issues-tab" data-selected-links="repo_issues repo_labels repo_milestones /umutkeltek/health-data-hub/issues" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g i" data-command-id="repositories:go-to-issues" data-react-nav="issues-react" data-analytics-event="{&quot;category&quot;:&quot;Underline navbar&quot;,&quot;action&quot;:&quot;Click tab&quot;,&quot;label&quot;:&quot;Issues&quot;,&quot;target&quot;:&quot;UNDERLINE_NAV.TAB&quot;}" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+    
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-issue-opened UnderlineNav-octicon d-none d-sm-inline">
+    <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"></path>
+</svg>
+        <span data-content="Issues">Issues</span>
+          <span id="issues-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="0" hidden="hidden" data-view-component="true" class="Counter">0</span>
+
+
+    
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="pull-requests-tab" href="/umutkeltek/health-data-hub/pulls" data-tab-item="i2pull-requests-tab" data-selected-links="repo_pulls checks /umutkeltek/health-data-hub/pulls" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g p" data-command-id="repositories:go-to-pull-requests" data-analytics-event="{&quot;category&quot;:&quot;Underline navbar&quot;,&quot;action&quot;:&quot;Click tab&quot;,&quot;label&quot;:&quot;Pull requests&quot;,&quot;target&quot;:&quot;UNDERLINE_NAV.TAB&quot;}" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+    
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-git-pull-request UnderlineNav-octicon d-none d-sm-inline">
+    <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path>
+</svg>
+        <span data-content="Pull requests">Pull requests</span>
+          <span id="pull-requests-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="0" hidden="hidden" data-view-component="true" class="Counter">0</span>
+
+
+    
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="actions-tab" href="/umutkeltek/health-data-hub/actions" data-tab-item="i3actions-tab" data-selected-links="repo_actions /umutkeltek/health-data-hub/actions" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g a" data-command-id="repositories:go-to-actions" data-analytics-event="{&quot;category&quot;:&quot;Underline navbar&quot;,&quot;action&quot;:&quot;Click tab&quot;,&quot;label&quot;:&quot;Actions&quot;,&quot;target&quot;:&quot;UNDERLINE_NAV.TAB&quot;}" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+    
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-play UnderlineNav-octicon d-none d-sm-inline">
+    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm4.879-2.773 4.264 2.559a.25.25 0 0 1 0 .428l-4.264 2.559A.25.25 0 0 1 6 10.559V5.442a.25.25 0 0 1 .379-.215Z"></path>
+</svg>
+        <span data-content="Actions">Actions</span>
+          <span id="actions-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="Not available" data-view-component="true" class="Counter"></span>
+
+
+    
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="projects-tab" href="/umutkeltek/health-data-hub/projects" data-tab-item="i4projects-tab" data-selected-links="repo_projects new_repo_project repo_project /umutkeltek/health-data-hub/projects" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g b" data-command-id="repositories:go-to-projects" data-analytics-event="{&quot;category&quot;:&quot;Underline navbar&quot;,&quot;action&quot;:&quot;Click tab&quot;,&quot;label&quot;:&quot;Projects&quot;,&quot;target&quot;:&quot;UNDERLINE_NAV.TAB&quot;}" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+    
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-table UnderlineNav-octicon d-none d-sm-inline">
+    <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25ZM6.5 6.5v8h7.75a.25.25 0 0 0 .25-.25V6.5Zm8-1.5V1.75a.25.25 0 0 0-.25-.25H6.5V5Zm-13 1.5v7.75c0 .138.112.25.25.25H5v-8ZM5 5V1.5H1.75a.25.25 0 0 0-.25.25V5Z"></path>
+</svg>
+        <span data-content="Projects">Projects</span>
+          <span id="projects-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="Not available" data-view-component="true" class="Counter"></span>
+
+
+    
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="security-and-quality-tab" href="/umutkeltek/health-data-hub/security" data-tab-item="i5security-and-quality-tab" data-selected-links="security overview alerts policy token_scanning code_scanning /umutkeltek/health-data-hub/security" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-hotkey="g s" data-command-id="repositories:go-to-security" data-analytics-event="{&quot;category&quot;:&quot;Underline navbar&quot;,&quot;action&quot;:&quot;Click tab&quot;,&quot;label&quot;:&quot;Security and quality&quot;,&quot;target&quot;:&quot;UNDERLINE_NAV.TAB&quot;}" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+    
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-shield UnderlineNav-octicon d-none d-sm-inline">
+    <path d="M7.467.133a1.748 1.748 0 0 1 1.066 0l5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667Zm.61 1.429a.25.25 0 0 0-.153 0l-5.25 1.68a.25.25 0 0 0-.174.238V7c0 1.358.275 2.666 1.057 3.86.784 1.194 2.121 2.34 4.366 3.297a.196.196 0 0 0 .154 0c2.245-.956 3.582-2.104 4.366-3.298C13.225 9.666 13.5 8.36 13.5 7V3.48a.251.251 0 0 0-.174-.237l-5.25-1.68ZM8.75 4.75v3a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0ZM9 10.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>
+</svg>
+        <span data-content="Security and quality">Security and quality</span>
+          <span id="security-and-quality-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="0" hidden="hidden" data-view-component="true" class="Counter">0</span>
+
+
+    
+</a></li>
+      <li data-view-component="true" class="d-inline-flex">
+  <a id="insights-tab" href="/umutkeltek/health-data-hub/pulse" data-tab-item="i6insights-tab" data-selected-links="repo_graphs repo_contributors dependency_graph dependabot_updates pulse people community /umutkeltek/health-data-hub/pulse" data-pjax="#repo-content-pjax-container" data-turbo-frame="repo-content-turbo-frame" data-command-id="repositories:go-to-insights" data-analytics-event="{&quot;category&quot;:&quot;Underline navbar&quot;,&quot;action&quot;:&quot;Click tab&quot;,&quot;label&quot;:&quot;Insights&quot;,&quot;target&quot;:&quot;UNDERLINE_NAV.TAB&quot;}" data-view-component="true" class="UnderlineNav-item no-wrap js-responsive-underlinenav-item js-selected-navigation-item">
+    
+              <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-graph UnderlineNav-octicon d-none d-sm-inline">
+    <path d="M1.5 1.75V13.5h13.75a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"></path>
+</svg>
+        <span data-content="Insights">Insights</span>
+          <span id="insights-repo-tab-count" data-pjax-replace="" data-turbo-replace="" title="Not available" data-view-component="true" class="Counter"></span>
+
+
+    
+</a></li>
+</ul>
+    <div style="visibility:hidden;" data-view-component="true" class="UnderlineNav-actions js-responsive-underlinenav-overflow position-absolute pr-3 tmp-pr-3 pr-md-4 tmp-pr-md-4 pr-lg-5 tmp-pr-lg-5 right-0">      <action-menu data-select-variant="none" data-view-component="true">
+  <focus-group direction="vertical" mnemonics retain>
+    <button id="action-menu-565a68a5-58f7-46a5-97d5-5103eaf3183b-button" popovertarget="action-menu-565a68a5-58f7-46a5-97d5-5103eaf3183b-overlay" aria-controls="action-menu-565a68a5-58f7-46a5-97d5-5103eaf3183b-list" aria-haspopup="true" aria-labelledby="tooltip-c68529ba-f429-4611-aba6-7ced45f3b88c" type="button" data-view-component="true" class="Button Button--iconOnly Button--secondary Button--medium UnderlineNav-item">  <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-kebab-horizontal Button-visual">
+    <path d="M8 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM1.5 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm13 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path>
+</svg>
+</button><tool-tip id="tooltip-c68529ba-f429-4611-aba6-7ced45f3b88c" for="action-menu-565a68a5-58f7-46a5-97d5-5103eaf3183b-button" popover="manual" data-direction="s" data-type="label" data-view-component="true" class="sr-only position-absolute">Additional navigation options</tool-tip>
+
+
+<anchored-position data-target="action-menu.overlay" id="action-menu-565a68a5-58f7-46a5-97d5-5103eaf3183b-overlay" anchor="action-menu-565a68a5-58f7-46a5-97d5-5103eaf3183b-button" align="start" side="outside-bottom" anchor-offset="normal" popover="auto" data-view-component="true">
+  <div data-view-component="true" class="Overlay Overlay--size-auto">
+    
+      <div data-view-component="true" class="Overlay-body Overlay-body--paddingNone">          <action-list>
+  <div data-view-component="true">
+    <ul aria-labelledby="action-menu-565a68a5-58f7-46a5-97d5-5103eaf3183b-button" id="action-menu-565a68a5-58f7-46a5-97d5-5103eaf3183b-list" role="menu" data-view-component="true" class="ActionListWrap--inset ActionListWrap">
+        <li hidden="hidden" data-menu-item="i0code-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    
+    
+    <a tabindex="-1" id="item-06fc7989-e190-4f0e-aaf2-4ee3b3936a97" href="/umutkeltek/health-data-hub" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-code">
+    <path d="m11.28 3.22 4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L13.94 8l-3.72-3.72a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Zm-6.56 0a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L2.06 8l3.72 3.72a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L.47 8.53a.75.75 0 0 1 0-1.06Z"></path>
+</svg>
+        </span>
+      
+        <span data-view-component="true" class="ActionListItem-label">
+          Code
+</span>      
+</a>
+  
+</li>
+        <li hidden="hidden" data-menu-item="i1issues-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    
+    
+    <a tabindex="-1" id="item-6fad6d7d-fcfd-4bf0-ae2e-004ed3bae1f8" href="/umutkeltek/health-data-hub/issues" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-issue-opened">
+    <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"></path>
+</svg>
+        </span>
+      
+        <span data-view-component="true" class="ActionListItem-label">
+          Issues
+</span>      
+</a>
+  
+</li>
+        <li hidden="hidden" data-menu-item="i2pull-requests-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    
+    
+    <a tabindex="-1" id="item-5182ed73-2c48-4430-b106-ca77f77bfb23" href="/umutkeltek/health-data-hub/pulls" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-git-pull-request">
+    <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path>
+</svg>
+        </span>
+      
+        <span data-view-component="true" class="ActionListItem-label">
+          Pull requests
+</span>      
+</a>
+  
+</li>
+        <li hidden="hidden" data-menu-item="i3actions-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    
+    
+    <a tabindex="-1" id="item-d2b8434b-1d8f-4f6c-9fde-e3487b59fda6" href="/umutkeltek/health-data-hub/actions" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-play">
+    <path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm4.879-2.773 4.264 2.559a.25.25 0 0 1 0 .428l-4.264 2.559A.25.25 0 0 1 6 10.559V5.442a.25.25 0 0 1 .379-.215Z"></path>
+</svg>
+        </span>
+      
+        <span data-view-component="true" class="ActionListItem-label">
+          Actions
+</span>      
+</a>
+  
+</li>
+        <li hidden="hidden" data-menu-item="i4projects-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    
+    
+    <a tabindex="-1" id="item-dd3c4c02-36c0-4dd8-974d-36be43086b9a" href="/umutkeltek/health-data-hub/projects" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-table">
+    <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25ZM6.5 6.5v8h7.75a.25.25 0 0 0 .25-.25V6.5Zm8-1.5V1.75a.25.25 0 0 0-.25-.25H6.5V5Zm-13 1.5v7.75c0 .138.112.25.25.25H5v-8ZM5 5V1.5H1.75a.25.25 0 0 0-.25.25V5Z"></path>
+</svg>
+        </span>
+      
+        <span data-view-component="true" class="ActionListItem-label">
+          Projects
+</span>      
+</a>
+  
+</li>
+        <li hidden="hidden" data-menu-item="i5security-and-quality-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    
+    
+    <a tabindex="-1" id="item-ac213c78-b30e-4668-9e41-2c496fd7a56e" href="/umutkeltek/health-data-hub/security" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-shield">
+    <path d="M7.467.133a1.748 1.748 0 0 1 1.066 0l5.25 1.68A1.75 1.75 0 0 1 15 3.48V7c0 1.566-.32 3.182-1.303 4.682-.983 1.498-2.585 2.813-5.032 3.855a1.697 1.697 0 0 1-1.33 0c-2.447-1.042-4.049-2.357-5.032-3.855C1.32 10.182 1 8.566 1 7V3.48a1.75 1.75 0 0 1 1.217-1.667Zm.61 1.429a.25.25 0 0 0-.153 0l-5.25 1.68a.25.25 0 0 0-.174.238V7c0 1.358.275 2.666 1.057 3.86.784 1.194 2.121 2.34 4.366 3.297a.196.196 0 0 0 .154 0c2.245-.956 3.582-2.104 4.366-3.298C13.225 9.666 13.5 8.36 13.5 7V3.48a.251.251 0 0 0-.174-.237l-5.25-1.68ZM8.75 4.75v3a.75.75 0 0 1-1.5 0v-3a.75.75 0 0 1 1.5 0ZM9 10.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>
+</svg>
+        </span>
+      
+        <span data-view-component="true" class="ActionListItem-label">
+          Security and quality
+</span>      
+</a>
+  
+</li>
+        <li hidden="hidden" data-menu-item="i6insights-tab" data-targets="action-list.items" role="none" data-view-component="true" class="ActionListItem">
+    
+    
+    <a tabindex="-1" id="item-ce39065e-ad26-443a-b24e-13411b1e4f03" href="/umutkeltek/health-data-hub/pulse" role="menuitem" data-view-component="true" class="ActionListContent ActionListContent--visual16">
+        <span class="ActionListItem-visual ActionListItem-visual--leading">
+          <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-graph">
+    <path d="M1.5 1.75V13.5h13.75a.75.75 0 0 1 0 1.5H.75a.75.75 0 0 1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75 0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"></path>
+</svg>
+        </span>
+      
+        <span data-view-component="true" class="ActionListItem-label">
+          Insights
+</span>      
+</a>
+  
+</li>
+</ul>    
+</div></action-list>
+
+
+</div>
+      
+</div></anchored-position>  </focus-group>
+</action-menu></div>
+</nav>
+
+  </div>
+  
+
+
+
+<turbo-frame id="repo-content-turbo-frame" target="_top" data-turbo-action="advance" class="">
+    <div id="repo-content-pjax-container" class="repository-content " >
+    
+
+
+
+    
+      
+    
+
+
+
+
+
+
+
+
+<react-app
+  app-name="code-view"
+  initial-path="/umutkeltek/health-data-hub/blob/main/README.md"
+  style="display: block; min-height: calc(100vh - 64px);"
+  data-attempted-ssr="true"
+  data-ssr="true"
+  data-lazy="false"
+  data-alternate="false"
+  data-data-router-enabled="true"
+  data-react-profiling="false"
+>
+  
+  <script type="application/json" data-target="react-app.embeddedData">{"payload":{"codeViewBlobRoute":{"csv":null,"csvError":null,"headerInfo":{"toc":[{"level":1,"text":"Health Data Hub","anchor":"health-data-hub","htmlText":"Health Data Hub"},{"level":2,"text":"Don't want to self-host?","anchor":"dont-want-to-self-host","htmlText":"Don't want to self-host?"},{"level":2,"text":"What you get","anchor":"what-you-get","htmlText":"What you get"},{"level":2,"text":"Quick start","anchor":"quick-start","htmlText":"Quick start"},{"level":2,"text":"Hardware recommendations","anchor":"hardware-recommendations","htmlText":"Hardware recommendations"},{"level":2,"text":"How the AI analysis works","anchor":"how-the-ai-analysis-works","htmlText":"How the AI analysis works"},{"level":2,"text":"Your first insight","anchor":"your-first-insight","htmlText":"Your first insight"},{"level":2,"text":"Connect HealthSave","anchor":"connect-healthsave","htmlText":"Connect HealthSave"},{"level":2,"text":"Troubleshooting","anchor":"troubleshooting","htmlText":"Troubleshooting"},{"level":2,"text":"For developers","anchor":"for-developers","htmlText":"For developers"},{"level":3,"text":"Stack","anchor":"stack","htmlText":"Stack"},{"level":3,"text":"Architecture","anchor":"architecture","htmlText":"Architecture"},{"level":3,"text":"What gets synced","anchor":"what-gets-synced","htmlText":"What gets synced"},{"level":3,"text":"Manual quick-start (without setup.sh)","anchor":"manual-quick-start-without-setupsh","htmlText":"Manual quick-start (without setup.sh)"},{"level":3,"text":"API Endpoints","anchor":"api-endpoints","htmlText":"API Endpoints"},{"level":3,"text":"Prometheus Metrics","anchor":"prometheus-metrics","htmlText":"Prometheus Metrics"},{"level":3,"text":"Garmin Imports","anchor":"garmin-imports","htmlText":"Garmin Imports"},{"level":3,"text":"Samsung / Huawei Health Sync Imports","anchor":"samsung--huawei-health-sync-imports","htmlText":"Samsung / Huawei Health Sync Imports"},{"level":3,"text":"Grafana Dashboards","anchor":"grafana-dashboards","htmlText":"Grafana Dashboards"},{"level":3,"text":"Home Assistant Integration","anchor":"home-assistant-integration","htmlText":"Home Assistant Integration"},{"level":3,"text":"Community Backends","anchor":"community-backends","htmlText":"Community Backends"},{"level":3,"text":"Pluggable Storage Backends","anchor":"pluggable-storage-backends","htmlText":"Pluggable Storage Backends"},{"level":3,"text":"Deduplication","anchor":"deduplication","htmlText":"Deduplication"},{"level":3,"text":"Updating Existing Installs","anchor":"updating-existing-installs","htmlText":"Updating Existing Installs"},{"level":3,"text":"Multi-user / Household","anchor":"multi-user--household","htmlText":"Multi-user / Household"},{"level":3,"text":"Development","anchor":"development","htmlText":"Development"},{"level":3,"text":"HTTPS / Reverse Proxy","anchor":"https--reverse-proxy","htmlText":"HTTPS / Reverse Proxy"},{"level":3,"text":"Derived Metrics","anchor":"derived-metrics","htmlText":"Derived Metrics"},{"level":3,"text":"Roadmap","anchor":"roadmap","htmlText":"Roadmap"}]},"issueTemplate":null,"discussionTemplate":null,"richText":"\u003carticle class=\"markdown-body entry-content container-lg\" itemprop=\"text\"\u003e\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch1 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eHealth Data Hub\u003c/h1\u003e\u003ca id=\"user-content-health-data-hub\" class=\"anchor\" aria-label=\"Permalink: Health Data Hub\" href=\"#health-data-hub\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003e\u003ca href=\"https://github.com/umutkeltek/health-data-hub/actions/workflows/ci.yml\"\u003e\u003cimg src=\"https://github.com/umutkeltek/health-data-hub/actions/workflows/ci.yml/badge.svg\" alt=\"CI\" style=\"max-width: 100%;\"\u003e\u003c/a\u003e\n\u003ca href=\"/umutkeltek/health-data-hub/blob/main/LICENSE\"\u003e\u003cimg src=\"https://camo.githubusercontent.com/4b16f685c1349e68f267f0b909391739f067b3b9c4d07ae4f56ef6dd6c27fe8c/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4c6963656e73652d456c61737469632d2d322e302d3030353537312e737667\" alt=\"License: Elastic 2.0\" data-canonical-src=\"https://img.shields.io/badge/License-Elastic--2.0-005571.svg\" style=\"max-width: 100%;\"\u003e\u003c/a\u003e\n\u003ca href=\"https://www.python.org/downloads/\" rel=\"nofollow\"\u003e\u003cimg src=\"https://camo.githubusercontent.com/0906ab8f9e81a8fac61a4b1717d44a7eb5255d5649a5635c203613aa54e1227a/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f707974686f6e2d332e31322d3337373641422e7376673f6c6f676f3d707974686f6e266c6f676f436f6c6f723d7768697465\" alt=\"Python 3.12\" data-canonical-src=\"https://img.shields.io/badge/python-3.12-3776AB.svg?logo=python\u0026amp;logoColor=white\" style=\"max-width: 100%;\"\u003e\u003c/a\u003e\n\u003ca href=\"https://fastapi.tiangolo.com/\" rel=\"nofollow\"\u003e\u003cimg src=\"https://camo.githubusercontent.com/3b750845d27fafb6e721afb3c79b6406a43d0ada92aa36a16a50e602f817d4ce/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f466173744150492d302e3131352d3030393638382e7376673f6c6f676f3d66617374617069266c6f676f436f6c6f723d7768697465\" alt=\"FastAPI\" data-canonical-src=\"https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi\u0026amp;logoColor=white\" style=\"max-width: 100%;\"\u003e\u003c/a\u003e\n\u003ca href=\"https://www.timescale.com/\" rel=\"nofollow\"\u003e\u003cimg src=\"https://camo.githubusercontent.com/c30c7055ca20538dd19e2fd4c95561ed19b576cc5de6676e23d242cabd1e1339/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f54696d657363616c6544422d506f737467726553514c2d4644423531352e7376673f6c6f676f3d706f737467726573716c266c6f676f436f6c6f723d7768697465\" alt=\"TimescaleDB\" data-canonical-src=\"https://img.shields.io/badge/TimescaleDB-PostgreSQL-FDB515.svg?logo=postgresql\u0026amp;logoColor=white\" style=\"max-width: 100%;\"\u003e\u003c/a\u003e\n\u003ca href=\"https://www.docker.com/\" rel=\"nofollow\"\u003e\u003cimg src=\"https://camo.githubusercontent.com/8dc861ee5c6d090d50c53d14187195f7615ad1bf66d66303b52871da1ee5f735/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f446f636b65722d72656164792d3234393645442e7376673f6c6f676f3d646f636b6572266c6f676f436f6c6f723d7768697465\" alt=\"Docker\" data-canonical-src=\"https://img.shields.io/badge/Docker-ready-2496ED.svg?logo=docker\u0026amp;logoColor=white\" style=\"max-width: 100%;\"\u003e\u003c/a\u003e\n\u003ca href=\"https://ollama.com/\" rel=\"nofollow\"\u003e\u003cimg src=\"https://camo.githubusercontent.com/ab1005e3f01dd605e92b17b35b7d8e7e4d705b419514da0725b05d342bdc9146/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4f6c6c616d612d6c6f63616c2532304c4c4d2d3030303030302e737667\" alt=\"Ollama\" data-canonical-src=\"https://img.shields.io/badge/Ollama-local%20LLM-000000.svg\" style=\"max-width: 100%;\"\u003e\u003c/a\u003e\n\u003ca href=\"https://apps.apple.com/app/id6759843047\" rel=\"nofollow\"\u003e\u003cimg src=\"https://camo.githubusercontent.com/65e83e38b99cfd92e0f060beb36fd6ce377049e33d7e2542c4149f686a1bb3f3/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f446f776e6c6f61642d41707025323053746f72652d3044393646363f6c6f676f3d6170706c65266c6f676f436f6c6f723d7768697465\" alt=\"Download on the App Store\" data-canonical-src=\"https://img.shields.io/badge/Download-App%20Store-0D96F6?logo=apple\u0026amp;logoColor=white\" style=\"max-width: 100%;\"\u003e\u003c/a\u003e\u003c/p\u003e\n\u003cblockquote\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eSelf-hosted Apple Health server\u003c/strong\u003e - sync HealthKit data from your iPhone and Apple Watch into TimescaleDB, visualize it in Grafana, and get an AI-written daily briefing via a local Ollama model. Private. Local-first. Your data stays on your hardware.\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003cblockquote\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eNew here?\u003c/strong\u003e \u003ca href=\"/umutkeltek/health-data-hub/blob/main/BRIDGE.md\"\u003eBRIDGE.md\u003c/a\u003e is the one-page tour: pipeline diagram, who it's for, what's local vs self-hosted, setup gotchas. Read that first if 500 lines of README is too much.\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eKeywords:\u003c/strong\u003e \u003ccode\u003eapple-health\u003c/code\u003e · \u003ccode\u003ehealthkit\u003c/code\u003e · \u003ccode\u003eself-hosted\u003c/code\u003e · \u003ccode\u003equantified-self\u003c/code\u003e · \u003ccode\u003etimescaledb\u003c/code\u003e · \u003ccode\u003egrafana\u003c/code\u003e · \u003ccode\u003efastapi\u003c/code\u003e · \u003ccode\u003eollama\u003c/code\u003e · \u003ccode\u003elocal-llm\u003c/code\u003e · \u003ccode\u003ehome-assistant\u003c/code\u003e · \u003ccode\u003edocker\u003c/code\u003e · \u003ccode\u003eprivacy\u003c/code\u003e · \u003ccode\u003ehealth-data\u003c/code\u003e · \u003ccode\u003ewearables\u003c/code\u003e\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eYour own server, on your own hardware, turning the health data your phone already collects into an AI-written daily briefing - no cloud, no subscription, no one else reading your numbers.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eYou point your iPhone at it. It stores everything from your Apple Watch (heart rate, HRV, SpO2, sleep, workouts, steps, and more), graphs it in Grafana, and - if you turn it on - runs a small local AI model that writes you a short narrative every morning about how your body is actually doing.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eDon't want to self-host?\u003c/h2\u003e\u003ca id=\"user-content-dont-want-to-self-host\" class=\"anchor\" aria-label=\"Permalink: Don't want to self-host?\" href=\"#dont-want-to-self-host\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003e\u003ca href=\"https://apps.apple.com/app/id6759843047\" rel=\"nofollow\"\u003eHealthSave\u003c/a\u003e is the iOS app side of this stack. It runs standalone — Dashboard, Trends, Export to CSV / JSON / PDF, all on-device. Self-hosting is only needed if you want long-term storage, Grafana dashboards, or AI briefings.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eWhat you get\u003c/h2\u003e\u003ca id=\"user-content-what-you-get\" class=\"anchor\" aria-label=\"Permalink: What you get\" href=\"#what-you-get\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003eA long-term store for every Apple Health metric your phone collects, queryable with normal SQL\u003c/li\u003e\n\u003cli\u003eA set of ready-made Grafana dashboards (heart, sleep, activity, workouts) that work the moment data starts flowing\u003c/li\u003e\n\u003cli\u003eAn optional AI briefing system that turns numbers into plain English (\"HRV trended down three days in a row, sleep was light last night, expect a low-energy morning\")\u003c/li\u003e\n\u003cli\u003eA clean ingest API anyone can build against - the iOS app is one client, Garmin Connect exports and Samsung/Huawei Health Sync CSVs are others via \u003ca href=\"/umutkeltek/health-data-hub/blob/main/scripts/import_garmin.py\"\u003e\u003ccode\u003escripts/import_garmin.py\u003c/code\u003e\u003c/a\u003e and \u003ca href=\"/umutkeltek/health-data-hub/blob/main/scripts/import_samsung.py\"\u003e\u003ccode\u003escripts/import_samsung.py\u003c/code\u003e\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003eDrop-in examples for piping selected metrics into Home Assistant for automations\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eThe entire stack runs in Docker on a laptop, a NUC, a Mac mini, a Synology, or a beefy workstation - your choice. Nothing phones home.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eQuick start\u003c/h2\u003e\u003ca id=\"user-content-quick-start\" class=\"anchor\" aria-label=\"Permalink: Quick start\" href=\"#quick-start\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eYou need \u003ca href=\"https://www.docker.com/products/docker-desktop/\" rel=\"nofollow\"\u003eDocker\u003c/a\u003e installed and running, plus a terminal. On Windows, run this inside WSL2 - \u003ccode\u003esetup.sh\u003c/code\u003e is a bash script.\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"git clone https://github.com/umutkeltek/health-data-hub.git\ncd health-data-hub\n./setup.sh\"\u003e\u003cpre\u003egit clone https://github.com/umutkeltek/health-data-hub.git\n\u003cspan class=\"pl-c1\"\u003ecd\u003c/span\u003e health-data-hub\n./setup.sh\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThat's it. \u003ccode\u003esetup.sh\u003c/code\u003e:\u003c/p\u003e\n\u003col dir=\"auto\"\u003e\n\u003cli\u003eGenerates secure passwords and writes a \u003ccode\u003e.env\u003c/code\u003e for you\u003c/li\u003e\n\u003cli\u003eAsks if you want the AI briefing system, then \u003cstrong\u003edetects your RAM + GPU and recommends the right Ollama model\u003c/strong\u003e (you can override)\u003c/li\u003e\n\u003cli\u003eBrings the whole stack up with \u003ccode\u003edocker compose up -d\u003c/code\u003e\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp dir=\"auto\"\u003eWhen it finishes, run \u003ccode\u003e./setup.sh doctor\u003c/code\u003e to confirm every service is healthy. The doctor prints the exact iOS-app URL to paste into \u003ca href=\"https://apps.apple.com/app/id6759843047\" rel=\"nofollow\"\u003eHealthSave\u003c/a\u003e under Settings → Server Sync.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eRe-running \u003ccode\u003e./setup.sh\u003c/code\u003e is safe - it preserves passwords and updates only the AI-related config based on your answers.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eHardware recommendations\u003c/h2\u003e\u003ca id=\"user-content-hardware-recommendations\" class=\"anchor\" aria-label=\"Permalink: Hardware recommendations\" href=\"#hardware-recommendations\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe AI briefing uses a local language model running through \u003ca href=\"https://ollama.com\" rel=\"nofollow\"\u003eOllama\u003c/a\u003e (a tiny daemon that runs LLMs on your own machine). Different models need different amounts of RAM. \u003ccode\u003esetup.sh\u003c/code\u003e reads your system RAM + GPU and suggests one - but you can pick any Ollama tag.\u003c/p\u003e\n\u003cmarkdown-accessiblity-table\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eSystem RAM\u003c/th\u003e\n\u003cth\u003eNo GPU / Apple Silicon\u003c/th\u003e\n\u003cth\u003eNVIDIA GPU detected\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u0026lt; 6 GB\u003c/td\u003e\n\u003ctd\u003e\u003cem\u003etoo small - skip AI\u003c/em\u003e\u003c/td\u003e\n\u003ctd\u003e\u003cem\u003etoo small - skip AI\u003c/em\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e6–10 GB\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003ellama3.2:1b\u003c/code\u003e (~1.3 GB)\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003egemma3:4b\u003c/code\u003e (~3 GB)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e10–18 GB\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003egemma3:4b\u003c/code\u003e (~3 GB)\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eqwen3:8b\u003c/code\u003e (~5 GB)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e18–36 GB\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eqwen3:8b\u003c/code\u003e (~5 GB)\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eqwen3:14b\u003c/code\u003e (~9 GB)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e36–96 GB\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eqwen3:14b\u003c/code\u003e (~9 GB)\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003egemma3:27b\u003c/code\u003e (~17 GB)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u0026gt; 96 GB\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003ellama3.3:70b\u003c/code\u003e (~40 GB)\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003ellama4:scout\u003c/code\u003e (MoE, ~40 GB) or \u003ccode\u003ellama3.3:70b\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/markdown-accessiblity-table\u003e\n\u003cp dir=\"auto\"\u003eA quick translation:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003cstrong\u003eApple Silicon Macs\u003c/strong\u003e (M1/M2/M3/M4) use unified memory, so system RAM ≈ what the model can use. A 16 GB MacBook Air handles \u003ccode\u003egemma3:4b\u003c/code\u003e comfortably; a 64 GB Studio runs \u003ccode\u003eqwen3:14b\u003c/code\u003e with headroom.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eLinux box with an NVIDIA GPU\u003c/strong\u003e - Ollama uses CUDA. The recommendation bumps a tier because the GPU absorbs most of the work.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eAMD GPU on Linux\u003c/strong\u003e - Ollama can use ROCm but coverage varies; treated as CPU-only in the recommendation logic.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eIntel Macs and Windows-without-WSL\u003c/strong\u003e - fall back to CPU-only conservative defaults; still works, just slower.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eThese picks default to the \u003cstrong\u003e2026 instruction-tuned generations\u003c/strong\u003e (Llama 3.3, Qwen 3, Gemma 3, Llama 4 Scout) because the AI briefing is a narrative-prose task — generalist chat models beat reasoning specialists like DeepSeek-R1 here. Older \u003ccode\u003ellama3.1:8b\u003c/code\u003e / \u003ccode\u003eqwen2.5:14b\u003c/code\u003e still work fine if that's what you have pulled; the table is a recommendation, not a requirement. Llama 4 Scout uses Mixture-of-Experts so only ~17 B parameters are active per token, which is why it fits the 70 B-class slot despite its 109 B total parameter count.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eYou can change the model later (see Troubleshooting).\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eIf you're on something smaller than 6 GB RAM (a Pi 4, an old NAS), \u003ccode\u003esetup.sh\u003c/code\u003e will recommend skipping AI entirely. The ingest pipeline still runs - you just won't get the morning narrative.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eHow the AI analysis works\u003c/h2\u003e\u003ca id=\"user-content-how-the-ai-analysis-works\" class=\"anchor\" aria-label=\"Permalink: How the AI analysis works\" href=\"#how-the-ai-analysis-works\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe briefing isn't \"feed everything to ChatGPT and hope\". It's a \u003cstrong\u003etwo-brain system\u003c/strong\u003e:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003cstrong\u003eBrain 1 - the statistical engine.\u003c/strong\u003e A small Python module that runs on a schedule, reads your time-series data (heart rate, HRV, sleep, etc.), computes baselines and trends, and flags anything statistically interesting (a 3-day HRV decline, a heart-rate-recovery anomaly, a sleep-stage shift). It produces structured findings, not prose.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eBrain 2 - the narrative LLM.\u003c/strong\u003e A local Ollama model takes those findings and rewrites them as a short, readable briefing. It doesn't see raw numbers it doesn't need; it sees flagged findings and turns them into \"Your HRV has dropped three days running while sleep efficiency stayed flat - this often shows up before a stress spike\".\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eThis split is deliberate: the math stays deterministic and auditable; the LLM only handles the part where natural language actually helps. No cloud, no per-query cost, no data leaving your network.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eWhat's included in the MVP:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003eDaily HR / HRV summary\u003c/li\u003e\n\u003cli\u003eHR / HRV anomaly detection against your rolling baseline\u003c/li\u003e\n\u003cli\u003eHR / HRV trend detection over a configurable 30-day window\u003c/li\u003e\n\u003cli\u003eWorkout recovery hints when HR or HRV deviates from baseline\u003c/li\u003e\n\u003cli\u003eA \u003ccode\u003ePOST /api/insights/trigger\u003c/code\u003e endpoint for running briefings or trend checks on demand\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eWhat's \u003cem\u003enot\u003c/em\u003e yet included (and on the roadmap): goal-tracking, anomaly alerting via Home Assistant, multi-person households, correlation analysis, weekly summaries.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eYour first insight\u003c/h2\u003e\u003ca id=\"user-content-your-first-insight\" class=\"anchor\" aria-label=\"Permalink: Your first insight\" href=\"#your-first-insight\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eBriefings need at least one full day of heart-rate data to say anything useful. Once you've synced from HealthSave at least once, you have two ways to see your first briefing:\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eOption A - wait for the daily cron.\u003c/strong\u003e The analysis worker ticks once a day (default 7am local) and writes a fresh briefing. Easiest, but slow if you just installed.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eOption B - trigger one now.\u003c/strong\u003e Hit the trigger endpoint:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"curl -X POST http://localhost:8000/api/insights/trigger\"\u003e\u003cpre\u003ecurl -X POST http://localhost:8000/api/insights/trigger\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003e(Add \u003ccode\u003e-H \"X-API-Key: your-key\"\u003c/code\u003e if you set an \u003ccode\u003eAPI_KEY\u003c/code\u003e in \u003ccode\u003e.env\u003c/code\u003e.)\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eThe response includes the run ID; you can poll \u003ccode\u003eGET /api/insights/latest\u003c/code\u003e for the rendered briefing once the run completes (usually 5–30 seconds depending on model size).\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eIf the briefing comes back empty or terse, it usually means there isn't enough data yet. Sync another day's worth and trigger again.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eConnect HealthSave\u003c/h2\u003e\u003ca id=\"user-content-connect-healthsave\" class=\"anchor\" aria-label=\"Permalink: Connect HealthSave\" href=\"#connect-healthsave\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe easiest way to push HealthKit data into this stack is the \u003ca href=\"https://apps.apple.com/app/id6759843047\" rel=\"nofollow\"\u003eHealthSave iOS app\u003c/a\u003e.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eHealthSave expects a base server URL and appends the API paths itself:\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003ccode\u003ehttp://your-server-ip:8000\u003c/code\u003e\u003c/p\u003e\n\u003col dir=\"auto\"\u003e\n\u003cli\u003eOpen HealthSave → Settings → Server Sync\u003c/li\u003e\n\u003cli\u003eSet Server URL to: \u003ccode\u003ehttp://your-server-ip:8000\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e(Optional) Set your API key if you configured one\u003c/li\u003e\n\u003cli\u003eTap \"Sync New Data\"\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp dir=\"auto\"\u003eIf you're building another client, the batch ingest endpoint is:\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003ccode\u003ehttp://your-server-ip:8000/api/apple/batch\u003c/code\u003e\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eThe full request/response contract, including the exact \u003ccode\u003e/api/apple/status\u003c/code\u003e shape expected by the iOS app, is documented in \u003ca href=\"/umutkeltek/health-data-hub/blob/main/API.md\"\u003eAPI.md\u003c/a\u003e.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eTroubleshooting\u003c/h2\u003e\u003ca id=\"user-content-troubleshooting\" class=\"anchor\" aria-label=\"Permalink: Troubleshooting\" href=\"#troubleshooting\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eThe Ollama container won't start.\u003c/strong\u003e\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"docker compose logs ollama\"\u003e\u003cpre\u003edocker compose logs ollama\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe most common causes are: not enough free RAM (Ollama refuses to load a model that won't fit), the override file missing (re-run \u003ccode\u003e./setup.sh\u003c/code\u003e - it copies the example), or another process holding port 11434 (stop it, or edit \u003ccode\u003edocker-compose.override.yml\u003c/code\u003e to bind a different port).\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eMy briefing came back empty (or said \"not enough data\").\u003c/strong\u003e\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eTwo things to check:\u003c/p\u003e\n\u003col dir=\"auto\"\u003e\n\u003cli\u003eHas HealthSave actually synced? Hit \u003ccode\u003ehttp://localhost:8000/api/apple/status\u003c/code\u003e - if the table counts are all zero, sync from your phone first.\u003c/li\u003e\n\u003cli\u003eHow much history do you have? The statistical engine needs at least ~24 hours of heart-rate data to compute anything. Newly-installed users typically see a real briefing on day 2.\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eI want to change the model after setup.\u003c/strong\u003e\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eEdit the \u003ccode\u003eOLLAMA_MODEL=\u003c/code\u003e line in your \u003ccode\u003e.env\u003c/code\u003e, then pull the new tag and restart:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"# Edit .env to set OLLAMA_MODEL=\u0026lt;new-tag\u0026gt;\ndocker compose exec ollama ollama pull \u0026lt;new-tag\u0026gt;\ndocker compose restart api\"\u003e\u003cpre\u003e\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e Edit .env to set OLLAMA_MODEL=\u0026lt;new-tag\u0026gt;\u003c/span\u003e\ndocker compose \u003cspan class=\"pl-c1\"\u003eexec\u003c/span\u003e ollama ollama pull \u003cspan class=\"pl-k\"\u003e\u0026lt;\u003c/span\u003enew-tag\u003cspan class=\"pl-k\"\u003e\u0026gt;\u003c/span\u003e\ndocker compose restart api\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe tier table above is a starting point - any Ollama model tag works. Browse \u003ca href=\"https://ollama.com/library\" rel=\"nofollow\"\u003eollama.com/library\u003c/a\u003e for the full list.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003e\u003ccode\u003e./setup.sh doctor\u003c/code\u003e says a service isn't running.\u003c/strong\u003e\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eRun \u003ccode\u003edocker compose logs \u0026lt;service\u0026gt;\u003c/code\u003e (e.g. \u003ccode\u003edocker compose logs api\u003c/code\u003e) to see why. Most first-time failures are Docker not having enough memory allocated - bump it in Docker Desktop's preferences and re-run \u003ccode\u003e./setup.sh\u003c/code\u003e.\u003c/p\u003e\n\u003chr\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch2 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eFor developers\u003c/h2\u003e\u003ca id=\"user-content-for-developers\" class=\"anchor\" aria-label=\"Permalink: For developers\" href=\"#for-developers\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eStack\u003c/h3\u003e\u003ca id=\"user-content-stack\" class=\"anchor\" aria-label=\"Permalink: Stack\" href=\"#stack\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eFastAPI + TimescaleDB + Grafana, plus an optional Ollama sidecar for the LLM. Python 3.12, async SQLAlchemy with asyncpg, ruff for lint+format, pytest for tests.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eArchitecture\u003c/h3\u003e\u003ca id=\"user-content-architecture\" class=\"anchor\" aria-label=\"Permalink: Architecture\" href=\"#architecture\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cdiv class=\"snippet-clipboard-content notranslate position-relative overflow-auto\" data-snippet-clipboard-copy-content=\"iPhone (HealthSave app)\n    │\n    │  POST /api/apple/batch (JSON over HTTPS)\n    │\n    ▼\nFastAPI (port 8000)\n    │\n    │  INSERT ... ON CONFLICT DO UPDATE (idempotent)\n    │\n    ▼\nTimescaleDB (port 5432)\n    │\n    │  SQL queries + continuous aggregates\n    │\n    ├──────────────────────────────┐\n    ▼                              ▼\nGrafana (port 3000)        Analysis worker\n                                   │\n                                   │  findings (structured)\n                                   ▼\n                           Ollama (port 11434)\n                                   │\n                                   │  briefing (prose)\n                                   ▼\n                           /api/insights/latest\"\u003e\u003cpre class=\"notranslate\"\u003e\u003ccode\u003eiPhone (HealthSave app)\n    │\n    │  POST /api/apple/batch (JSON over HTTPS)\n    │\n    ▼\nFastAPI (port 8000)\n    │\n    │  INSERT ... ON CONFLICT DO UPDATE (idempotent)\n    │\n    ▼\nTimescaleDB (port 5432)\n    │\n    │  SQL queries + continuous aggregates\n    │\n    ├──────────────────────────────┐\n    ▼                              ▼\nGrafana (port 3000)        Analysis worker\n                                   │\n                                   │  findings (structured)\n                                   ▼\n                           Ollama (port 11434)\n                                   │\n                                   │  briefing (prose)\n                                   ▼\n                           /api/insights/latest\n\u003c/code\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eWhat gets synced\u003c/h3\u003e\u003ca id=\"user-content-what-gets-synced\" class=\"anchor\" aria-label=\"Permalink: What gets synced\" href=\"#what-gets-synced\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe server receives and stores 120+ HealthKit metrics:\u003c/p\u003e\n\u003cmarkdown-accessiblity-table\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eTable\u003c/th\u003e\n\u003cth\u003eData\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eheart_rate\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eContinuous HR from Apple Watch / Whoop\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003ehrv\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eHeart rate variability (SDNN)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eblood_oxygen\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSpO2 readings, with source labels for provider data\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003edaily_activity\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSteps, distance, calories, exercise minutes\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003esleep_sessions\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSleep duration, stages, respiratory rate\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eworkouts\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eWorkout type, duration, HR zones, source labels\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003equantity_samples\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eCatch-all for optional HealthKit metrics and provider aggregates such as Whoop recovery score, resting HR, strain, and sleep aggregates\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/markdown-accessiblity-table\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eManual quick-start (without \u003ccode\u003esetup.sh\u003c/code\u003e)\u003c/h3\u003e\u003ca id=\"user-content-manual-quick-start-without-setupsh\" class=\"anchor\" aria-label=\"Permalink: Manual quick-start (without setup.sh)\" href=\"#manual-quick-start-without-setupsh\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"cp .env.example .env\n# Edit .env with your passwords\n\ndocker compose up -d\"\u003e\u003cpre\u003ecp .env.example .env\n\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e Edit .env with your passwords\u003c/span\u003e\n\ndocker compose up -d\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThis starts:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003cstrong\u003eTimescaleDB\u003c/strong\u003e on port 5432\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eFastAPI\u003c/strong\u003e on port 8000\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eGrafana\u003c/strong\u003e on port 3000 (default login: admin / your GRAFANA_PASSWORD)\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eThe database port is bound to \u003ccode\u003e127.0.0.1\u003c/code\u003e by default so it is available for\nlocal tooling without being exposed on your LAN.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eTo opt into Ollama manually, copy \u003ccode\u003edocker-compose.override.yml.example\u003c/code\u003e to \u003ccode\u003edocker-compose.override.yml\u003c/code\u003e, copy \u003ccode\u003econfig.yaml.example\u003c/code\u003e to \u003ccode\u003econfig.yaml\u003c/code\u003e, set \u003ccode\u003eanalysis.daily_briefing.enabled\u003c/code\u003e and \u003ccode\u003eanalysis.anomaly_detection.enabled\u003c/code\u003e to \u003ccode\u003etrue\u003c/code\u003e, and set \u003ccode\u003eOLLAMA_MODEL\u003c/code\u003e in \u003ccode\u003e.env\u003c/code\u003e to the tag you want.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eAPI Endpoints\u003c/h3\u003e\u003ca id=\"user-content-api-endpoints\" class=\"anchor\" aria-label=\"Permalink: API Endpoints\" href=\"#api-endpoints\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cmarkdown-accessiblity-table\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eEndpoint\u003c/th\u003e\n\u003cth\u003eMethod\u003c/th\u003e\n\u003cth\u003eDescription\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/health\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eHealth check\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/health\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eApp-friendly health check\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/ready\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eAPI plus database readiness check\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/apple/batch\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003ePOST\u003c/td\u003e\n\u003ctd\u003eReceive metric batch from the client bridge\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/apple/status\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eReturn flat per-table status objects\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/v2/sync/runs/latest\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eOptional latest HealthSave delivery receipt\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/v2/sync/coverage\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eOptional metric-level receipt coverage\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/insights/latest\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eMost recent briefing (if AI enabled)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/insights/anomalies\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eRecent anomaly findings, filterable by \u003ccode\u003esince\u003c/code\u003e and \u003ccode\u003eseverity\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/insights/trends\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003eRecent HR / HRV trend findings, filterable by \u003ccode\u003eperiod=30d\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/api/insights/trigger\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003ePOST\u003c/td\u003e\n\u003ctd\u003eRun an analysis pass now (if AI enabled)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003e/metrics\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eGET\u003c/td\u003e\n\u003ctd\u003ePrometheus text exposition (no auth, DB-independent)\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/markdown-accessiblity-table\u003e\n\u003cp dir=\"auto\"\u003e\u003ccode\u003e/api/apple/status\u003c/code\u003e intentionally returns top-level metric objects, not a\nwrapped \u003ccode\u003e{\"status\":\"ok\",\"counts\":...}\u003c/code\u003e payload. See \u003ca href=\"/umutkeltek/health-data-hub/blob/main/API.md\"\u003eAPI.md\u003c/a\u003e for\nthe compatibility contract.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003ePrometheus Metrics\u003c/h3\u003e\u003ca id=\"user-content-prometheus-metrics\" class=\"anchor\" aria-label=\"Permalink: Prometheus Metrics\" href=\"#prometheus-metrics\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003e\u003ccode\u003e/metrics\u003c/code\u003e exposes runtime counters and a histogram in Prometheus text\nexposition format. The endpoint is unauthenticated by design (so scrapers\ndo not need \u003ccode\u003eX-API-Key\u003c/code\u003e) and does not touch the database, so it returns\n200 even when Postgres is down — safe to use as a liveness target.\u003c/p\u003e\n\u003cmarkdown-accessiblity-table\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eMetric\u003c/th\u003e\n\u003cth\u003eType\u003c/th\u003e\n\u003cth\u003eLabels\u003c/th\u003e\n\u003cth\u003eMeaning\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003ehdh_ingest_batches_total\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003ecounter\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003emetric\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eBatches accepted by \u003ccode\u003e/api/apple/batch\u003c/code\u003e, including empty ones\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003ehdh_ingest_rows_total\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003ecounter\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003emetric\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eRows persisted per metric (cumulative)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003ehdh_ingest_duration_seconds\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003ehistogram\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003emetric\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eEnd-to-end batch handler latency\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003ehdh_ai_briefing_runs_total\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003ecounter\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003ejob\u003c/code\u003e, \u003ccode\u003eresult\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eDaily briefing / anomaly check / trend analysis runs by outcome (\u003ccode\u003esuccess\u003c/code\u003e / \u003ccode\u003efailure\u003c/code\u003e)\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/markdown-accessiblity-table\u003e\n\u003cp dir=\"auto\"\u003ePrometheus scrape config:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-yaml notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"scrape_configs:\n  - job_name: health-data-hub\n    metrics_path: /metrics\n    static_configs:\n      - targets: ['health-data-hub:8000']  # or 'localhost:8000' for host scrape\"\u003e\u003cpre\u003e\u003cspan class=\"pl-ent\"\u003escrape_configs\u003c/span\u003e:\n  - \u003cspan class=\"pl-ent\"\u003ejob_name\u003c/span\u003e: \u003cspan class=\"pl-s\"\u003ehealth-data-hub\u003c/span\u003e\n    \u003cspan class=\"pl-ent\"\u003emetrics_path\u003c/span\u003e: \u003cspan class=\"pl-s\"\u003e/metrics\u003c/span\u003e\n    \u003cspan class=\"pl-ent\"\u003estatic_configs\u003c/span\u003e:\n      - \u003cspan class=\"pl-ent\"\u003etargets\u003c/span\u003e: \u003cspan class=\"pl-s\"\u003e['health-data-hub:8000']  \u003c/span\u003e\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e or 'localhost:8000' for host scrape\u003c/span\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eSample Grafana panel — rows ingested per second, broken down by metric\n(Time series panel):\u003c/p\u003e\n\u003cdiv class=\"snippet-clipboard-content notranslate position-relative overflow-auto\" data-snippet-clipboard-copy-content=\"sum by (metric) (rate(hdh_ingest_rows_total[5m]))\"\u003e\u003cpre lang=\"promql\" class=\"notranslate\"\u003e\u003ccode\u003esum by (metric) (rate(hdh_ingest_rows_total[5m]))\n\u003c/code\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003ePair \u003ccode\u003erate(hdh_ai_briefing_runs_total{result=\"failure\"}[1h])\u003c/code\u003e with an\nalert if you want a heads-up when nightly analysis starts failing.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eGarmin Imports\u003c/h3\u003e\u003ca id=\"user-content-garmin-imports\" class=\"anchor\" aria-label=\"Permalink: Garmin Imports\" href=\"#garmin-imports\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eGarmin Connect users can sideload data into the same \u003ccode\u003e/api/apple/batch\u003c/code\u003e\nendpoint via \u003ccode\u003escripts/import_garmin.py\u003c/code\u003e. The script supports the bulk\n\"Export Your Data\" ZIP, individual FIT/TCX activity files, and the\nJSON files Garmin includes for daily steps and sleep stages.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eInstall the optional FIT-parsing dependency once:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"pip install -e \u0026quot;.[garmin]\u0026quot;   # adds fitparse for FIT activity files\"\u003e\u003cpre\u003epip install -e \u003cspan class=\"pl-s\"\u003e\u003cspan class=\"pl-pds\"\u003e\"\u003c/span\u003e.[garmin]\u003cspan class=\"pl-pds\"\u003e\"\u003c/span\u003e\u003c/span\u003e   \u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e adds fitparse for FIT activity files\u003c/span\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003e(TCX, JSON, and ZIP parsing use only the standard library.)\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eRun it:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"# Bulk export ZIP - walks every supported file inside\npython scripts/import_garmin.py \\\n  --zip GarminConnect_Export.zip \\\n  --server http://localhost:8000 \\\n  --api-key $HDH_API_KEY\n\n# Individual files\npython scripts/import_garmin.py --tcx run.tcx --steps-json steps.json --sleep-json sleep.json\n\n# Sanity-check the payload before sending\npython scripts/import_garmin.py --tcx run.tcx --dry-run\"\u003e\u003cpre\u003e\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e Bulk export ZIP - walks every supported file inside\u003c/span\u003e\npython scripts/import_garmin.py \\\n  --zip GarminConnect_Export.zip \\\n  --server http://localhost:8000 \\\n  --api-key \u003cspan class=\"pl-smi\"\u003e$HDH_API_KEY\u003c/span\u003e\n\n\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e Individual files\u003c/span\u003e\npython scripts/import_garmin.py --tcx run.tcx --steps-json steps.json --sleep-json sleep.json\n\n\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e Sanity-check the payload before sending\u003c/span\u003e\npython scripts/import_garmin.py --tcx run.tcx --dry-run\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eMapping:\u003c/p\u003e\n\u003cmarkdown-accessiblity-table\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eSource\u003c/th\u003e\n\u003cth\u003eHealthSave metric\u003c/th\u003e\n\u003cth\u003eServer table\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003eFIT/TCX heart-rate records\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eheart_rate\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eheart_rate\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eDaily step totals (JSON)\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003estep_count\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edaily_activity.steps\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eSleep stages (JSON)\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003esleep_analysis\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003esleep_sessions\u003c/code\u003e + \u003ccode\u003esleep_stages\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/markdown-accessiblity-table\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eSamsung / Huawei Health Sync Imports\u003c/h3\u003e\u003ca id=\"user-content-samsung--huawei-health-sync-imports\" class=\"anchor\" aria-label=\"Permalink: Samsung / Huawei Health Sync Imports\" href=\"#samsung--huawei-health-sync-imports\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eAndroid users can sideload Samsung Health or Huawei Health data exported through\nthe Android \u003ca href=\"https://healthsync.app/\" rel=\"nofollow\"\u003eHealth Sync\u003c/a\u003e app via\n\u003ccode\u003escripts/import_samsung.py\u003c/code\u003e. The importer reads Health Sync CSV folders and sends\nthe same \u003ccode\u003e/api/apple/batch\u003c/code\u003e payload shape as the iOS app, so deduplication,\nauditing, sync receipts, and dashboards all stay on the normal ingest path.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eSupported Health Sync folders:\u003c/p\u003e\n\u003cmarkdown-accessiblity-table\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eFolder\u003c/th\u003e\n\u003cth\u003eHealthSave metric\u003c/th\u003e\n\u003cth\u003eServer table\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eHealth Sync Steps/\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003estep_count\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edaily_activity.steps\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eHealth Sync Heart rate/\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eheart_rate\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eheart_rate\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eHealth Sync Sleep/\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003esleep_analysis\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003esleep_sessions\u003c/code\u003e + \u003ccode\u003esleep_stages\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eHealth Sync Weight/\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003ebody_mass\u003c/code\u003e, \u003ccode\u003ebody_fat_percentage\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003equantity_samples\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eHealth Sync Oxygen saturation/\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eoxygen_saturation\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eblood_oxygen\u003c/code\u003e\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/markdown-accessiblity-table\u003e\n\u003cp dir=\"auto\"\u003eRun it:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"# Sanity-check the export before sending\npython scripts/import_samsung.py /path/to/health-sync-export --dry-run\n\n# Send to a local datahub\npython scripts/import_samsung.py /path/to/health-sync-export \\\n  --server http://localhost:8000 \\\n  --api-key $HDH_API_KEY\"\u003e\u003cpre\u003e\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e Sanity-check the export before sending\u003c/span\u003e\npython scripts/import_samsung.py /path/to/health-sync-export --dry-run\n\n\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e Send to a local datahub\u003c/span\u003e\npython scripts/import_samsung.py /path/to/health-sync-export \\\n  --server http://localhost:8000 \\\n  --api-key \u003cspan class=\"pl-smi\"\u003e$HDH_API_KEY\u003c/span\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eGrafana Dashboards\u003c/h3\u003e\u003ca id=\"user-content-grafana-dashboards\" class=\"anchor\" aria-label=\"Permalink: Grafana Dashboards\" href=\"#grafana-dashboards\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eA curated starter dashboard set is included in \u003ccode\u003edeploy/grafana/\u003c/code\u003e, so a fresh \u003ccode\u003edocker compose up -d\u003c/code\u003e should bring Grafana up with the datasource and the supported dashboards already wired.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eIncluded files:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003ccode\u003edeploy/grafana/provisioning/datasources/healthsave.yaml\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003edeploy/grafana/provisioning/dashboards/default.yaml\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003edeploy/grafana/dashboards/\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eSupported dashboards loaded automatically:\u003c/p\u003e\n\u003cmarkdown-accessiblity-table\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eDashboard\u003c/th\u003e\n\u003cth\u003eFile\u003c/th\u003e\n\u003cth\u003eDepends On\u003c/th\u003e\n\u003cth\u003eStatus\u003c/th\u003e\n\u003cth\u003eNotes\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003eHealthSave Overview\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edeploy/grafana/dashboards/healthsave-overview.json\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eheart_rate\u003c/code\u003e, \u003ccode\u003ehrv\u003c/code\u003e, \u003ccode\u003eblood_oxygen\u003c/code\u003e, \u003ccode\u003edaily_activity\u003c/code\u003e, \u003ccode\u003esleep_sessions\u003c/code\u003e, \u003ccode\u003eworkouts\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSupported\u003c/td\u003e\n\u003ctd\u003eBest first dashboard for a fresh install\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eActivity \u0026amp; Movement\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edeploy/grafana/dashboards/activity.json\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edaily_activity\u003c/code\u003e, \u003ccode\u003equantity_samples\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSupported\u003c/td\u003e\n\u003ctd\u003eGait-related panels only populate if those optional metrics are synced\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eHeart\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edeploy/grafana/dashboards/heart.json\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eheart_rate\u003c/code\u003e, \u003ccode\u003ehrv\u003c/code\u003e, \u003ccode\u003equantity_samples\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSupported\u003c/td\u003e\n\u003ctd\u003eSource-aware heart-rate, HRV, SpO2, and respiratory panels\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eSleep\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edeploy/grafana/dashboards/sleep.json\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003esleep_sessions\u003c/code\u003e, \u003ccode\u003esleep_stages\u003c/code\u003e, \u003ccode\u003equantity_samples\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSupported\u003c/td\u003e\n\u003ctd\u003eApple sleep sessions plus provider aggregate sleep metrics\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eInsights\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edeploy/grafana/dashboards/insights.json\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eheart_rate\u003c/code\u003e, \u003ccode\u003ehrv\u003c/code\u003e, \u003ccode\u003eblood_oxygen\u003c/code\u003e, \u003ccode\u003ebody_temperature\u003c/code\u003e, \u003ccode\u003equantity_samples\u003c/code\u003e, \u003ccode\u003esleep_sessions\u003c/code\u003e, \u003ccode\u003eworkouts\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSupported\u003c/td\u003e\n\u003ctd\u003eCross-source comparison and Whoop recovery/sleep/strain views through the public schema\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eWorkouts\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003edeploy/grafana/dashboards/workouts.json\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003eworkouts\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eSupported\u003c/td\u003e\n\u003ctd\u003eFocused workout view with type, duration, calories, and HR panels\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/markdown-accessiblity-table\u003e\n\u003cp dir=\"auto\"\u003eThe datasource is auto-provisioned - no manual setup needed.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eHome Assistant Integration\u003c/h3\u003e\u003ca id=\"user-content-home-assistant-integration\" class=\"anchor\" aria-label=\"Permalink: Home Assistant Integration\" href=\"#home-assistant-integration\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThere are two supported Home Assistant paths:\u003c/p\u003e\n\u003col dir=\"auto\"\u003e\n\u003cli\u003e\u003cstrong\u003eMQTT bridge (recommended):\u003c/strong\u003e Health Data Hub reads TimescaleDB and publishes retained Home Assistant MQTT discovery + state topics. This keeps Home Assistant out of the database and works even when Grafana is deployed separately.\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eDirect SQL package (legacy/example):\u003c/strong\u003e Home Assistant queries TimescaleDB directly using \u003ccode\u003eintegrations/home-assistant/healthsave-package.yaml\u003c/code\u003e.\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp dir=\"auto\"\u003eThe bridge publishes in two layers each cycle:\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eAggregate parent device\u003c/strong\u003e (one device, one state topic, the legacy shape):\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003eRetained state topic: \u003ccode\u003ehealthsave/sensor/state\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eDiscovery topics: \u003ccode\u003ehomeassistant/sensor/healthsave/\u0026lt;metric\u0026gt;/config\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eAvailability: \u003ccode\u003ehealthsave/status\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eSix entities on the parent device by default:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003ccode\u003esensor.healthsave_heart_rate\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003esensor.healthsave_hrv_7d_avg\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003esensor.healthsave_steps_today\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003esensor.healthsave_last_sleep_hours\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003esensor.healthsave_source_model\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003esensor.healthsave_room_health_state\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003ePer-source sub-devices\u003c/strong\u003e (one device per distinct \u003ccode\u003esource_id\u003c/code\u003e seen in recent data — Apple Watch, Whoop, iPhone, etc.):\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003eRetained state topic: \u003ccode\u003ehealthsave/source/\u0026lt;slug\u0026gt;/state\u003c/code\u003e (one JSON payload per source)\u003c/li\u003e\n\u003cli\u003eDiscovery topics: \u003ccode\u003ehomeassistant/sensor/healthsave_\u0026lt;slug\u0026gt;/\u0026lt;metric\u0026gt;/config\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eLinked to the parent via Home Assistant's \u003ccode\u003evia_device\u003c/code\u003e so HA nests sub-devices under the parent.\u003c/li\u003e\n\u003cli\u003eMetrics carried per sub-device: \u003ccode\u003eheart_rate\u003c/code\u003e, \u003ccode\u003ehrv_latest_ms\u003c/code\u003e, \u003ccode\u003esteps_today\u003c/code\u003e, \u003ccode\u003elast_sleep_hours\u003c/code\u003e. Only metrics with a recent non-null value get a discovery message, so HA never sees ghost entities.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eExample: a household running both an Apple Watch and a Whoop sees:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003ccode\u003esensor.healthsave_apple_watch_heart_rate\u003c/code\u003e, \u003ccode\u003e_hrv_latest_ms\u003c/code\u003e, \u003ccode\u003e_steps_today\u003c/code\u003e, \u003ccode\u003e_last_sleep_hours\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003esensor.healthsave_whoop_heart_rate\u003c/code\u003e, \u003ccode\u003e_hrv_latest_ms\u003c/code\u003e, \u003ccode\u003e_last_sleep_hours\u003c/code\u003e (no \u003ccode\u003e_steps_today\u003c/code\u003e if Whoop hasn't logged any).\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eSource attribution comes from \u003ccode\u003esource_id\u003c/code\u003e on the ingestion tables (added to \u003ccode\u003edaily_activity\u003c/code\u003e and \u003ccode\u003esleep_sessions\u003c/code\u003e in migration 009; native to \u003ccode\u003eheart_rate\u003c/code\u003e / \u003ccode\u003ehrv\u003c/code\u003e since v1). Rows with NULL \u003ccode\u003esource_id\u003c/code\u003e collapse to a single \u003ccode\u003esensor.healthsave_unknown_*\u003c/code\u003e sub-device so legacy data never fragments into empty entities.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eBoth layers share \u003ccode\u003ehealthsave/status\u003c/code\u003e so HA marks every sub-device offline together if the bridge stops.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eLegacy MQTT namespace migration.\u003c/strong\u003e Fresh installs should keep the\nprimary \u003ccode\u003eHA_MQTT_STATE_TOPIC_PREFIX\u003c/code\u003e, \u003ccode\u003eHA_MQTT_DEVICE_IDENTIFIER\u003c/code\u003e, and\n\u003ccode\u003eHA_MQTT_DEVICE_NAME\u003c/code\u003e values on \u003ccode\u003ehealthsave\u003c/code\u003e / \u003ccode\u003eHealthSave\u003c/code\u003e. If an\nexisting Home Assistant install still has dashboards or automations on\nan older namespace, set \u003ccode\u003eHA_MQTT_LEGACY_STATE_TOPIC_PREFIX\u003c/code\u003e plus the\nmatching legacy device identifier/name. The bridge then publishes both\nshapes from the same Data Hub service so Home Assistant can be migrated\none entity at a time.\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"HA_MQTT_STATE_TOPIC_PREFIX=healthsave\nHA_MQTT_DEVICE_IDENTIFIER=healthsave\nHA_MQTT_DEVICE_NAME=HealthSave\nHA_MQTT_LEGACY_STATE_TOPIC_PREFIX=\u0026lt;old-prefix\u0026gt;\nHA_MQTT_LEGACY_DEVICE_IDENTIFIER=\u0026lt;old-device-id\u0026gt;\nHA_MQTT_LEGACY_DEVICE_NAME=\u0026lt;old-display-name\u0026gt;\"\u003e\u003cpre\u003eHA_MQTT_STATE_TOPIC_PREFIX=healthsave\nHA_MQTT_DEVICE_IDENTIFIER=healthsave\nHA_MQTT_DEVICE_NAME=HealthSave\nHA_MQTT_LEGACY_STATE_TOPIC_PREFIX=\u003cspan class=\"pl-k\"\u003e\u0026lt;\u003c/span\u003eold-prefix\u003cspan class=\"pl-k\"\u003e\u0026gt;\u003c/span\u003e\nHA_MQTT_LEGACY_DEVICE_IDENTIFIER=\u003cspan class=\"pl-k\"\u003e\u0026lt;\u003c/span\u003eold-device-id\u003cspan class=\"pl-k\"\u003e\u0026gt;\u003c/span\u003e\nHA_MQTT_LEGACY_DEVICE_NAME=\u003cspan class=\"pl-k\"\u003e\u0026lt;\u003c/span\u003eold-display-name\u003cspan class=\"pl-k\"\u003e\u0026gt;\u003c/span\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eEnable it with Docker Compose. Two patterns:\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003e(a) Bring your own broker.\u003c/strong\u003e Point the bridge at an MQTT server you already run:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"HA_MQTT_ENABLED=true \\\nHA_MQTT_BROKER=\u0026lt;your-mqtt-host\u0026gt; \\\nHA_MQTT_USERNAME=\u0026lt;optional-user\u0026gt; \\\nHA_MQTT_PASSWORD=\u0026lt;optional-password\u0026gt; \\\ndocker compose --profile home-assistant up -d homeassistant-mqtt\"\u003e\u003cpre\u003eHA_MQTT_ENABLED=true \\\nHA_MQTT_BROKER=\u003cspan class=\"pl-k\"\u003e\u0026lt;\u003c/span\u003eyour-mqtt-host\u003cspan class=\"pl-k\"\u003e\u0026gt;\u003c/span\u003e \\\nHA_MQTT_USERNAME=\u003cspan class=\"pl-k\"\u003e\u0026lt;\u003c/span\u003eoptional-user\u003cspan class=\"pl-k\"\u003e\u0026gt;\u003c/span\u003e \\\nHA_MQTT_PASSWORD=\u003cspan class=\"pl-k\"\u003e\u0026lt;\u003c/span\u003eoptional-password\u003cspan class=\"pl-k\"\u003e\u0026gt;\u003c/span\u003e \\\ndocker compose --profile home-assistant up -d homeassistant-mqtt\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003e(b) Use the bundled broker.\u003c/strong\u003e Add the \u003ccode\u003emosquitto\u003c/code\u003e profile and the\nstack runs an \u003ccode\u003eeclipse-mosquitto:2\u003c/code\u003e container alongside the bridge.\nThe bridge's default \u003ccode\u003eHA_MQTT_BROKER=mqtt\u003c/code\u003e resolves through docker DNS,\nand host port \u003ccode\u003e1883\u003c/code\u003e is published so a Home Assistant install on the\nsame LAN can also connect by host IP. Persistence is on a docker\nvolume so retained messages survive restarts.\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"HA_MQTT_ENABLED=true \\\ndocker compose --profile mosquitto --profile home-assistant up -d\"\u003e\u003cpre\u003eHA_MQTT_ENABLED=true \\\ndocker compose --profile mosquitto --profile home-assistant up -d\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe bundled broker defaults to anonymous-on-LAN. To require auth,\noverlay a \u003ccode\u003edocker-compose.override.yml\u003c/code\u003e that flips\n\u003ccode\u003eallow_anonymous false\u003c/code\u003e and mounts a password file — the conf at\n\u003ccode\u003edeploy/mosquitto/mosquitto.conf\u003c/code\u003e is read-only so the override is the\nright seam.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eUseful defaults:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003eDiscovery prefix: \u003ccode\u003ehomeassistant\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eState prefix: \u003ccode\u003ehealthsave\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eDevice identifier: \u003ccode\u003ehealthsave\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003ePublish interval: \u003ccode\u003e60\u003c/code\u003e seconds\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eDirect SQL example files remain available for setups that prefer DB polling:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003ccode\u003eintegrations/home-assistant/healthsave-package.yaml\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eintegrations/home-assistant/secrets.example.yaml\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eCommunity Backends\u003c/h3\u003e\u003ca id=\"user-content-community-backends\" class=\"anchor\" aria-label=\"Permalink: Community Backends\" href=\"#community-backends\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe ingest API is intentionally simple so anyone can build a compatible backend for their own stack. The first community implementation is already live:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003cstrong\u003e\u003ca href=\"https://github.com/bietiekay/health-data-to-mqtt\"\u003ehealth-data-to-mqtt\u003c/a\u003e\u003c/strong\u003e by \u003ca href=\"https://github.com/bietiekay\"\u003e@bietiekay\u003c/a\u003e - A lightweight Node.js server that stores raw JSON and forwards selected metrics to MQTT. Built for alerting and home automation pipelines where MQTT is the primary transport.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eIf you've built a compatible backend, open an issue or PR and we'll add it here. The full API contract including every supported metric is documented in \u003ca href=\"/umutkeltek/health-data-hub/blob/main/API.md\"\u003eAPI.md\u003c/a\u003e.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003ePluggable Storage Backends\u003c/h3\u003e\u003ca id=\"user-content-pluggable-storage-backends\" class=\"anchor\" aria-label=\"Permalink: Pluggable Storage Backends\" href=\"#pluggable-storage-backends\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe default backend is TimescaleDB (a Postgres extension), which is what \u003ccode\u003esetup.sh\u003c/code\u003e provisions. If you already run a different time-series store and don't want to add a second one, the ingest path is pluggable: write a Python module that implements the \u003ccode\u003eIngestStorage\u003c/code\u003e protocol, register it, and point the server at it via env vars.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eBuilt-in backends:\u003c/strong\u003e\u003c/p\u003e\n\u003cmarkdown-accessiblity-table\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eName\u003c/th\u003e\n\u003cth\u003eBacked by\u003c/th\u003e\n\u003cth\u003eAudit log\u003c/th\u003e\n\u003cth\u003eNotes\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003epostgres\u003c/code\u003e (default)\u003c/td\u003e\n\u003ctd\u003eTimescaleDB hypertables\u003c/td\u003e\n\u003ctd\u003eyes (\u003ccode\u003eraw_ingestion_log\u003c/code\u003e)\u003c/td\u003e\n\u003ctd\u003eJoins, transactions, continuous aggregates\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/markdown-accessiblity-table\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eSelecting a backend:\u003c/strong\u003e\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"HDH_STORAGE_BACKEND=postgres docker compose up -d   # explicit (also the default)\"\u003e\u003cpre\u003eHDH_STORAGE_BACKEND=postgres docker compose up -d   \u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e explicit (also the default)\u003c/span\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003e\u003cstrong\u003eWriting your own (e.g. InfluxDB, ClickHouse, DuckDB, MQTT-only):\u003c/strong\u003e\u003c/p\u003e\n\u003col dir=\"auto\"\u003e\n\u003cli\u003e\n\u003cp dir=\"auto\"\u003eImplement \u003ccode\u003eserver.ingestion.storage.IngestStorage\u003c/code\u003e in your own package — two methods: \u003ccode\u003eget_or_create_device()\u003c/code\u003e and \u003ccode\u003eingest_metric()\u003c/code\u003e.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp dir=\"auto\"\u003eOptionally implement \u003ccode\u003eserver.ingestion.storage.AuditLog\u003c/code\u003e if your store supports an audit row pattern. Append-only stores (InfluxDB) skip this; the route notices and skips audit calls.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp dir=\"auto\"\u003eRegister a factory at module-import time:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-python notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"# mycorp_health/influx_backend.py\nfrom server.ingestion.registry import register_backend\n\ndef _influx_factory(config):\n    from .influx_storage import InfluxIngestStorage\n    return InfluxIngestStorage(config), None  # append-only, no AuditLog\n\nregister_backend(\u0026quot;influxdb\u0026quot;, _influx_factory)\"\u003e\u003cpre\u003e\u003cspan class=\"pl-c\"\u003e# mycorp_health/influx_backend.py\u003c/span\u003e\n\u003cspan class=\"pl-k\"\u003efrom\u003c/span\u003e \u003cspan class=\"pl-s1\"\u003eserver\u003c/span\u003e.\u003cspan class=\"pl-s1\"\u003eingestion\u003c/span\u003e.\u003cspan class=\"pl-s1\"\u003eregistry\u003c/span\u003e \u003cspan class=\"pl-k\"\u003eimport\u003c/span\u003e \u003cspan class=\"pl-s1\"\u003eregister_backend\u003c/span\u003e\n\n\u003cspan class=\"pl-k\"\u003edef\u003c/span\u003e \u003cspan class=\"pl-en\"\u003e_influx_factory\u003c/span\u003e(\u003cspan class=\"pl-s1\"\u003econfig\u003c/span\u003e):\n    \u003cspan class=\"pl-k\"\u003efrom\u003c/span\u003e .\u003cspan class=\"pl-s1\"\u003einflux_storage\u003c/span\u003e \u003cspan class=\"pl-k\"\u003eimport\u003c/span\u003e \u003cspan class=\"pl-v\"\u003eInfluxIngestStorage\u003c/span\u003e\n    \u003cspan class=\"pl-k\"\u003ereturn\u003c/span\u003e \u003cspan class=\"pl-en\"\u003eInfluxIngestStorage\u003c/span\u003e(\u003cspan class=\"pl-s1\"\u003econfig\u003c/span\u003e), \u003cspan class=\"pl-c1\"\u003eNone\u003c/span\u003e  \u003cspan class=\"pl-c\"\u003e# append-only, no AuditLog\u003c/span\u003e\n\n\u003cspan class=\"pl-en\"\u003eregister_backend\u003c/span\u003e(\u003cspan class=\"pl-s\"\u003e\"influxdb\"\u003c/span\u003e, \u003cspan class=\"pl-s1\"\u003e_influx_factory\u003c/span\u003e)\u003c/pre\u003e\u003c/div\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp dir=\"auto\"\u003eTell the server to load your plugin and use it:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"HDH_STORAGE_PLUGINS=mycorp_health.influx_backend \\\nHDH_STORAGE_BACKEND=influxdb \\\ndocker compose up -d\"\u003e\u003cpre\u003eHDH_STORAGE_PLUGINS=mycorp_health.influx_backend \\\nHDH_STORAGE_BACKEND=influxdb \\\ndocker compose up -d\u003c/pre\u003e\u003c/div\u003e\n\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp dir=\"auto\"\u003e\u003ccode\u003eHDH_STORAGE_PLUGINS\u003c/code\u003e is comma-separated — multiple plugin modules are imported in order before the backend lookup runs. A failed plugin import is logged but doesn't abort startup, so a missing optional dependency degrades to \"fall back to the built-in default\" rather than \"server doesn't boot.\"\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eThe protocols, the registry, and a worked example live in \u003ccode\u003eserver/ingestion/storage.py\u003c/code\u003e and \u003ccode\u003eserver/ingestion/registry.py\u003c/code\u003e. If you ship a backend, open an issue and we'll list it under \u003ca href=\"#community-backends\"\u003eCommunity Backends\u003c/a\u003e.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eDeduplication\u003c/h3\u003e\u003ca id=\"user-content-deduplication\" class=\"anchor\" aria-label=\"Permalink: Deduplication\" href=\"#deduplication\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eAll ingestion is idempotent:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003eUnique indexes on first-class metric identity columns\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eINSERT ... ON CONFLICT DO UPDATE\u003c/code\u003e for upsert behavior\u003c/li\u003e\n\u003cli\u003eIn-memory dedup within each batch to avoid PG errors\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eYou can safely re-sync or retry without inflating your data.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eThe API also stores each received batch in \u003ccode\u003eraw_ingestion_log\u003c/code\u003e before\nprocessing, then marks it processed after a successful commit. That gives you a\nminimal audit trail and a useful starting point if you ever need replay tooling.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eUpdating Existing Installs\u003c/h3\u003e\u003ca id=\"user-content-updating-existing-installs\" class=\"anchor\" aria-label=\"Permalink: Updating Existing Installs\" href=\"#updating-existing-installs\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eFresh installs load \u003ccode\u003edb/schema.sql\u003c/code\u003e automatically. Existing Docker volumes keep\ntheir original schema, so the Compose stack runs the migration service before\nthe API, worker, agents, or Home Assistant bridge start:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"docker compose up -d --build\"\u003e\u003cpre\u003edocker compose up -d --build\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eTo run the same migration pass explicitly:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"docker compose run --rm migrate\"\u003e\u003cpre\u003edocker compose run --rm migrate\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe runner records applied files in \u003ccode\u003eschema_migrations\u003c/code\u003e, so re-runs are safe.\nMigration files still live in \u003ccode\u003edb/migrations/\u003c/code\u003e for review and manual recovery.\nThe current set starts at \u003ccode\u003edb/migrations/001_audit_hardening.sql\u003c/code\u003e and includes\nlater additive upgrades such as \u003ccode\u003edb/migrations/002_analysis_tables.sql\u003c/code\u003e and\n\u003ccode\u003edb/migrations/008_oauth_tokens.sql\u003c/code\u003e; files apply in filename order.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eMulti-user / Household\u003c/h3\u003e\u003ca id=\"user-content-multi-user--household\" class=\"anchor\" aria-label=\"Permalink: Multi-user / Household\" href=\"#multi-user--household\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eEvery metric table carries an \u003ccode\u003eowner_id\u003c/code\u003e UUID. Single-user installs need\nto do nothing — when the \u003ccode\u003eX-User-Id\u003c/code\u003e header is absent, ingest writes\nunder the sentinel UUID \u003ccode\u003e00000000-0000-0000-0000-000000000001\u003c/code\u003e and the\nschema-level default backfills any pre-migration rows to the same value.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eTo split a household across multiple residents:\u003c/p\u003e\n\u003col dir=\"auto\"\u003e\n\u003cli\u003ePick a UUID per person (any v4 UUID works — \u003ccode\u003epython -c \"import uuid; print(uuid.uuid4())\"\u003c/code\u003e).\u003c/li\u003e\n\u003cli\u003eConfigure each HealthSave client / import script to send that UUID as the\n\u003ccode\u003eX-User-Id\u003c/code\u003e header on every \u003ccode\u003ePOST /api/apple/batch\u003c/code\u003e call.\u003c/li\u003e\n\u003cli\u003eFilter Grafana panels by \u003ccode\u003eowner_id\u003c/code\u003e (add a dashboard variable bound to the\n\u003ccode\u003eSELECT DISTINCT owner_id FROM heart_rate\u003c/code\u003e query, then drop \u003ccode\u003eWHERE owner_id = '$owner'\u003c/code\u003e\ninto each panel query).\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp dir=\"auto\"\u003eExisting single-user installs keep working untouched if step 2 is skipped.\nThe unique indexes on every metric table include \u003ccode\u003eowner_id\u003c/code\u003e, so two\nresidents can have a sample at the same \u003ccode\u003e(time, device_id)\u003c/code\u003e without\ncollisions, and re-syncing from one client remains idempotent.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eDevelopment\u003c/h3\u003e\u003ca id=\"user-content-development\" class=\"anchor\" aria-label=\"Permalink: Development\" href=\"#development\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eLocal verification uses the same commands as CI:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-shell notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"python3.12 -m pip install -e \u0026quot;.[dev]\u0026quot;\npython3.12 -m ruff format --check .\npython3.12 -m ruff check .\npython3.12 -m pytest -q\ndocker build -t health-data-hub-dev .\"\u003e\u003cpre\u003epython3.12 -m pip install -e \u003cspan class=\"pl-s\"\u003e\u003cspan class=\"pl-pds\"\u003e\"\u003c/span\u003e.[dev]\u003cspan class=\"pl-pds\"\u003e\"\u003c/span\u003e\u003c/span\u003e\npython3.12 -m ruff format --check \u003cspan class=\"pl-c1\"\u003e.\u003c/span\u003e\npython3.12 -m ruff check \u003cspan class=\"pl-c1\"\u003e.\u003c/span\u003e\npython3.12 -m pytest -q\ndocker build -t health-data-hub-dev \u003cspan class=\"pl-c1\"\u003e.\u003c/span\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe project targets Python 3.12, matching the Docker image and CI runtime.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eThe CI workflow runs formatting, linting, tests, and a Docker build on every\npush and pull request to \u003ccode\u003emain\u003c/code\u003e.\u003c/p\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eHTTPS / Reverse Proxy\u003c/h3\u003e\u003ca id=\"user-content-https--reverse-proxy\" class=\"anchor\" aria-label=\"Permalink: HTTPS / Reverse Proxy\" href=\"#https--reverse-proxy\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eFor production, put a reverse proxy in front of the API:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-yaml notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"# Add to docker-compose.yml\n  caddy:\n    image: caddy:2-alpine\n    ports:\n      - \u0026quot;443:443\u0026quot;\n    volumes:\n      - ./Caddyfile:/etc/caddy/Caddyfile:ro\"\u003e\u003cpre\u003e\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e#\u003c/span\u003e Add to docker-compose.yml\u003c/span\u003e\n  \u003cspan class=\"pl-ent\"\u003ecaddy\u003c/span\u003e:\n    \u003cspan class=\"pl-ent\"\u003eimage\u003c/span\u003e: \u003cspan class=\"pl-s\"\u003ecaddy:2-alpine\u003c/span\u003e\n    \u003cspan class=\"pl-ent\"\u003eports\u003c/span\u003e:\n      - \u003cspan class=\"pl-s\"\u003e\u003cspan class=\"pl-pds\"\u003e\"\u003c/span\u003e443:443\u003cspan class=\"pl-pds\"\u003e\"\u003c/span\u003e\u003c/span\u003e\n    \u003cspan class=\"pl-ent\"\u003evolumes\u003c/span\u003e:\n      - \u003cspan class=\"pl-s\"\u003e./Caddyfile:/etc/caddy/Caddyfile:ro\u003c/span\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cdiv class=\"snippet-clipboard-content notranslate position-relative overflow-auto\" data-snippet-clipboard-copy-content=\"# Caddyfile\nhealth.yourdomain.com {\n    reverse_proxy api:8000\n}\"\u003e\u003cpre class=\"notranslate\"\u003e\u003ccode\u003e# Caddyfile\nhealth.yourdomain.com {\n    reverse_proxy api:8000\n}\n\u003c/code\u003e\u003c/pre\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eRecommended production posture:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003eSet a long random \u003ccode\u003eAPI_KEY\u003c/code\u003e in \u003ccode\u003e.env\u003c/code\u003e and in the HealthSave app.\u003c/li\u003e\n\u003cli\u003eKeep TimescaleDB bound to localhost or a private Docker network.\u003c/li\u003e\n\u003cli\u003eTerminate HTTPS at your reverse proxy.\u003c/li\u003e\n\u003cli\u003eBack up the \u003ccode\u003edb_data\u003c/code\u003e Docker volume regularly.\u003c/li\u003e\n\u003cli\u003eUpgrade \u003ccode\u003eTIMESCALE_IMAGE\u003c/code\u003e and \u003ccode\u003eGRAFANA_IMAGE\u003c/code\u003e deliberately, not via \u003ccode\u003elatest\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eDerived Metrics\u003c/h3\u003e\u003ca id=\"user-content-derived-metrics\" class=\"anchor\" aria-label=\"Permalink: Derived Metrics\" href=\"#derived-metrics\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThe schema includes continuous aggregates for common derived metrics:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003e\u003ccode\u003ehr_hourly\u003c/code\u003e - Hourly avg/min/max heart rate\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003esleep_daily\u003c/code\u003e - Daily sleep stage breakdown\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp dir=\"auto\"\u003eAdd your own with TimescaleDB continuous aggregates:\u003c/p\u003e\n\u003cdiv class=\"highlight highlight-source-sql notranslate position-relative overflow-auto\" dir=\"auto\" data-snippet-clipboard-copy-content=\"-- Example: weekly HRV trend\nCREATE MATERIALIZED VIEW hrv_weekly\nWITH (timescaledb.continuous) AS\nSELECT\n    time_bucket('1 week', time) AS bucket,\n    device_id,\n    avg(value_ms) AS avg_hrv,\n    min(value_ms) AS min_hrv,\n    max(value_ms) AS max_hrv\nFROM hrv\nGROUP BY bucket, device_id\nWITH NO DATA;\"\u003e\u003cpre\u003e\u003cspan class=\"pl-c\"\u003e\u003cspan class=\"pl-c\"\u003e--\u003c/span\u003e Example: weekly HRV trend\u003c/span\u003e\nCREATE MATERIALIZED VIEW hrv_weekly\nWITH (\u003cspan class=\"pl-c1\"\u003etimescaledb\u003c/span\u003e.\u003cspan class=\"pl-c1\"\u003econtinuous\u003c/span\u003e) \u003cspan class=\"pl-k\"\u003eAS\u003c/span\u003e\n\u003cspan class=\"pl-k\"\u003eSELECT\u003c/span\u003e\n    time_bucket(\u003cspan class=\"pl-s\"\u003e\u003cspan class=\"pl-pds\"\u003e'\u003c/span\u003e1 week\u003cspan class=\"pl-pds\"\u003e'\u003c/span\u003e\u003c/span\u003e, \u003cspan class=\"pl-k\"\u003etime\u003c/span\u003e) \u003cspan class=\"pl-k\"\u003eAS\u003c/span\u003e bucket,\n    device_id,\n    \u003cspan class=\"pl-c1\"\u003eavg\u003c/span\u003e(value_ms) \u003cspan class=\"pl-k\"\u003eAS\u003c/span\u003e avg_hrv,\n    \u003cspan class=\"pl-c1\"\u003emin\u003c/span\u003e(value_ms) \u003cspan class=\"pl-k\"\u003eAS\u003c/span\u003e min_hrv,\n    \u003cspan class=\"pl-c1\"\u003emax\u003c/span\u003e(value_ms) \u003cspan class=\"pl-k\"\u003eAS\u003c/span\u003e max_hrv\n\u003cspan class=\"pl-k\"\u003eFROM\u003c/span\u003e hrv\n\u003cspan class=\"pl-k\"\u003eGROUP BY\u003c/span\u003e bucket, device_id\nWITH NO DATA;\u003c/pre\u003e\u003c/div\u003e\n\u003cdiv class=\"markdown-heading\" dir=\"auto\"\u003e\u003ch3 tabindex=\"-1\" class=\"heading-element\" dir=\"auto\"\u003eRoadmap\u003c/h3\u003e\u003ca id=\"user-content-roadmap\" class=\"anchor\" aria-label=\"Permalink: Roadmap\" href=\"#roadmap\"\u003e\u003csvg data-component=\"Octicon\" class=\"octicon octicon-link\" viewBox=\"0 0 16 16\" version=\"1.1\" width=\"16\" height=\"16\" aria-hidden=\"true\"\u003e\u003cpath d=\"m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z\"\u003e\u003c/path\u003e\u003c/svg\u003e\u003c/a\u003e\u003c/div\u003e\n\u003cp dir=\"auto\"\u003eThis community release is intentionally small and focused on the ingestion pipeline plus the first slice of AI briefings.\u003c/p\u003e\n\u003cp dir=\"auto\"\u003eNext things to improve:\u003c/p\u003e\n\u003cul dir=\"auto\"\u003e\n\u003cli\u003eMore dashboard polish and curation across recovery, workouts, and long-term trends\u003c/li\u003e\n\u003cli\u003eGoal tracking and trend-based alerts wired into Home Assistant\u003c/li\u003e\n\u003cli\u003eMore comprehensive analysis windows (monthly / quarterly trends)\u003c/li\u003e\n\u003cli\u003eProduction deployment notes for reverse proxy, auth, backups, and retention\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/article\u003e","richTextTruncated":false,"renderedFileInfo":null,"symbols":{"timed_out":false,"not_analyzed":false,"symbols":[{"name":"Health Data Hub","kind":"section_1","ident_start":2,"ident_end":17,"extent_start":0,"extent_end":31825,"fully_qualified_name":"Health Data Hub","ident_utf16":{"start":{"line_number":0,"utf16_col":2},"end":{"line_number":0,"utf16_col":17}},"extent_utf16":{"start":{"line_number":0,"utf16_col":0},"end":{"line_number":672,"utf16_col":0}}},{"name":"Don't want to self-host?","kind":"section_2","ident_start":2213,"ident_end":2237,"extent_start":2210,"extent_end":2510,"fully_qualified_name":"Don't want to self-host?","ident_utf16":{"start":{"line_number":21,"utf16_col":3},"end":{"line_number":21,"utf16_col":27}},"extent_utf16":{"start":{"line_number":21,"utf16_col":0},"end":{"line_number":25,"utf16_col":0}}},{"name":"What you get","kind":"section_2","ident_start":2513,"ident_end":2525,"extent_start":2510,"extent_end":3395,"fully_qualified_name":"What you get","ident_utf16":{"start":{"line_number":25,"utf16_col":3},"end":{"line_number":25,"utf16_col":15}},"extent_utf16":{"start":{"line_number":25,"utf16_col":0},"end":{"line_number":35,"utf16_col":0}}},{"name":"Quick start","kind":"section_2","ident_start":3398,"ident_end":3409,"extent_start":3395,"extent_end":4299,"fully_qualified_name":"Quick start","ident_utf16":{"start":{"line_number":35,"utf16_col":3},"end":{"line_number":35,"utf16_col":14}},"extent_utf16":{"start":{"line_number":35,"utf16_col":0},"end":{"line_number":55,"utf16_col":0}}},{"name":"Hardware recommendations","kind":"section_2","ident_start":4302,"ident_end":4326,"extent_start":4299,"extent_end":6438,"fully_qualified_name":"Hardware recommendations","ident_utf16":{"start":{"line_number":55,"utf16_col":3},"end":{"line_number":55,"utf16_col":27}},"extent_utf16":{"start":{"line_number":55,"utf16_col":0},"end":{"line_number":81,"utf16_col":0}}},{"name":"How the AI analysis works","kind":"section_2","ident_start":6441,"ident_end":6466,"extent_start":6438,"extent_end":7929,"fully_qualified_name":"How the AI analysis works","ident_utf16":{"start":{"line_number":81,"utf16_col":3},"end":{"line_number":81,"utf16_col":28}},"extent_utf16":{"start":{"line_number":81,"utf16_col":0},"end":{"line_number":100,"utf16_col":0}}},{"name":"Your first insight","kind":"section_2","ident_start":7932,"ident_end":7950,"extent_start":7929,"extent_end":8802,"fully_qualified_name":"Your first insight","ident_utf16":{"start":{"line_number":100,"utf16_col":3},"end":{"line_number":100,"utf16_col":21}},"extent_utf16":{"start":{"line_number":100,"utf16_col":0},"end":{"line_number":118,"utf16_col":0}}},{"name":"Connect HealthSave","kind":"section_2","ident_start":8805,"ident_end":8823,"extent_start":8802,"extent_end":9484,"fully_qualified_name":"Connect HealthSave","ident_utf16":{"start":{"line_number":118,"utf16_col":3},"end":{"line_number":118,"utf16_col":21}},"extent_utf16":{"start":{"line_number":118,"utf16_col":0},"end":{"line_number":137,"utf16_col":0}}},{"name":"Troubleshooting","kind":"section_2","ident_start":9487,"ident_end":9502,"extent_start":9484,"extent_end":10964,"fully_qualified_name":"Troubleshooting","ident_utf16":{"start":{"line_number":137,"utf16_col":3},"end":{"line_number":137,"utf16_col":18}},"extent_utf16":{"start":{"line_number":137,"utf16_col":0},"end":{"line_number":172,"utf16_col":0}}},{"name":"For developers","kind":"section_2","ident_start":10967,"ident_end":10981,"extent_start":10964,"extent_end":31825,"fully_qualified_name":"For developers","ident_utf16":{"start":{"line_number":172,"utf16_col":3},"end":{"line_number":172,"utf16_col":17}},"extent_utf16":{"start":{"line_number":172,"utf16_col":0},"end":{"line_number":672,"utf16_col":0}}},{"name":"Stack","kind":"section_3","ident_start":10987,"ident_end":10992,"extent_start":10983,"extent_end":11157,"fully_qualified_name":"Stack","ident_utf16":{"start":{"line_number":174,"utf16_col":4},"end":{"line_number":174,"utf16_col":9}},"extent_utf16":{"start":{"line_number":174,"utf16_col":0},"end":{"line_number":178,"utf16_col":0}}},{"name":"Architecture","kind":"section_3","ident_start":11161,"ident_end":11173,"extent_start":11157,"extent_end":12020,"fully_qualified_name":"Architecture","ident_utf16":{"start":{"line_number":178,"utf16_col":4},"end":{"line_number":178,"utf16_col":16}},"extent_utf16":{"start":{"line_number":178,"utf16_col":0},"end":{"line_number":208,"utf16_col":0}}},{"name":"What gets synced","kind":"section_3","ident_start":12024,"ident_end":12040,"extent_start":12020,"extent_end":12663,"fully_qualified_name":"What gets synced","ident_utf16":{"start":{"line_number":208,"utf16_col":4},"end":{"line_number":208,"utf16_col":20}},"extent_utf16":{"start":{"line_number":208,"utf16_col":0},"end":{"line_number":222,"utf16_col":0}}},{"name":"Manual quick-start (without `setup.sh`)","kind":"section_3","ident_start":12667,"ident_end":12706,"extent_start":12663,"extent_end":13364,"fully_qualified_name":"Manual quick-start (without `setup.sh`)","ident_utf16":{"start":{"line_number":222,"utf16_col":4},"end":{"line_number":222,"utf16_col":43}},"extent_utf16":{"start":{"line_number":222,"utf16_col":0},"end":{"line_number":241,"utf16_col":0}}},{"name":"API Endpoints","kind":"section_3","ident_start":13368,"ident_end":13381,"extent_start":13364,"extent_end":14497,"fully_qualified_name":"API Endpoints","ident_utf16":{"start":{"line_number":241,"utf16_col":4},"end":{"line_number":241,"utf16_col":17}},"extent_utf16":{"start":{"line_number":241,"utf16_col":0},"end":{"line_number":262,"utf16_col":0}}},{"name":"Prometheus Metrics","kind":"section_3","ident_start":14501,"ident_end":14519,"extent_start":14497,"extent_end":15843,"fully_qualified_name":"Prometheus Metrics","ident_utf16":{"start":{"line_number":262,"utf16_col":4},"end":{"line_number":262,"utf16_col":22}},"extent_utf16":{"start":{"line_number":262,"utf16_col":0},"end":{"line_number":296,"utf16_col":0}}},{"name":"Garmin Imports","kind":"section_3","ident_start":15847,"ident_end":15861,"extent_start":15843,"extent_end":17057,"fully_qualified_name":"Garmin Imports","ident_utf16":{"start":{"line_number":296,"utf16_col":4},"end":{"line_number":296,"utf16_col":18}},"extent_utf16":{"start":{"line_number":296,"utf16_col":0},"end":{"line_number":335,"utf16_col":0}}},{"name":"Samsung / Huawei Health Sync Imports","kind":"section_3","ident_start":17061,"ident_end":17097,"extent_start":17057,"extent_end":18248,"fully_qualified_name":"Samsung / Huawei Health Sync Imports","ident_utf16":{"start":{"line_number":335,"utf16_col":4},"end":{"line_number":335,"utf16_col":40}},"extent_utf16":{"start":{"line_number":335,"utf16_col":0},"end":{"line_number":365,"utf16_col":0}}},{"name":"Grafana Dashboards","kind":"section_3","ident_start":18252,"ident_end":18270,"extent_start":18248,"extent_end":20008,"fully_qualified_name":"Grafana Dashboards","ident_utf16":{"start":{"line_number":365,"utf16_col":4},"end":{"line_number":365,"utf16_col":22}},"extent_utf16":{"start":{"line_number":365,"utf16_col":0},"end":{"line_number":387,"utf16_col":0}}},{"name":"Home Assistant Integration","kind":"section_3","ident_start":20012,"ident_end":20038,"extent_start":20008,"extent_end":24529,"fully_qualified_name":"Home Assistant Integration","ident_utf16":{"start":{"line_number":387,"utf16_col":4},"end":{"line_number":387,"utf16_col":30}},"extent_utf16":{"start":{"line_number":387,"utf16_col":0},"end":{"line_number":485,"utf16_col":0}}},{"name":"Community Backends","kind":"section_3","ident_start":24533,"ident_end":24551,"extent_start":24529,"extent_end":25181,"fully_qualified_name":"Community Backends","ident_utf16":{"start":{"line_number":485,"utf16_col":4},"end":{"line_number":485,"utf16_col":22}},"extent_utf16":{"start":{"line_number":485,"utf16_col":0},"end":{"line_number":493,"utf16_col":0}}},{"name":"Pluggable Storage Backends","kind":"section_3","ident_start":25185,"ident_end":25211,"extent_start":25181,"extent_end":27383,"fully_qualified_name":"Pluggable Storage Backends","ident_utf16":{"start":{"line_number":493,"utf16_col":4},"end":{"line_number":493,"utf16_col":30}},"extent_utf16":{"start":{"line_number":493,"utf16_col":0},"end":{"line_number":538,"utf16_col":0}}},{"name":"Deduplication","kind":"section_3","ident_start":27387,"ident_end":27400,"extent_start":27383,"extent_end":27894,"fully_qualified_name":"Deduplication","ident_utf16":{"start":{"line_number":538,"utf16_col":4},"end":{"line_number":538,"utf16_col":17}},"extent_utf16":{"start":{"line_number":538,"utf16_col":0},"end":{"line_number":551,"utf16_col":0}}},{"name":"Updating Existing Installs","kind":"section_3","ident_start":27898,"ident_end":27924,"extent_start":27894,"extent_end":28655,"fully_qualified_name":"Updating Existing Installs","ident_utf16":{"start":{"line_number":551,"utf16_col":4},"end":{"line_number":551,"utf16_col":30}},"extent_utf16":{"start":{"line_number":551,"utf16_col":0},"end":{"line_number":573,"utf16_col":0}}},{"name":"Multi-user / Household","kind":"section_3","ident_start":28659,"ident_end":28681,"extent_start":28655,"extent_end":29729,"fully_qualified_name":"Multi-user / Household","ident_utf16":{"start":{"line_number":573,"utf16_col":4},"end":{"line_number":573,"utf16_col":26}},"extent_utf16":{"start":{"line_number":573,"utf16_col":0},"end":{"line_number":594,"utf16_col":0}}},{"name":"Development","kind":"section_3","ident_start":29733,"ident_end":29744,"extent_start":29729,"extent_end":30159,"fully_qualified_name":"Development","ident_utf16":{"start":{"line_number":594,"utf16_col":4},"end":{"line_number":594,"utf16_col":15}},"extent_utf16":{"start":{"line_number":594,"utf16_col":0},"end":{"line_number":611,"utf16_col":0}}},{"name":"HTTPS / Reverse Proxy","kind":"section_3","ident_start":30163,"ident_end":30184,"extent_start":30159,"extent_end":30817,"fully_qualified_name":"HTTPS / Reverse Proxy","ident_utf16":{"start":{"line_number":611,"utf16_col":4},"end":{"line_number":611,"utf16_col":25}},"extent_utf16":{"start":{"line_number":611,"utf16_col":0},"end":{"line_number":639,"utf16_col":0}}},{"name":"Derived Metrics","kind":"section_3","ident_start":30821,"ident_end":30836,"extent_start":30817,"extent_end":31370,"fully_qualified_name":"Derived Metrics","ident_utf16":{"start":{"line_number":639,"utf16_col":4},"end":{"line_number":639,"utf16_col":19}},"extent_utf16":{"start":{"line_number":639,"utf16_col":0},"end":{"line_number":663,"utf16_col":0}}},{"name":"Roadmap","kind":"section_3","ident_start":31374,"ident_end":31381,"extent_start":31370,"extent_end":31825,"fully_qualified_name":"Roadmap","ident_utf16":{"start":{"line_number":663,"utf16_col":4},"end":{"line_number":663,"utf16_col":11}},"extent_utf16":{"start":{"line_number":663,"utf16_col":0},"end":{"line_number":672,"utf16_col":0}}}]}},"codeViewLayoutRoute":{"repo":{"id":1206479703,"defaultBranch":"main","name":"health-data-hub","ownerLogin":"umutkeltek","currentUserCanPush":false,"isFork":false,"isEmpty":false,"createdAt":"2026-04-10T00:43:34.000Z","ownerAvatar":"https://avatars.githubusercontent.com/u/35880258?v=4","public":true,"private":false,"isOrgOwned":false},"currentUser":null,"uploadToken":"YL0Fs472smYKPqLLVreEn1XzGXEYEext8cFNP50ji42SZQEbMnYmlf4975HPbdtiNsd6hacfV2KPzsXdTPfcvg","allShortcutsEnabled":false,"treeExpanded":true,"path":"README.md","symbolsExpanded":false,"refInfo":{"name":"main","listCacheKey":"v0:1778433680.0","canEdit":false,"currentOid":"c88aac54b2e6bdbe15134b10b7f97528b45f50d0"},"helpUrl":"https://docs.github.com","findFileWorkerPath":"/assets-cdn/worker/find-file-worker-fcacb4fa59227001.js","findInFileWorkerPath":"/assets-cdn/worker/find-in-file-worker-94741d92665be784.js","githubDevUrl":null},"codeViewFileTreeLayoutRoute":{"fileTree":{"":{"items":[{"name":".github","path":".github","contentType":"directory"},{"name":"apps","path":"apps","contentType":"directory"},{"name":"contracts","path":"contracts","contentType":"directory"},{"name":"db","path":"db","contentType":"directory"},{"name":"deploy","path":"deploy","contentType":"directory"},{"name":"integrations","path":"integrations","contentType":"directory"},{"name":"packages","path":"packages","contentType":"directory"},{"name":"plugins","path":"plugins","contentType":"directory"},{"name":"scripts","path":"scripts","contentType":"directory"},{"name":"tests","path":"tests","contentType":"directory"},{"name":".dockerignore","path":".dockerignore","contentType":"file"},{"name":".env.example","path":".env.example","contentType":"file"},{"name":".gitignore","path":".gitignore","contentType":"file"},{"name":"API.md","path":"API.md","contentType":"file"},{"name":"BRIDGE.md","path":"BRIDGE.md","contentType":"file"},{"name":"Dockerfile","path":"Dockerfile","contentType":"file"},{"name":"LICENSE","path":"LICENSE","contentType":"file"},{"name":"Makefile","path":"Makefile","contentType":"file"},{"name":"README.md","path":"README.md","contentType":"file"},{"name":"bun.lock","path":"bun.lock","contentType":"file"},{"name":"config.yaml.example","path":"config.yaml.example","contentType":"file"},{"name":"docker-compose.override.yml.example","path":"docker-compose.override.yml.example","contentType":"file"},{"name":"docker-compose.yml","path":"docker-compose.yml","contentType":"file"},{"name":"package.json","path":"package.json","contentType":"file"},{"name":"pyproject.toml","path":"pyproject.toml","contentType":"file"},{"name":"requirements.txt","path":"requirements.txt","contentType":"file"},{"name":"setup.sh","path":"setup.sh","contentType":"file"},{"name":"tsconfig.json","path":"tsconfig.json","contentType":"file"}],"totalCount":28}},"fileTreeProcessingTime":20.184909,"foldersToFetch":[]},"codeViewBlobLayoutRoute":{"codeLineWrapEnabled":false,"refInfo":{"name":"main","listCacheKey":"v0:1778433680.0","canEdit":false,"refType":"branch","currentOid":"c88aac54b2e6bdbe15134b10b7f97528b45f50d0","canEditOnDefaultBranch":false,"fileExistsOnDefault":true},"path":"README.md","blob":{"copilotSWEAgentEnabled":false,"dependabotInfo":{"showConfigurationBanner":false,"configFilePath":null,"networkDependabotPath":"/umutkeltek/health-data-hub/network/updates","dismissConfigurationNoticePath":"/settings/dismiss-notice/dependabot_configuration_notice","configurationNoticeDismissed":null},"displayName":"README.md","displayUrl":"https://github.com/umutkeltek/health-data-hub/blob/main/README.md?raw=true","headerInfo":{"blobSize":"31.1 KB","deleteTooltip":"You must be signed in to make or propose changes","editTooltip":"You must be signed in to make or propose changes","ghDesktopPath":"https://desktop.github.com","isGitLfs":false,"onBranch":true,"shortPath":"f728d39","siteNavLoginPath":"/login?return_to=https%3A%2F%2Fgithub.com%2Fumutkeltek%2Fhealth-data-hub%2Fblob%2Fmain%2FREADME.md","isCSV":false,"isRichtext":true,"lineInfo":{"truncatedLoc":"672","truncatedSloc":"484"},"mode":"file"},"image":false,"isCodeownersFile":null,"isPlain":false,"isValidLegacyIssueTemplate":false,"isIssueTemplate":false,"isDiscussionTemplate":false,"language":"Markdown","languageID":222,"large":false,"planSupportInfo":{"repoIsFork":null,"repoOwnedByCurrentUser":null,"requestFullPath":"/umutkeltek/health-data-hub/blob/main/README.md","showFreeOrgGatedFeatureMessage":null,"showPlanSupportBanner":null,"upgradeDataAttributes":null,"upgradePath":null},"publishBannersInfo":{"dismissActionNoticePath":"/settings/dismiss-notice/publish_action_from_dockerfile","releasePath":"/umutkeltek/health-data-hub/releases/new?marketplace=true","showPublishActionBanner":false},"rawBlobUrl":"https://github.com/umutkeltek/health-data-hub/raw/refs/heads/main/README.md","renderImageOrRaw":false,"shortPath":null,"symbolsEnabled":true,"tabSize":4,"topBannersInfo":{"overridingGlobalFundingFile":false,"globalPreferredFundingPath":null,"showInvalidCitationWarning":false,"citationHelpUrl":"https://docs.github.com/github/creating-cloning-and-archiving-repositories/creating-a-repository-on-github/about-citation-files","actionsOnboardingTip":null},"truncated":false,"viewable":true,"workflowRedirectUrl":null},"copilotInfo":null,"copilotAccessAllowed":false,"copilotSpacesEnabled":false,"modelsAccessAllowed":false,"modelsRepoIntegrationEnabled":false,"isMarketplaceEnabled":true},"codeViewBlobLayoutRoute.StyledBlob":{"rawLines":["# Health Data Hub","","[![CI](https://github.com/umutkeltek/health-data-hub/actions/workflows/ci.yml/badge.svg)](https://github.com/umutkeltek/health-data-hub/actions/workflows/ci.yml)","[![License: Elastic 2.0](https://img.shields.io/badge/License-Elastic--2.0-005571.svg)](LICENSE)","[![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB.svg?logo=python\u0026logoColor=white)](https://www.python.org/downloads/)","[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi\u0026logoColor=white)](https://fastapi.tiangolo.com/)","[![TimescaleDB](https://img.shields.io/badge/TimescaleDB-PostgreSQL-FDB515.svg?logo=postgresql\u0026logoColor=white)](https://www.timescale.com/)","[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg?logo=docker\u0026logoColor=white)](https://www.docker.com/)","[![Ollama](https://img.shields.io/badge/Ollama-local%20LLM-000000.svg)](https://ollama.com/)","[![Download on the App Store](https://img.shields.io/badge/Download-App%20Store-0D96F6?logo=apple\u0026logoColor=white)](https://apps.apple.com/app/id6759843047)","","\u003e **Self-hosted Apple Health server** - sync HealthKit data from your iPhone and Apple Watch into TimescaleDB, visualize it in Grafana, and get an AI-written daily briefing via a local Ollama model. Private. Local-first. Your data stays on your hardware.","","\u003e **New here?** [BRIDGE.md](BRIDGE.md) is the one-page tour: pipeline diagram, who it's for, what's local vs self-hosted, setup gotchas. Read that first if 500 lines of README is too much.","","**Keywords:** `apple-health` · `healthkit` · `self-hosted` · `quantified-self` · `timescaledb` · `grafana` · `fastapi` · `ollama` · `local-llm` · `home-assistant` · `docker` · `privacy` · `health-data` · `wearables`","","Your own server, on your own hardware, turning the health data your phone already collects into an AI-written daily briefing - no cloud, no subscription, no one else reading your numbers.","","You point your iPhone at it. It stores everything from your Apple Watch (heart rate, HRV, SpO2, sleep, workouts, steps, and more), graphs it in Grafana, and - if you turn it on - runs a small local AI model that writes you a short narrative every morning about how your body is actually doing.","","## Don't want to self-host?","","[HealthSave](https://apps.apple.com/app/id6759843047) is the iOS app side of this stack. It runs standalone — Dashboard, Trends, Export to CSV / JSON / PDF, all on-device. Self-hosting is only needed if you want long-term storage, Grafana dashboards, or AI briefings.","","## What you get","","- A long-term store for every Apple Health metric your phone collects, queryable with normal SQL","- A set of ready-made Grafana dashboards (heart, sleep, activity, workouts) that work the moment data starts flowing","- An optional AI briefing system that turns numbers into plain English (\"HRV trended down three days in a row, sleep was light last night, expect a low-energy morning\")","- A clean ingest API anyone can build against - the iOS app is one client, Garmin Connect exports and Samsung/Huawei Health Sync CSVs are others via [`scripts/import_garmin.py`](scripts/import_garmin.py) and [`scripts/import_samsung.py`](scripts/import_samsung.py)","- Drop-in examples for piping selected metrics into Home Assistant for automations","","The entire stack runs in Docker on a laptop, a NUC, a Mac mini, a Synology, or a beefy workstation - your choice. Nothing phones home.","","## Quick start","","You need [Docker](https://www.docker.com/products/docker-desktop/) installed and running, plus a terminal. On Windows, run this inside WSL2 - `setup.sh` is a bash script.","","```bash","git clone https://github.com/umutkeltek/health-data-hub.git","cd health-data-hub","./setup.sh","```","","That's it. `setup.sh`:","","1. Generates secure passwords and writes a `.env` for you","2. Asks if you want the AI briefing system, then **detects your RAM + GPU and recommends the right Ollama model** (you can override)","3. Brings the whole stack up with `docker compose up -d`","","When it finishes, run `./setup.sh doctor` to confirm every service is healthy. The doctor prints the exact iOS-app URL to paste into [HealthSave](https://apps.apple.com/app/id6759843047) under Settings → Server Sync.","","Re-running `./setup.sh` is safe - it preserves passwords and updates only the AI-related config based on your answers.","","## Hardware recommendations","","The AI briefing uses a local language model running through [Ollama](https://ollama.com) (a tiny daemon that runs LLMs on your own machine). Different models need different amounts of RAM. `setup.sh` reads your system RAM + GPU and suggests one - but you can pick any Ollama tag.","","| System RAM | No GPU / Apple Silicon | NVIDIA GPU detected |","|---|---|---|","| \u003c 6 GB | *too small - skip AI* | *too small - skip AI* |","| 6–10 GB | `llama3.2:1b` (~1.3 GB) | `gemma3:4b` (~3 GB) |","| 10–18 GB | `gemma3:4b` (~3 GB) | `qwen3:8b` (~5 GB) |","| 18–36 GB | `qwen3:8b` (~5 GB) | `qwen3:14b` (~9 GB) |","| 36–96 GB | `qwen3:14b` (~9 GB) | `gemma3:27b` (~17 GB) |","| \u003e 96 GB | `llama3.3:70b` (~40 GB) | `llama4:scout` (MoE, ~40 GB) or `llama3.3:70b` |","","A quick translation:","","- **Apple Silicon Macs** (M1/M2/M3/M4) use unified memory, so system RAM ≈ what the model can use. A 16 GB MacBook Air handles `gemma3:4b` comfortably; a 64 GB Studio runs `qwen3:14b` with headroom.","- **Linux box with an NVIDIA GPU** - Ollama uses CUDA. The recommendation bumps a tier because the GPU absorbs most of the work.","- **AMD GPU on Linux** - Ollama can use ROCm but coverage varies; treated as CPU-only in the recommendation logic.","- **Intel Macs and Windows-without-WSL** - fall back to CPU-only conservative defaults; still works, just slower.","","These picks default to the **2026 instruction-tuned generations** (Llama 3.3, Qwen 3, Gemma 3, Llama 4 Scout) because the AI briefing is a narrative-prose task — generalist chat models beat reasoning specialists like DeepSeek-R1 here. Older `llama3.1:8b` / `qwen2.5:14b` still work fine if that's what you have pulled; the table is a recommendation, not a requirement. Llama 4 Scout uses Mixture-of-Experts so only ~17 B parameters are active per token, which is why it fits the 70 B-class slot despite its 109 B total parameter count.","","You can change the model later (see Troubleshooting).","","If you're on something smaller than 6 GB RAM (a Pi 4, an old NAS), `setup.sh` will recommend skipping AI entirely. The ingest pipeline still runs - you just won't get the morning narrative.","","## How the AI analysis works","","The briefing isn't \"feed everything to ChatGPT and hope\". It's a **two-brain system**:","","- **Brain 1 - the statistical engine.** A small Python module that runs on a schedule, reads your time-series data (heart rate, HRV, sleep, etc.), computes baselines and trends, and flags anything statistically interesting (a 3-day HRV decline, a heart-rate-recovery anomaly, a sleep-stage shift). It produces structured findings, not prose.","- **Brain 2 - the narrative LLM.** A local Ollama model takes those findings and rewrites them as a short, readable briefing. It doesn't see raw numbers it doesn't need; it sees flagged findings and turns them into \"Your HRV has dropped three days running while sleep efficiency stayed flat - this often shows up before a stress spike\".","","This split is deliberate: the math stays deterministic and auditable; the LLM only handles the part where natural language actually helps. No cloud, no per-query cost, no data leaving your network.","","What's included in the MVP:","","- Daily HR / HRV summary","- HR / HRV anomaly detection against your rolling baseline","- HR / HRV trend detection over a configurable 30-day window","- Workout recovery hints when HR or HRV deviates from baseline","- A `POST /api/insights/trigger` endpoint for running briefings or trend checks on demand","","What's *not* yet included (and on the roadmap): goal-tracking, anomaly alerting via Home Assistant, multi-person households, correlation analysis, weekly summaries.","","## Your first insight","","Briefings need at least one full day of heart-rate data to say anything useful. Once you've synced from HealthSave at least once, you have two ways to see your first briefing:","","**Option A - wait for the daily cron.** The analysis worker ticks once a day (default 7am local) and writes a fresh briefing. Easiest, but slow if you just installed.","","**Option B - trigger one now.** Hit the trigger endpoint:","","```bash","curl -X POST http://localhost:8000/api/insights/trigger","```","","(Add `-H \"X-API-Key: your-key\"` if you set an `API_KEY` in `.env`.)","","The response includes the run ID; you can poll `GET /api/insights/latest` for the rendered briefing once the run completes (usually 5–30 seconds depending on model size).","","If the briefing comes back empty or terse, it usually means there isn't enough data yet. Sync another day's worth and trigger again.","","## Connect HealthSave","","The easiest way to push HealthKit data into this stack is the [HealthSave iOS app](https://apps.apple.com/app/id6759843047).","","HealthSave expects a base server URL and appends the API paths itself:","","`http://your-server-ip:8000`","","1. Open HealthSave → Settings → Server Sync","2. Set Server URL to: `http://your-server-ip:8000`","3. (Optional) Set your API key if you configured one","4. Tap \"Sync New Data\"","","If you're building another client, the batch ingest endpoint is:","","`http://your-server-ip:8000/api/apple/batch`","","The full request/response contract, including the exact `/api/apple/status` shape expected by the iOS app, is documented in [API.md](API.md).","","## Troubleshooting","","**The Ollama container won't start.**","","```bash","docker compose logs ollama","```","","The most common causes are: not enough free RAM (Ollama refuses to load a model that won't fit), the override file missing (re-run `./setup.sh` - it copies the example), or another process holding port 11434 (stop it, or edit `docker-compose.override.yml` to bind a different port).","","**My briefing came back empty (or said \"not enough data\").**","","Two things to check:","","1. Has HealthSave actually synced? Hit `http://localhost:8000/api/apple/status` - if the table counts are all zero, sync from your phone first.","2. How much history do you have? The statistical engine needs at least ~24 hours of heart-rate data to compute anything. Newly-installed users typically see a real briefing on day 2.","","**I want to change the model after setup.**","","Edit the `OLLAMA_MODEL=` line in your `.env`, then pull the new tag and restart:","","```bash","# Edit .env to set OLLAMA_MODEL=\u003cnew-tag\u003e","docker compose exec ollama ollama pull \u003cnew-tag\u003e","docker compose restart api","```","","The tier table above is a starting point - any Ollama model tag works. Browse [ollama.com/library](https://ollama.com/library) for the full list.","","**`./setup.sh doctor` says a service isn't running.**","","Run `docker compose logs \u003cservice\u003e` (e.g. `docker compose logs api`) to see why. Most first-time failures are Docker not having enough memory allocated - bump it in Docker Desktop's preferences and re-run `./setup.sh`.","","---","","## For developers","","### Stack","","FastAPI + TimescaleDB + Grafana, plus an optional Ollama sidecar for the LLM. Python 3.12, async SQLAlchemy with asyncpg, ruff for lint+format, pytest for tests.","","### Architecture","","```","iPhone (HealthSave app)","    │","    │  POST /api/apple/batch (JSON over HTTPS)","    │","    ▼","FastAPI (port 8000)","    │","    │  INSERT ... ON CONFLICT DO UPDATE (idempotent)","    │","    ▼","TimescaleDB (port 5432)","    │","    │  SQL queries + continuous aggregates","    │","    ├──────────────────────────────┐","    ▼                              ▼","Grafana (port 3000)        Analysis worker","                                   │","                                   │  findings (structured)","                                   ▼","                           Ollama (port 11434)","                                   │","                                   │  briefing (prose)","                                   ▼","                           /api/insights/latest","```","","### What gets synced","","The server receives and stores 120+ HealthKit metrics:","","| Table | Data |","|-------|------|","| `heart_rate` | Continuous HR from Apple Watch / Whoop |","| `hrv` | Heart rate variability (SDNN) |","| `blood_oxygen` | SpO2 readings, with source labels for provider data |","| `daily_activity` | Steps, distance, calories, exercise minutes |","| `sleep_sessions` | Sleep duration, stages, respiratory rate |","| `workouts` | Workout type, duration, HR zones, source labels |","| `quantity_samples` | Catch-all for optional HealthKit metrics and provider aggregates such as Whoop recovery score, resting HR, strain, and sleep aggregates |","","### Manual quick-start (without `setup.sh`)","","```bash","cp .env.example .env","# Edit .env with your passwords","","docker compose up -d","```","","This starts:","- **TimescaleDB** on port 5432","- **FastAPI** on port 8000","- **Grafana** on port 3000 (default login: admin / your GRAFANA_PASSWORD)","","The database port is bound to `127.0.0.1` by default so it is available for","local tooling without being exposed on your LAN.","","To opt into Ollama manually, copy `docker-compose.override.yml.example` to `docker-compose.override.yml`, copy `config.yaml.example` to `config.yaml`, set `analysis.daily_briefing.enabled` and `analysis.anomaly_detection.enabled` to `true`, and set `OLLAMA_MODEL` in `.env` to the tag you want.","","### API Endpoints","","| Endpoint | Method | Description |","|----------|--------|-------------|","| `/health` | GET | Health check |","| `/api/health` | GET | App-friendly health check |","| `/ready` | GET | API plus database readiness check |","| `/api/apple/batch` | POST | Receive metric batch from the client bridge |","| `/api/apple/status` | GET | Return flat per-table status objects |","| `/api/v2/sync/runs/latest` | GET | Optional latest HealthSave delivery receipt |","| `/api/v2/sync/coverage` | GET | Optional metric-level receipt coverage |","| `/api/insights/latest` | GET | Most recent briefing (if AI enabled) |","| `/api/insights/anomalies` | GET | Recent anomaly findings, filterable by `since` and `severity` |","| `/api/insights/trends` | GET | Recent HR / HRV trend findings, filterable by `period=30d` |","| `/api/insights/trigger` | POST | Run an analysis pass now (if AI enabled) |","| `/metrics` | GET | Prometheus text exposition (no auth, DB-independent) |","","`/api/apple/status` intentionally returns top-level metric objects, not a","wrapped `{\"status\":\"ok\",\"counts\":...}` payload. See [API.md](API.md) for","the compatibility contract.","","### Prometheus Metrics","","`/metrics` exposes runtime counters and a histogram in Prometheus text","exposition format. The endpoint is unauthenticated by design (so scrapers","do not need `X-API-Key`) and does not touch the database, so it returns","200 even when Postgres is down — safe to use as a liveness target.","","| Metric | Type | Labels | Meaning |","|--------|------|--------|---------|","| `hdh_ingest_batches_total` | counter | `metric` | Batches accepted by `/api/apple/batch`, including empty ones |","| `hdh_ingest_rows_total` | counter | `metric` | Rows persisted per metric (cumulative) |","| `hdh_ingest_duration_seconds` | histogram | `metric` | End-to-end batch handler latency |","| `hdh_ai_briefing_runs_total` | counter | `job`, `result` | Daily briefing / anomaly check / trend analysis runs by outcome (`success` / `failure`) |","","Prometheus scrape config:","","```yaml","scrape_configs:","  - job_name: health-data-hub","    metrics_path: /metrics","    static_configs:","      - targets: ['health-data-hub:8000']  # or 'localhost:8000' for host scrape","```","","Sample Grafana panel — rows ingested per second, broken down by metric","(Time series panel):","","```promql","sum by (metric) (rate(hdh_ingest_rows_total[5m]))","```","","Pair `rate(hdh_ai_briefing_runs_total{result=\"failure\"}[1h])` with an","alert if you want a heads-up when nightly analysis starts failing.","","### Garmin Imports","","Garmin Connect users can sideload data into the same `/api/apple/batch`","endpoint via `scripts/import_garmin.py`. The script supports the bulk","\"Export Your Data\" ZIP, individual FIT/TCX activity files, and the","JSON files Garmin includes for daily steps and sleep stages.","","Install the optional FIT-parsing dependency once:","","```bash","pip install -e \".[garmin]\"   # adds fitparse for FIT activity files","```","","(TCX, JSON, and ZIP parsing use only the standard library.)","","Run it:","","```bash","# Bulk export ZIP - walks every supported file inside","python scripts/import_garmin.py \\","  --zip GarminConnect_Export.zip \\","  --server http://localhost:8000 \\","  --api-key $HDH_API_KEY","","# Individual files","python scripts/import_garmin.py --tcx run.tcx --steps-json steps.json --sleep-json sleep.json","","# Sanity-check the payload before sending","python scripts/import_garmin.py --tcx run.tcx --dry-run","```","","Mapping:","","| Source | HealthSave metric | Server table |","|--------|-------------------|--------------|","| FIT/TCX heart-rate records | `heart_rate` | `heart_rate` |","| Daily step totals (JSON) | `step_count` | `daily_activity.steps` |","| Sleep stages (JSON) | `sleep_analysis` | `sleep_sessions` + `sleep_stages` |","","### Samsung / Huawei Health Sync Imports","","Android users can sideload Samsung Health or Huawei Health data exported through","the Android [Health Sync](https://healthsync.app/) app via","`scripts/import_samsung.py`. The importer reads Health Sync CSV folders and sends","the same `/api/apple/batch` payload shape as the iOS app, so deduplication,","auditing, sync receipts, and dashboards all stay on the normal ingest path.","","Supported Health Sync folders:","","| Folder | HealthSave metric | Server table |","|--------|-------------------|--------------|","| `Health Sync Steps/` | `step_count` | `daily_activity.steps` |","| `Health Sync Heart rate/` | `heart_rate` | `heart_rate` |","| `Health Sync Sleep/` | `sleep_analysis` | `sleep_sessions` + `sleep_stages` |","| `Health Sync Weight/` | `body_mass`, `body_fat_percentage` | `quantity_samples` |","| `Health Sync Oxygen saturation/` | `oxygen_saturation` | `blood_oxygen` |","","Run it:","","```bash","# Sanity-check the export before sending","python scripts/import_samsung.py /path/to/health-sync-export --dry-run","","# Send to a local datahub","python scripts/import_samsung.py /path/to/health-sync-export \\","  --server http://localhost:8000 \\","  --api-key $HDH_API_KEY","```","","### Grafana Dashboards","","A curated starter dashboard set is included in `deploy/grafana/`, so a fresh `docker compose up -d` should bring Grafana up with the datasource and the supported dashboards already wired.","","Included files:","- `deploy/grafana/provisioning/datasources/healthsave.yaml`","- `deploy/grafana/provisioning/dashboards/default.yaml`","- `deploy/grafana/dashboards/`","","Supported dashboards loaded automatically:","","| Dashboard | File | Depends On | Status | Notes |","|-----------|------|------------|--------|-------|","| HealthSave Overview | `deploy/grafana/dashboards/healthsave-overview.json` | `heart_rate`, `hrv`, `blood_oxygen`, `daily_activity`, `sleep_sessions`, `workouts` | Supported | Best first dashboard for a fresh install |","| Activity \u0026 Movement | `deploy/grafana/dashboards/activity.json` | `daily_activity`, `quantity_samples` | Supported | Gait-related panels only populate if those optional metrics are synced |","| Heart | `deploy/grafana/dashboards/heart.json` | `heart_rate`, `hrv`, `quantity_samples` | Supported | Source-aware heart-rate, HRV, SpO2, and respiratory panels |","| Sleep | `deploy/grafana/dashboards/sleep.json` | `sleep_sessions`, `sleep_stages`, `quantity_samples` | Supported | Apple sleep sessions plus provider aggregate sleep metrics |","| Insights | `deploy/grafana/dashboards/insights.json` | `heart_rate`, `hrv`, `blood_oxygen`, `body_temperature`, `quantity_samples`, `sleep_sessions`, `workouts` | Supported | Cross-source comparison and Whoop recovery/sleep/strain views through the public schema |","| Workouts | `deploy/grafana/dashboards/workouts.json` | `workouts` | Supported | Focused workout view with type, duration, calories, and HR panels |","","The datasource is auto-provisioned - no manual setup needed.","","### Home Assistant Integration","","There are two supported Home Assistant paths:","","1. **MQTT bridge (recommended):** Health Data Hub reads TimescaleDB and publishes retained Home Assistant MQTT discovery + state topics. This keeps Home Assistant out of the database and works even when Grafana is deployed separately.","2. **Direct SQL package (legacy/example):** Home Assistant queries TimescaleDB directly using `integrations/home-assistant/healthsave-package.yaml`.","","The bridge publishes in two layers each cycle:","","**Aggregate parent device** (one device, one state topic, the legacy shape):","","- Retained state topic: `healthsave/sensor/state`","- Discovery topics: `homeassistant/sensor/healthsave/\u003cmetric\u003e/config`","- Availability: `healthsave/status`","","Six entities on the parent device by default:","","- `sensor.healthsave_heart_rate`","- `sensor.healthsave_hrv_7d_avg`","- `sensor.healthsave_steps_today`","- `sensor.healthsave_last_sleep_hours`","- `sensor.healthsave_source_model`","- `sensor.healthsave_room_health_state`","","**Per-source sub-devices** (one device per distinct `source_id` seen in recent data — Apple Watch, Whoop, iPhone, etc.):","","- Retained state topic: `healthsave/source/\u003cslug\u003e/state` (one JSON payload per source)","- Discovery topics: `homeassistant/sensor/healthsave_\u003cslug\u003e/\u003cmetric\u003e/config`","- Linked to the parent via Home Assistant's `via_device` so HA nests sub-devices under the parent.","- Metrics carried per sub-device: `heart_rate`, `hrv_latest_ms`, `steps_today`, `last_sleep_hours`. Only metrics with a recent non-null value get a discovery message, so HA never sees ghost entities.","","Example: a household running both an Apple Watch and a Whoop sees:","- `sensor.healthsave_apple_watch_heart_rate`, `_hrv_latest_ms`, `_steps_today`, `_last_sleep_hours`","- `sensor.healthsave_whoop_heart_rate`, `_hrv_latest_ms`, `_last_sleep_hours` (no `_steps_today` if Whoop hasn't logged any).","","Source attribution comes from `source_id` on the ingestion tables (added to `daily_activity` and `sleep_sessions` in migration 009; native to `heart_rate` / `hrv` since v1). Rows with NULL `source_id` collapse to a single `sensor.healthsave_unknown_*` sub-device so legacy data never fragments into empty entities.","","Both layers share `healthsave/status` so HA marks every sub-device offline together if the bridge stops.","","**Legacy MQTT namespace migration.** Fresh installs should keep the","primary `HA_MQTT_STATE_TOPIC_PREFIX`, `HA_MQTT_DEVICE_IDENTIFIER`, and","`HA_MQTT_DEVICE_NAME` values on `healthsave` / `HealthSave`. If an","existing Home Assistant install still has dashboards or automations on","an older namespace, set `HA_MQTT_LEGACY_STATE_TOPIC_PREFIX` plus the","matching legacy device identifier/name. The bridge then publishes both","shapes from the same Data Hub service so Home Assistant can be migrated","one entity at a time.","","```bash","HA_MQTT_STATE_TOPIC_PREFIX=healthsave","HA_MQTT_DEVICE_IDENTIFIER=healthsave","HA_MQTT_DEVICE_NAME=HealthSave","HA_MQTT_LEGACY_STATE_TOPIC_PREFIX=\u003cold-prefix\u003e","HA_MQTT_LEGACY_DEVICE_IDENTIFIER=\u003cold-device-id\u003e","HA_MQTT_LEGACY_DEVICE_NAME=\u003cold-display-name\u003e","```","","Enable it with Docker Compose. Two patterns:","","**(a) Bring your own broker.** Point the bridge at an MQTT server you already run:","","```bash","HA_MQTT_ENABLED=true \\","HA_MQTT_BROKER=\u003cyour-mqtt-host\u003e \\","HA_MQTT_USERNAME=\u003coptional-user\u003e \\","HA_MQTT_PASSWORD=\u003coptional-password\u003e \\","docker compose --profile home-assistant up -d homeassistant-mqtt","```","","**(b) Use the bundled broker.** Add the `mosquitto` profile and the","stack runs an `eclipse-mosquitto:2` container alongside the bridge.","The bridge's default `HA_MQTT_BROKER=mqtt` resolves through docker DNS,","and host port `1883` is published so a Home Assistant install on the","same LAN can also connect by host IP. Persistence is on a docker","volume so retained messages survive restarts.","","```bash","HA_MQTT_ENABLED=true \\","docker compose --profile mosquitto --profile home-assistant up -d","```","","The bundled broker defaults to anonymous-on-LAN. To require auth,","overlay a `docker-compose.override.yml` that flips","`allow_anonymous false` and mounts a password file — the conf at","`deploy/mosquitto/mosquitto.conf` is read-only so the override is the","right seam.","","Useful defaults:","","- Discovery prefix: `homeassistant`","- State prefix: `healthsave`","- Device identifier: `healthsave`","- Publish interval: `60` seconds","","Direct SQL example files remain available for setups that prefer DB polling:","- `integrations/home-assistant/healthsave-package.yaml`","- `integrations/home-assistant/secrets.example.yaml`","","### Community Backends","","The ingest API is intentionally simple so anyone can build a compatible backend for their own stack. The first community implementation is already live:","","- **[health-data-to-mqtt](https://github.com/bietiekay/health-data-to-mqtt)** by [@bietiekay](https://github.com/bietiekay) - A lightweight Node.js server that stores raw JSON and forwards selected metrics to MQTT. Built for alerting and home automation pipelines where MQTT is the primary transport.","","If you've built a compatible backend, open an issue or PR and we'll add it here. The full API contract including every supported metric is documented in [API.md](API.md).","","### Pluggable Storage Backends","","The default backend is TimescaleDB (a Postgres extension), which is what `setup.sh` provisions. If you already run a different time-series store and don't want to add a second one, the ingest path is pluggable: write a Python module that implements the `IngestStorage` protocol, register it, and point the server at it via env vars.","","**Built-in backends:**","","| Name | Backed by | Audit log | Notes |","|------|-----------|-----------|-------|","| `postgres` (default) | TimescaleDB hypertables | yes (`raw_ingestion_log`) | Joins, transactions, continuous aggregates |","","**Selecting a backend:**","","```bash","HDH_STORAGE_BACKEND=postgres docker compose up -d   # explicit (also the default)","```","","**Writing your own (e.g. InfluxDB, ClickHouse, DuckDB, MQTT-only):**","","1. Implement `server.ingestion.storage.IngestStorage` in your own package — two methods: `get_or_create_device()` and `ingest_metric()`.","2. Optionally implement `server.ingestion.storage.AuditLog` if your store supports an audit row pattern. Append-only stores (InfluxDB) skip this; the route notices and skips audit calls.","3. Register a factory at module-import time:","","   ```python","   # mycorp_health/influx_backend.py","   from server.ingestion.registry import register_backend","","   def _influx_factory(config):","       from .influx_storage import InfluxIngestStorage","       return InfluxIngestStorage(config), None  # append-only, no AuditLog","","   register_backend(\"influxdb\", _influx_factory)","   ```","","4. Tell the server to load your plugin and use it:","","   ```bash","   HDH_STORAGE_PLUGINS=mycorp_health.influx_backend \\","   HDH_STORAGE_BACKEND=influxdb \\","   docker compose up -d","   ```","","`HDH_STORAGE_PLUGINS` is comma-separated — multiple plugin modules are imported in order before the backend lookup runs. A failed plugin import is logged but doesn't abort startup, so a missing optional dependency degrades to \"fall back to the built-in default\" rather than \"server doesn't boot.\"","","The protocols, the registry, and a worked example live in `server/ingestion/storage.py` and `server/ingestion/registry.py`. If you ship a backend, open an issue and we'll list it under [Community Backends](#community-backends).","","### Deduplication","","All ingestion is idempotent:","- Unique indexes on first-class metric identity columns","- `INSERT ... ON CONFLICT DO UPDATE` for upsert behavior","- In-memory dedup within each batch to avoid PG errors","","You can safely re-sync or retry without inflating your data.","","The API also stores each received batch in `raw_ingestion_log` before","processing, then marks it processed after a successful commit. That gives you a","minimal audit trail and a useful starting point if you ever need replay tooling.","","### Updating Existing Installs","","Fresh installs load `db/schema.sql` automatically. Existing Docker volumes keep","their original schema, so the Compose stack runs the migration service before","the API, worker, agents, or Home Assistant bridge start:","","```bash","docker compose up -d --build","```","","To run the same migration pass explicitly:","","```bash","docker compose run --rm migrate","```","","The runner records applied files in `schema_migrations`, so re-runs are safe.","Migration files still live in `db/migrations/` for review and manual recovery.","The current set starts at `db/migrations/001_audit_hardening.sql` and includes","later additive upgrades such as `db/migrations/002_analysis_tables.sql` and","`db/migrations/008_oauth_tokens.sql`; files apply in filename order.","","### Multi-user / Household","","Every metric table carries an `owner_id` UUID. Single-user installs need","to do nothing — when the `X-User-Id` header is absent, ingest writes","under the sentinel UUID `00000000-0000-0000-0000-000000000001` and the","schema-level default backfills any pre-migration rows to the same value.","","To split a household across multiple residents:","","1. Pick a UUID per person (any v4 UUID works — `python -c \"import uuid; print(uuid.uuid4())\"`).","2. Configure each HealthSave client / import script to send that UUID as the","   `X-User-Id` header on every `POST /api/apple/batch` call.","3. Filter Grafana panels by `owner_id` (add a dashboard variable bound to the","   `SELECT DISTINCT owner_id FROM heart_rate` query, then drop `WHERE owner_id = '$owner'`","   into each panel query).","","Existing single-user installs keep working untouched if step 2 is skipped.","The unique indexes on every metric table include `owner_id`, so two","residents can have a sample at the same `(time, device_id)` without","collisions, and re-syncing from one client remains idempotent.","","### Development","","Local verification uses the same commands as CI:","","```bash","python3.12 -m pip install -e \".[dev]\"","python3.12 -m ruff format --check .","python3.12 -m ruff check .","python3.12 -m pytest -q","docker build -t health-data-hub-dev .","```","","The project targets Python 3.12, matching the Docker image and CI runtime.","","The CI workflow runs formatting, linting, tests, and a Docker build on every","push and pull request to `main`.","","### HTTPS / Reverse Proxy","","For production, put a reverse proxy in front of the API:","","```yaml","# Add to docker-compose.yml","  caddy:","    image: caddy:2-alpine","    ports:","      - \"443:443\"","    volumes:","      - ./Caddyfile:/etc/caddy/Caddyfile:ro","```","","```","# Caddyfile","health.yourdomain.com {","    reverse_proxy api:8000","}","```","","Recommended production posture:","- Set a long random `API_KEY` in `.env` and in the HealthSave app.","- Keep TimescaleDB bound to localhost or a private Docker network.","- Terminate HTTPS at your reverse proxy.","- Back up the `db_data` Docker volume regularly.","- Upgrade `TIMESCALE_IMAGE` and `GRAFANA_IMAGE` deliberately, not via `latest`.","","### Derived Metrics","","The schema includes continuous aggregates for common derived metrics:","","- `hr_hourly` - Hourly avg/min/max heart rate","- `sleep_daily` - Daily sleep stage breakdown","","Add your own with TimescaleDB continuous aggregates:","","```sql","-- Example: weekly HRV trend","CREATE MATERIALIZED VIEW hrv_weekly","WITH (timescaledb.continuous) AS","SELECT","    time_bucket('1 week', time) AS bucket,","    device_id,","    avg(value_ms) AS avg_hrv,","    min(value_ms) AS min_hrv,","    max(value_ms) AS max_hrv","FROM hrv","GROUP BY bucket, device_id","WITH NO DATA;","```","","### Roadmap","","This community release is intentionally small and focused on the ingestion pipeline plus the first slice of AI briefings.","","Next things to improve:","- More dashboard polish and curation across recovery, workouts, and long-term trends","- Goal tracking and trend-based alerts wired into Home Assistant","- More comprehensive analysis windows (monthly / quarterly trends)","- Production deployment notes for reverse proxy, auth, backups, and retention"],"stylingDirectives":[[[0,17,"pl-mh"],[2,17,"pl-en"]],[],[[0,1,"pl-s"],[1,3,"pl-s"],[5,6,"pl-s"],[6,7,"pl-s"],[7,87,"pl-corl"],[87,89,"pl-s"],[89,90,"pl-s"],[90,160,"pl-corl"],[160,161,"pl-s"]],[[0,1,"pl-s"],[1,3,"pl-s"],[23,24,"pl-s"],[24,25,"pl-s"],[25,85,"pl-corl"],[85,87,"pl-s"],[87,88,"pl-s"],[88,95,"pl-corl"],[95,96,"pl-s"]],[[0,1,"pl-s"],[1,3,"pl-s"],[14,15,"pl-s"],[15,16,"pl-s"],[16,95,"pl-corl"],[95,97,"pl-s"],[97,98,"pl-s"],[98,131,"pl-corl"],[131,132,"pl-s"]],[[0,1,"pl-s"],[1,3,"pl-s"],[10,11,"pl-s"],[11,12,"pl-s"],[12,94,"pl-corl"],[94,96,"pl-s"],[96,97,"pl-s"],[97,126,"pl-corl"],[126,127,"pl-s"]],[[0,1,"pl-s"],[1,3,"pl-s"],[14,15,"pl-s"],[15,16,"pl-s"],[16,110,"pl-corl"],[110,112,"pl-s"],[112,113,"pl-s"],[113,139,"pl-corl"],[139,140,"pl-s"]],[[0,1,"pl-s"],[1,3,"pl-s"],[9,10,"pl-s"],[10,11,"pl-s"],[11,91,"pl-corl"],[91,93,"pl-s"],[93,94,"pl-s"],[94,117,"pl-corl"],[117,118,"pl-s"]],[[0,1,"pl-s"],[1,3,"pl-s"],[9,10,"pl-s"],[10,11,"pl-s"],[11,69,"pl-corl"],[69,71,"pl-s"],[71,72,"pl-s"],[72,91,"pl-corl"],[91,92,"pl-s"]],[[0,1,"pl-s"],[1,3,"pl-s"],[28,29,"pl-s"],[29,30,"pl-s"],[30,113,"pl-corl"],[113,115,"pl-s"],[115,116,"pl-s"],[116,155,"pl-corl"],[155,156,"pl-s"]],[],[[0,254,"pl-ent"],[0,2,"pl-ent"],[2,4,"pl-s"],[35,37,"pl-s"]],[[0,0,"pl-ent"]],[[0,188,"pl-ent"],[0,2,"pl-ent"],[2,4,"pl-s"],[13,15,"pl-s"],[16,17,"pl-s"],[26,27,"pl-s"],[27,28,"pl-s"],[28,37,"pl-corl"],[37,38,"pl-s"]],[[0,0,"pl-ent"]],[[0,2,"pl-s"],[11,13,"pl-s"],[14,15,"pl-s"],[15,27,"pl-c1"],[27,28,"pl-s"],[31,32,"pl-s"],[32,41,"pl-c1"],[41,42,"pl-s"],[45,46,"pl-s"],[46,57,"pl-c1"],[57,58,"pl-s"],[61,62,"pl-s"],[62,77,"pl-c1"],[77,78,"pl-s"],[81,82,"pl-s"],[82,93,"pl-c1"],[93,94,"pl-s"],[97,98,"pl-s"],[98,105,"pl-c1"],[105,106,"pl-s"],[109,110,"pl-s"],[110,117,"pl-c1"],[117,118,"pl-s"],[121,122,"pl-s"],[122,128,"pl-c1"],[128,129,"pl-s"],[132,133,"pl-s"],[133,142,"pl-c1"],[142,143,"pl-s"],[146,147,"pl-s"],[147,161,"pl-c1"],[161,162,"pl-s"],[165,166,"pl-s"],[166,172,"pl-c1"],[172,173,"pl-s"],[176,177,"pl-s"],[177,184,"pl-c1"],[184,185,"pl-s"],[188,189,"pl-s"],[189,200,"pl-c1"],[200,201,"pl-s"],[204,205,"pl-s"],[205,214,"pl-c1"],[214,215,"pl-s"]],[],[],[],[],[],[[0,27,"pl-mh"],[3,27,"pl-en"]],[],[[0,1,"pl-s"],[11,12,"pl-s"],[12,13,"pl-s"],[13,52,"pl-corl"],[52,53,"pl-s"]],[],[[0,15,"pl-mh"],[3,15,"pl-en"]],[],[[0,1,"pl-v"]],[[0,1,"pl-v"]],[[0,1,"pl-v"]],[[0,1,"pl-v"],[149,150,"pl-s"],[150,151,"pl-s"],[151,175,"pl-c1"],[175,176,"pl-s"],[176,177,"pl-s"],[177,178,"pl-s"],[178,202,"pl-corl"],[202,203,"pl-s"],[208,209,"pl-s"],[209,210,"pl-s"],[210,235,"pl-c1"],[235,236,"pl-s"],[236,237,"pl-s"],[237,238,"pl-s"],[238,263,"pl-corl"],[263,264,"pl-s"]],[[0,1,"pl-v"]],[],[],[],[[0,14,"pl-mh"],[3,14,"pl-en"]],[],[[9,10,"pl-s"],[16,17,"pl-s"],[17,18,"pl-s"],[18,65,"pl-corl"],[65,66,"pl-s"],[142,143,"pl-s"],[143,151,"pl-c1"],[151,152,"pl-s"]],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[[0,2,"pl-c1"]],[],[[0,3,"pl-s"]],[],[[11,12,"pl-s"],[12,20,"pl-c1"],[20,21,"pl-s"]],[],[[0,1,"pl-s"],[1,2,"pl-v"],[43,44,"pl-s"],[44,48,"pl-c1"],[48,49,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"],[49,51,"pl-s"],[111,113,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"],[34,35,"pl-s"],[35,55,"pl-c1"],[55,56,"pl-s"]],[],[[22,23,"pl-s"],[23,40,"pl-c1"],[40,41,"pl-s"],[133,134,"pl-s"],[144,145,"pl-s"],[145,146,"pl-s"],[146,185,"pl-corl"],[185,186,"pl-s"]],[],[[11,12,"pl-s"],[12,22,"pl-c1"],[22,23,"pl-s"]],[],[[0,27,"pl-mh"],[3,27,"pl-en"]],[],[[60,61,"pl-s"],[67,68,"pl-s"],[68,69,"pl-s"],[69,87,"pl-corl"],[87,88,"pl-s"],[189,190,"pl-s"],[190,198,"pl-c1"],[198,199,"pl-s"]],[],[[0,1,"pl-ml"],[13,14,"pl-ml"],[38,39,"pl-ml"],[60,61,"pl-ml"]],[[0,1,"pl-ml"],[4,5,"pl-ml"],[8,9,"pl-ml"],[12,13,"pl-ml"]],[[0,1,"pl-ml"],[9,10,"pl-ml"],[11,12,"pl-s"],[31,32,"pl-s"],[33,34,"pl-ml"],[35,36,"pl-s"],[55,56,"pl-s"],[57,58,"pl-ml"]],[[0,1,"pl-ml"],[10,11,"pl-ml"],[12,13,"pl-s"],[13,24,"pl-c1"],[24,25,"pl-s"],[27,28,"pl-s"],[36,37,"pl-ml"],[38,39,"pl-s"],[39,48,"pl-c1"],[48,49,"pl-s"],[51,52,"pl-s"],[58,59,"pl-ml"]],[[0,1,"pl-ml"],[11,12,"pl-ml"],[13,14,"pl-s"],[14,23,"pl-c1"],[23,24,"pl-s"],[26,27,"pl-s"],[33,34,"pl-ml"],[35,36,"pl-s"],[36,44,"pl-c1"],[44,45,"pl-s"],[47,48,"pl-s"],[54,55,"pl-ml"]],[[0,1,"pl-ml"],[11,12,"pl-ml"],[13,14,"pl-s"],[14,22,"pl-c1"],[22,23,"pl-s"],[25,26,"pl-s"],[32,33,"pl-ml"],[34,35,"pl-s"],[35,44,"pl-c1"],[44,45,"pl-s"],[47,48,"pl-s"],[54,55,"pl-ml"]],[[0,1,"pl-ml"],[11,12,"pl-ml"],[13,14,"pl-s"],[14,23,"pl-c1"],[23,24,"pl-s"],[26,27,"pl-s"],[33,34,"pl-ml"],[35,36,"pl-s"],[36,46,"pl-c1"],[46,47,"pl-s"],[49,50,"pl-s"],[57,58,"pl-ml"]],[[0,1,"pl-ml"],[10,11,"pl-ml"],[12,13,"pl-s"],[13,25,"pl-c1"],[25,26,"pl-s"],[28,29,"pl-s"],[36,37,"pl-ml"],[38,39,"pl-s"],[39,51,"pl-c1"],[51,52,"pl-s"],[59,60,"pl-s"],[70,71,"pl-s"],[71,83,"pl-c1"],[83,84,"pl-s"],[85,86,"pl-ml"]],[],[],[],[[0,1,"pl-v"],[2,4,"pl-s"],[22,24,"pl-s"],[127,128,"pl-s"],[128,137,"pl-c1"],[137,138,"pl-s"],[172,173,"pl-s"],[173,182,"pl-c1"],[182,183,"pl-s"]],[[0,1,"pl-v"],[2,4,"pl-s"],[32,34,"pl-s"]],[[0,1,"pl-v"],[2,4,"pl-s"],[20,22,"pl-s"]],[[0,1,"pl-v"],[2,4,"pl-s"],[38,40,"pl-s"]],[],[[27,29,"pl-s"],[63,65,"pl-s"],[241,242,"pl-s"],[242,253,"pl-c1"],[253,254,"pl-s"],[257,258,"pl-s"],[258,269,"pl-c1"],[269,270,"pl-s"],[415,416,"pl-s"]],[],[],[],[[67,68,"pl-s"],[68,76,"pl-c1"],[76,77,"pl-s"]],[],[[0,28,"pl-mh"],[3,28,"pl-en"]],[],[[65,67,"pl-s"],[83,85,"pl-s"]],[],[[0,1,"pl-v"],[2,4,"pl-s"],[37,39,"pl-s"]],[[0,1,"pl-v"],[2,4,"pl-s"],[32,34,"pl-s"]],[],[],[],[],[],[[0,1,"pl-v"]],[[0,1,"pl-v"]],[[0,1,"pl-v"]],[[0,1,"pl-v"]],[[0,1,"pl-v"],[4,5,"pl-s"],[5,31,"pl-c1"],[31,32,"pl-s"]],[],[[7,8,"pl-s"],[11,12,"pl-s"]],[],[[0,21,"pl-mh"],[3,21,"pl-en"]],[],[],[],[[0,2,"pl-s"],[37,39,"pl-s"]],[],[[0,2,"pl-s"],[29,31,"pl-s"]],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[[0,3,"pl-s"]],[],[[5,6,"pl-s"],[6,30,"pl-c1"],[30,31,"pl-s"],[46,47,"pl-s"],[47,54,"pl-c1"],[54,55,"pl-s"],[59,60,"pl-s"],[60,64,"pl-c1"],[64,65,"pl-s"]],[],[[47,48,"pl-s"],[48,72,"pl-c1"],[72,73,"pl-s"]],[],[],[],[[0,21,"pl-mh"],[3,21,"pl-en"]],[],[[62,63,"pl-s"],[81,82,"pl-s"],[82,83,"pl-s"],[83,122,"pl-corl"],[122,123,"pl-s"]],[],[],[],[[0,1,"pl-s"],[1,27,"pl-c1"],[27,28,"pl-s"]],[],[[0,1,"pl-s"],[1,2,"pl-v"]],[[0,1,"pl-s"],[1,2,"pl-v"],[22,23,"pl-s"],[23,49,"pl-c1"],[49,50,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"]],[[0,1,"pl-s"],[1,2,"pl-v"]],[],[],[],[[0,1,"pl-s"],[1,43,"pl-c1"],[43,44,"pl-s"]],[],[[56,57,"pl-s"],[57,74,"pl-c1"],[74,75,"pl-s"],[124,125,"pl-s"],[131,132,"pl-s"],[132,133,"pl-s"],[133,139,"pl-corl"],[139,140,"pl-s"]],[],[[0,18,"pl-mh"],[3,18,"pl-en"]],[],[[0,2,"pl-s"],[35,37,"pl-s"]],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[[0,3,"pl-s"]],[],[[131,132,"pl-s"],[132,142,"pl-c1"],[142,143,"pl-s"],[226,227,"pl-s"],[227,254,"pl-c1"],[254,255,"pl-s"]],[],[[0,2,"pl-s"],[58,60,"pl-s"]],[],[],[],[[0,1,"pl-s"],[1,2,"pl-v"],[39,40,"pl-s"],[40,78,"pl-c1"],[78,79,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"],[71,72,"pl-s"]],[],[[0,2,"pl-s"],[41,43,"pl-s"]],[],[[9,10,"pl-s"],[10,23,"pl-c1"],[23,24,"pl-s"],[38,39,"pl-s"],[39,43,"pl-c1"],[43,44,"pl-s"]],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[[0,41,"pl-c"],[0,1,"pl-c"]],[[15,19,"pl-c1"],[39,40,"pl-k"],[47,48,"pl-k"]],[],[[0,3,"pl-s"]],[],[[78,79,"pl-s"],[97,98,"pl-s"],[98,99,"pl-s"],[99,125,"pl-corl"],[125,126,"pl-s"]],[],[[0,2,"pl-s"],[2,3,"pl-s"],[3,20,"pl-c1"],[20,21,"pl-s"],[51,53,"pl-s"]],[],[[4,5,"pl-s"],[5,34,"pl-c1"],[34,35,"pl-s"],[42,43,"pl-s"],[43,66,"pl-c1"],[66,67,"pl-s"],[205,206,"pl-s"],[206,216,"pl-c1"],[216,217,"pl-s"]],[],[[0,3,"pl-ms"]],[],[[0,17,"pl-mh"],[3,17,"pl-en"]],[],[[0,9,"pl-mh"],[4,9,"pl-en"]],[],[],[],[[0,16,"pl-mh"],[4,16,"pl-en"]],[],[[0,3,"pl-s"],[3,3,"pl-c1"]],[[0,23,"pl-c1"]],[[0,5,"pl-c1"]],[[0,46,"pl-c1"]],[[0,5,"pl-c1"]],[[0,5,"pl-c1"]],[[0,19,"pl-c1"]],[[0,5,"pl-c1"]],[[0,52,"pl-c1"]],[[0,5,"pl-c1"]],[[0,5,"pl-c1"]],[[0,23,"pl-c1"]],[[0,5,"pl-c1"]],[[0,42,"pl-c1"]],[[0,5,"pl-c1"]],[[0,36,"pl-c1"]],[[0,36,"pl-c1"]],[[0,42,"pl-c1"]],[[0,36,"pl-c1"]],[[0,59,"pl-c1"]],[[0,36,"pl-c1"]],[[0,46,"pl-c1"]],[[0,36,"pl-c1"]],[[0,54,"pl-c1"]],[[0,36,"pl-c1"]],[[0,47,"pl-c1"]],[[0,0,"pl-c1"],[0,3,"pl-s"]],[],[[0,20,"pl-mh"],[4,20,"pl-en"]],[],[],[],[[0,1,"pl-ml"],[8,9,"pl-ml"],[15,16,"pl-ml"]],[[0,1,"pl-ml"],[8,9,"pl-ml"],[15,16,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,13,"pl-c1"],[13,14,"pl-s"],[15,16,"pl-ml"],[56,57,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,6,"pl-c1"],[6,7,"pl-s"],[8,9,"pl-ml"],[40,41,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,15,"pl-c1"],[15,16,"pl-s"],[17,18,"pl-ml"],[71,72,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,17,"pl-c1"],[17,18,"pl-s"],[19,20,"pl-ml"],[65,66,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,17,"pl-c1"],[17,18,"pl-s"],[19,20,"pl-ml"],[62,63,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,11,"pl-c1"],[11,12,"pl-s"],[13,14,"pl-ml"],[63,64,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,19,"pl-c1"],[19,20,"pl-s"],[21,22,"pl-ml"],[159,160,"pl-ml"]],[],[[0,43,"pl-mh"],[4,43,"pl-en"],[32,33,"pl-s"],[33,41,"pl-c1"],[41,42,"pl-s"]],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[[0,31,"pl-c"],[0,1,"pl-c"]],[],[],[[0,3,"pl-s"]],[],[],[[0,1,"pl-v"],[2,4,"pl-s"],[15,17,"pl-s"]],[[0,1,"pl-v"],[2,4,"pl-s"],[11,13,"pl-s"]],[[0,1,"pl-v"],[2,4,"pl-s"],[11,13,"pl-s"]],[],[[30,31,"pl-s"],[31,40,"pl-c1"],[40,41,"pl-s"]],[],[],[[34,35,"pl-s"],[35,70,"pl-c1"],[70,71,"pl-s"],[75,76,"pl-s"],[76,103,"pl-c1"],[103,104,"pl-s"],[111,112,"pl-s"],[112,131,"pl-c1"],[131,132,"pl-s"],[136,137,"pl-s"],[137,148,"pl-c1"],[148,149,"pl-s"],[155,156,"pl-s"],[156,187,"pl-c1"],[187,188,"pl-s"],[193,194,"pl-s"],[194,228,"pl-c1"],[228,229,"pl-s"],[233,234,"pl-s"],[234,238,"pl-c1"],[238,239,"pl-s"],[249,250,"pl-s"],[250,262,"pl-c1"],[262,263,"pl-s"],[267,268,"pl-s"],[268,272,"pl-c1"],[272,273,"pl-s"]],[],[[0,17,"pl-mh"],[4,17,"pl-en"]],[],[[0,1,"pl-ml"],[11,12,"pl-ml"],[20,21,"pl-ml"],[34,35,"pl-ml"]],[[0,1,"pl-ml"],[11,12,"pl-ml"],[20,21,"pl-ml"],[34,35,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,10,"pl-c1"],[10,11,"pl-s"],[12,13,"pl-ml"],[18,19,"pl-ml"],[33,34,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,14,"pl-c1"],[14,15,"pl-s"],[16,17,"pl-ml"],[22,23,"pl-ml"],[50,51,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,9,"pl-c1"],[9,10,"pl-s"],[11,12,"pl-ml"],[17,18,"pl-ml"],[53,54,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,19,"pl-c1"],[19,20,"pl-s"],[21,22,"pl-ml"],[28,29,"pl-ml"],[74,75,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,20,"pl-c1"],[20,21,"pl-s"],[22,23,"pl-ml"],[28,29,"pl-ml"],[67,68,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,27,"pl-c1"],[27,28,"pl-s"],[29,30,"pl-ml"],[35,36,"pl-ml"],[81,82,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,24,"pl-c1"],[24,25,"pl-s"],[26,27,"pl-ml"],[32,33,"pl-ml"],[73,74,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,23,"pl-c1"],[23,24,"pl-s"],[25,26,"pl-ml"],[31,32,"pl-ml"],[70,71,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,26,"pl-c1"],[26,27,"pl-s"],[28,29,"pl-ml"],[34,35,"pl-ml"],[75,76,"pl-s"],[76,81,"pl-c1"],[81,82,"pl-s"],[87,88,"pl-s"],[88,96,"pl-c1"],[96,97,"pl-s"],[98,99,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,23,"pl-c1"],[23,24,"pl-s"],[25,26,"pl-ml"],[31,32,"pl-ml"],[79,80,"pl-s"],[80,90,"pl-c1"],[90,91,"pl-s"],[92,93,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,24,"pl-c1"],[24,25,"pl-s"],[26,27,"pl-ml"],[33,34,"pl-ml"],[76,77,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,11,"pl-c1"],[11,12,"pl-s"],[13,14,"pl-ml"],[19,20,"pl-ml"],[74,75,"pl-ml"]],[],[[0,1,"pl-s"],[1,18,"pl-c1"],[18,19,"pl-s"]],[[8,9,"pl-s"],[9,37,"pl-c1"],[37,38,"pl-s"],[52,53,"pl-s"],[59,60,"pl-s"],[60,61,"pl-s"],[61,67,"pl-corl"],[67,68,"pl-s"]],[],[],[[0,22,"pl-mh"],[4,22,"pl-en"]],[],[[0,1,"pl-s"],[1,9,"pl-c1"],[9,10,"pl-s"]],[],[[12,13,"pl-s"],[13,22,"pl-c1"],[22,23,"pl-s"]],[],[],[[0,1,"pl-ml"],[9,10,"pl-ml"],[16,17,"pl-ml"],[25,26,"pl-ml"],[35,36,"pl-ml"]],[[0,1,"pl-ml"],[9,10,"pl-ml"],[16,17,"pl-ml"],[25,26,"pl-ml"],[35,36,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,27,"pl-c1"],[27,28,"pl-s"],[29,30,"pl-ml"],[39,40,"pl-ml"],[41,42,"pl-s"],[42,48,"pl-c1"],[48,49,"pl-s"],[50,51,"pl-ml"],[72,73,"pl-s"],[73,89,"pl-c1"],[89,90,"pl-s"],[113,114,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,24,"pl-c1"],[24,25,"pl-s"],[26,27,"pl-ml"],[36,37,"pl-ml"],[38,39,"pl-s"],[39,45,"pl-c1"],[45,46,"pl-s"],[47,48,"pl-ml"],[88,89,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,30,"pl-c1"],[30,31,"pl-s"],[32,33,"pl-ml"],[44,45,"pl-ml"],[46,47,"pl-s"],[47,53,"pl-c1"],[53,54,"pl-s"],[55,56,"pl-ml"],[90,91,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,29,"pl-c1"],[29,30,"pl-s"],[31,32,"pl-ml"],[41,42,"pl-ml"],[43,44,"pl-s"],[44,47,"pl-c1"],[47,48,"pl-s"],[50,51,"pl-s"],[51,57,"pl-c1"],[57,58,"pl-s"],[59,60,"pl-ml"],[126,127,"pl-s"],[127,134,"pl-c1"],[134,135,"pl-s"],[138,139,"pl-s"],[139,146,"pl-c1"],[146,147,"pl-s"],[149,150,"pl-ml"]],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[[0,14,"pl-ent"]],[[4,12,"pl-ent"],[14,29,"pl-s"]],[[4,16,"pl-ent"],[18,26,"pl-s"]],[[4,18,"pl-ent"]],[[8,15,"pl-ent"],[17,43,"pl-s"],[43,80,"pl-c"],[43,44,"pl-c"]],[[0,3,"pl-s"],[0,1,"pl-pds"],[1,2,"pl-pds"],[2,3,"pl-pds"]],[[0,0,"pl-s"]],[[0,70,"pl-s"]],[[0,20,"pl-s"]],[[0,0,"pl-s"]],[[0,3,"pl-s"],[0,1,"pl-pds"],[1,2,"pl-pds"],[2,3,"pl-pds"],[3,9,"pl-s"]],[[0,49,"pl-s"]],[[0,3,"pl-s"]],[],[[5,6,"pl-s"],[6,60,"pl-c1"],[60,61,"pl-s"]],[],[],[[0,18,"pl-mh"],[4,18,"pl-en"]],[],[[53,54,"pl-s"],[54,70,"pl-c1"],[70,71,"pl-s"]],[[13,14,"pl-s"],[14,38,"pl-c1"],[38,39,"pl-s"]],[],[],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[[15,26,"pl-s"],[15,16,"pl-pds"],[25,26,"pl-pds"],[29,67,"pl-c"],[29,30,"pl-c"]],[[0,3,"pl-s"]],[],[],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[[0,53,"pl-c"],[0,1,"pl-c"]],[],[],[],[[12,24,"pl-smi"]],[],[[0,18,"pl-c"],[0,1,"pl-c"]],[],[],[[0,41,"pl-c"],[0,1,"pl-c"]],[],[[0,3,"pl-s"]],[],[],[],[[0,1,"pl-ml"],[9,10,"pl-ml"],[29,30,"pl-ml"],[44,45,"pl-ml"]],[[0,1,"pl-ml"],[9,10,"pl-ml"],[29,30,"pl-ml"],[44,45,"pl-ml"]],[[0,1,"pl-ml"],[29,30,"pl-ml"],[31,32,"pl-s"],[32,42,"pl-c1"],[42,43,"pl-s"],[44,45,"pl-ml"],[46,47,"pl-s"],[47,57,"pl-c1"],[57,58,"pl-s"],[59,60,"pl-ml"]],[[0,1,"pl-ml"],[27,28,"pl-ml"],[29,30,"pl-s"],[30,40,"pl-c1"],[40,41,"pl-s"],[42,43,"pl-ml"],[44,45,"pl-s"],[45,65,"pl-c1"],[65,66,"pl-s"],[67,68,"pl-ml"]],[[0,1,"pl-ml"],[22,23,"pl-ml"],[24,25,"pl-s"],[25,39,"pl-c1"],[39,40,"pl-s"],[41,42,"pl-ml"],[43,44,"pl-s"],[44,58,"pl-c1"],[58,59,"pl-s"],[62,63,"pl-s"],[63,75,"pl-c1"],[75,76,"pl-s"],[77,78,"pl-ml"]],[],[[0,40,"pl-mh"],[4,40,"pl-en"]],[],[],[[12,13,"pl-s"],[24,25,"pl-s"],[25,26,"pl-s"],[26,49,"pl-corl"],[49,50,"pl-s"]],[[0,1,"pl-s"],[1,26,"pl-c1"],[26,27,"pl-s"]],[[9,10,"pl-s"],[10,26,"pl-c1"],[26,27,"pl-s"]],[],[],[],[],[[0,1,"pl-ml"],[9,10,"pl-ml"],[29,30,"pl-ml"],[44,45,"pl-ml"]],[[0,1,"pl-ml"],[9,10,"pl-ml"],[29,30,"pl-ml"],[44,45,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,21,"pl-c1"],[21,22,"pl-s"],[23,24,"pl-ml"],[25,26,"pl-s"],[26,36,"pl-c1"],[36,37,"pl-s"],[38,39,"pl-ml"],[40,41,"pl-s"],[41,61,"pl-c1"],[61,62,"pl-s"],[63,64,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,26,"pl-c1"],[26,27,"pl-s"],[28,29,"pl-ml"],[30,31,"pl-s"],[31,41,"pl-c1"],[41,42,"pl-s"],[43,44,"pl-ml"],[45,46,"pl-s"],[46,56,"pl-c1"],[56,57,"pl-s"],[58,59,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,21,"pl-c1"],[21,22,"pl-s"],[23,24,"pl-ml"],[25,26,"pl-s"],[26,40,"pl-c1"],[40,41,"pl-s"],[42,43,"pl-ml"],[44,45,"pl-s"],[45,59,"pl-c1"],[59,60,"pl-s"],[63,64,"pl-s"],[64,76,"pl-c1"],[76,77,"pl-s"],[78,79,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,22,"pl-c1"],[22,23,"pl-s"],[24,25,"pl-ml"],[26,27,"pl-s"],[27,36,"pl-c1"],[36,37,"pl-s"],[39,40,"pl-s"],[40,59,"pl-c1"],[59,60,"pl-s"],[61,62,"pl-ml"],[63,64,"pl-s"],[64,80,"pl-c1"],[80,81,"pl-s"],[82,83,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,33,"pl-c1"],[33,34,"pl-s"],[35,36,"pl-ml"],[37,38,"pl-s"],[38,55,"pl-c1"],[55,56,"pl-s"],[57,58,"pl-ml"],[59,60,"pl-s"],[60,72,"pl-c1"],[72,73,"pl-s"],[74,75,"pl-ml"]],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[[0,40,"pl-c"],[0,1,"pl-c"]],[],[],[[0,25,"pl-c"],[0,1,"pl-c"]],[],[],[[12,24,"pl-smi"]],[[0,3,"pl-s"]],[],[[0,22,"pl-mh"],[4,22,"pl-en"]],[],[[47,48,"pl-s"],[48,63,"pl-c1"],[63,64,"pl-s"],[77,78,"pl-s"],[78,98,"pl-c1"],[98,99,"pl-s"]],[],[],[[0,1,"pl-v"],[2,3,"pl-s"],[3,58,"pl-c1"],[58,59,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,54,"pl-c1"],[54,55,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,29,"pl-c1"],[29,30,"pl-s"]],[],[],[],[[0,1,"pl-ml"],[12,13,"pl-ml"],[19,20,"pl-ml"],[32,33,"pl-ml"],[41,42,"pl-ml"],[49,50,"pl-ml"]],[[0,1,"pl-ml"],[12,13,"pl-ml"],[19,20,"pl-ml"],[32,33,"pl-ml"],[41,42,"pl-ml"],[49,50,"pl-ml"]],[[0,1,"pl-ml"],[22,23,"pl-ml"],[24,25,"pl-s"],[25,75,"pl-c1"],[75,76,"pl-s"],[77,78,"pl-ml"],[79,80,"pl-s"],[80,90,"pl-c1"],[90,91,"pl-s"],[93,94,"pl-s"],[94,97,"pl-c1"],[97,98,"pl-s"],[100,101,"pl-s"],[101,113,"pl-c1"],[113,114,"pl-s"],[116,117,"pl-s"],[117,131,"pl-c1"],[131,132,"pl-s"],[134,135,"pl-s"],[135,149,"pl-c1"],[149,150,"pl-s"],[152,153,"pl-s"],[153,161,"pl-c1"],[161,162,"pl-s"],[163,164,"pl-ml"],[175,176,"pl-ml"],[218,219,"pl-ml"]],[[0,1,"pl-ml"],[22,23,"pl-ml"],[24,25,"pl-s"],[25,64,"pl-c1"],[64,65,"pl-s"],[66,67,"pl-ml"],[68,69,"pl-s"],[69,83,"pl-c1"],[83,84,"pl-s"],[86,87,"pl-s"],[87,103,"pl-c1"],[103,104,"pl-s"],[105,106,"pl-ml"],[117,118,"pl-ml"],[190,191,"pl-ml"]],[[0,1,"pl-ml"],[8,9,"pl-ml"],[10,11,"pl-s"],[11,47,"pl-c1"],[47,48,"pl-s"],[49,50,"pl-ml"],[51,52,"pl-s"],[52,62,"pl-c1"],[62,63,"pl-s"],[65,66,"pl-s"],[66,69,"pl-c1"],[69,70,"pl-s"],[72,73,"pl-s"],[73,89,"pl-c1"],[89,90,"pl-s"],[91,92,"pl-ml"],[103,104,"pl-ml"],[164,165,"pl-ml"]],[[0,1,"pl-ml"],[8,9,"pl-ml"],[10,11,"pl-s"],[11,47,"pl-c1"],[47,48,"pl-s"],[49,50,"pl-ml"],[51,52,"pl-s"],[52,66,"pl-c1"],[66,67,"pl-s"],[69,70,"pl-s"],[70,82,"pl-c1"],[82,83,"pl-s"],[85,86,"pl-s"],[86,102,"pl-c1"],[102,103,"pl-s"],[104,105,"pl-ml"],[116,117,"pl-ml"],[177,178,"pl-ml"]],[[0,1,"pl-ml"],[11,12,"pl-ml"],[13,14,"pl-s"],[14,53,"pl-c1"],[53,54,"pl-s"],[55,56,"pl-ml"],[57,58,"pl-s"],[58,68,"pl-c1"],[68,69,"pl-s"],[71,72,"pl-s"],[72,75,"pl-c1"],[75,76,"pl-s"],[78,79,"pl-s"],[79,91,"pl-c1"],[91,92,"pl-s"],[94,95,"pl-s"],[95,111,"pl-c1"],[111,112,"pl-s"],[114,115,"pl-s"],[115,131,"pl-c1"],[131,132,"pl-s"],[134,135,"pl-s"],[135,149,"pl-c1"],[149,150,"pl-s"],[152,153,"pl-s"],[153,161,"pl-c1"],[161,162,"pl-s"],[163,164,"pl-ml"],[175,176,"pl-ml"],[265,266,"pl-ml"]],[[0,1,"pl-ml"],[11,12,"pl-ml"],[13,14,"pl-s"],[14,53,"pl-c1"],[53,54,"pl-s"],[55,56,"pl-ml"],[57,58,"pl-s"],[58,66,"pl-c1"],[66,67,"pl-s"],[68,69,"pl-ml"],[80,81,"pl-ml"],[148,149,"pl-ml"]],[],[],[],[[0,30,"pl-mh"],[4,30,"pl-en"]],[],[],[],[[0,1,"pl-s"],[1,2,"pl-v"],[3,5,"pl-s"],[31,33,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"],[3,5,"pl-s"],[41,43,"pl-s"],[94,95,"pl-s"],[95,146,"pl-c1"],[146,147,"pl-s"]],[],[],[],[[0,2,"pl-s"],[25,27,"pl-s"]],[],[[0,1,"pl-v"],[24,25,"pl-s"],[25,48,"pl-c1"],[48,49,"pl-s"]],[[0,1,"pl-v"],[20,21,"pl-s"],[21,68,"pl-c1"],[68,69,"pl-s"]],[[0,1,"pl-v"],[16,17,"pl-s"],[17,34,"pl-c1"],[34,35,"pl-s"]],[],[],[],[[0,1,"pl-v"],[2,3,"pl-s"],[3,31,"pl-c1"],[31,32,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,31,"pl-c1"],[31,32,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,32,"pl-c1"],[32,33,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,37,"pl-c1"],[37,38,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,33,"pl-c1"],[33,34,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,38,"pl-c1"],[38,39,"pl-s"]],[],[[0,2,"pl-s"],[24,26,"pl-s"],[52,53,"pl-s"],[53,62,"pl-c1"],[62,63,"pl-s"]],[],[[0,1,"pl-v"],[24,25,"pl-s"],[25,55,"pl-c1"],[55,56,"pl-s"]],[[0,1,"pl-v"],[20,21,"pl-s"],[21,75,"pl-c1"],[75,76,"pl-s"]],[[0,1,"pl-v"],[44,45,"pl-s"],[45,55,"pl-c1"],[55,56,"pl-s"]],[[0,1,"pl-v"],[34,35,"pl-s"],[35,45,"pl-c1"],[45,46,"pl-s"],[48,49,"pl-s"],[49,62,"pl-c1"],[62,63,"pl-s"],[65,66,"pl-s"],[66,77,"pl-c1"],[77,78,"pl-s"],[80,81,"pl-s"],[81,97,"pl-c1"],[97,98,"pl-s"]],[],[],[[0,1,"pl-v"],[2,3,"pl-s"],[3,43,"pl-c1"],[43,44,"pl-s"],[46,47,"pl-s"],[47,61,"pl-c1"],[61,62,"pl-s"],[64,65,"pl-s"],[65,77,"pl-c1"],[77,78,"pl-s"],[80,81,"pl-s"],[81,98,"pl-c1"],[98,99,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,37,"pl-c1"],[37,38,"pl-s"],[40,41,"pl-s"],[41,55,"pl-c1"],[55,56,"pl-s"],[58,59,"pl-s"],[59,76,"pl-c1"],[76,77,"pl-s"],[82,83,"pl-s"],[83,95,"pl-c1"],[95,96,"pl-s"]],[],[[30,31,"pl-s"],[31,40,"pl-c1"],[40,41,"pl-s"],[76,77,"pl-s"],[77,91,"pl-c1"],[91,92,"pl-s"],[97,98,"pl-s"],[98,112,"pl-c1"],[112,113,"pl-s"],[142,143,"pl-s"],[143,153,"pl-c1"],[153,154,"pl-s"],[157,158,"pl-s"],[158,161,"pl-c1"],[161,162,"pl-s"],[189,190,"pl-s"],[190,199,"pl-c1"],[199,200,"pl-s"],[222,223,"pl-s"],[223,250,"pl-c1"],[250,251,"pl-s"]],[],[[18,19,"pl-s"],[19,36,"pl-c1"],[36,37,"pl-s"]],[],[[0,2,"pl-s"],[34,36,"pl-s"]],[[8,9,"pl-s"],[9,35,"pl-c1"],[35,36,"pl-s"],[38,39,"pl-s"],[39,64,"pl-c1"],[64,65,"pl-s"]],[[0,1,"pl-s"],[1,20,"pl-c1"],[20,21,"pl-s"],[32,33,"pl-s"],[33,43,"pl-c1"],[43,44,"pl-s"],[47,48,"pl-s"],[48,58,"pl-c1"],[58,59,"pl-s"]],[],[[24,25,"pl-s"],[25,58,"pl-c1"],[58,59,"pl-s"]],[],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[],[],[[34,35,"pl-k"],[45,46,"pl-k"]],[[33,34,"pl-k"],[47,48,"pl-k"]],[[27,28,"pl-k"],[44,45,"pl-k"]],[[0,3,"pl-s"]],[],[],[],[[0,2,"pl-s"],[28,30,"pl-s"]],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[[15,16,"pl-k"],[30,31,"pl-k"]],[[17,18,"pl-k"],[31,32,"pl-k"]],[[17,18,"pl-k"],[35,36,"pl-k"]],[],[[0,3,"pl-s"]],[],[[0,2,"pl-s"],[29,31,"pl-s"],[40,41,"pl-s"],[41,50,"pl-c1"],[50,51,"pl-s"]],[[14,15,"pl-s"],[15,34,"pl-c1"],[34,35,"pl-s"]],[[21,22,"pl-s"],[22,41,"pl-c1"],[41,42,"pl-s"]],[[14,15,"pl-s"],[15,19,"pl-c1"],[19,20,"pl-s"]],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[],[[0,3,"pl-s"]],[],[],[[10,11,"pl-s"],[11,38,"pl-c1"],[38,39,"pl-s"]],[[0,1,"pl-s"],[1,22,"pl-c1"],[22,23,"pl-s"]],[[0,1,"pl-s"],[1,32,"pl-c1"],[32,33,"pl-s"]],[],[],[],[],[[0,1,"pl-v"],[20,21,"pl-s"],[21,34,"pl-c1"],[34,35,"pl-s"]],[[0,1,"pl-v"],[16,17,"pl-s"],[17,27,"pl-c1"],[27,28,"pl-s"]],[[0,1,"pl-v"],[21,22,"pl-s"],[22,32,"pl-c1"],[32,33,"pl-s"]],[[0,1,"pl-v"],[20,21,"pl-s"],[21,23,"pl-c1"],[23,24,"pl-s"]],[],[],[[0,1,"pl-v"],[2,3,"pl-s"],[3,54,"pl-c1"],[54,55,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,51,"pl-c1"],[51,52,"pl-s"]],[],[[0,22,"pl-mh"],[4,22,"pl-en"]],[],[],[],[[0,1,"pl-v"],[2,4,"pl-s"],[4,5,"pl-s"],[24,25,"pl-s"],[25,26,"pl-s"],[26,74,"pl-corl"],[74,75,"pl-s"],[75,77,"pl-s"],[81,82,"pl-s"],[82,92,"pl-s"],[83,92,"pl-corl"],[92,93,"pl-s"],[93,94,"pl-s"],[94,122,"pl-corl"],[122,123,"pl-s"]],[],[[153,154,"pl-s"],[160,161,"pl-s"],[161,162,"pl-s"],[162,168,"pl-corl"],[168,169,"pl-s"]],[],[[0,30,"pl-mh"],[4,30,"pl-en"]],[],[[73,74,"pl-s"],[74,82,"pl-c1"],[82,83,"pl-s"],[253,254,"pl-s"],[254,267,"pl-c1"],[267,268,"pl-s"]],[],[[0,2,"pl-s"],[20,22,"pl-s"]],[],[[0,1,"pl-ml"],[7,8,"pl-ml"],[19,20,"pl-ml"],[31,32,"pl-ml"],[39,40,"pl-ml"]],[[0,1,"pl-ml"],[7,8,"pl-ml"],[19,20,"pl-ml"],[31,32,"pl-ml"],[39,40,"pl-ml"]],[[0,1,"pl-ml"],[2,3,"pl-s"],[3,11,"pl-c1"],[11,12,"pl-s"],[23,24,"pl-ml"],[49,50,"pl-ml"],[56,57,"pl-s"],[57,74,"pl-c1"],[74,75,"pl-s"],[77,78,"pl-ml"],[122,123,"pl-ml"]],[],[[0,2,"pl-s"],[22,24,"pl-s"]],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[[52,81,"pl-c"],[52,53,"pl-c"]],[[0,3,"pl-s"]],[],[[0,2,"pl-s"],[66,68,"pl-s"]],[],[[0,1,"pl-s"],[1,2,"pl-v"],[13,14,"pl-s"],[14,52,"pl-c1"],[52,53,"pl-s"],[89,90,"pl-s"],[90,112,"pl-c1"],[112,113,"pl-s"],[118,119,"pl-s"],[119,134,"pl-c1"],[134,135,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"],[24,25,"pl-s"],[25,58,"pl-c1"],[58,59,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"]],[],[[3,6,"pl-s"],[6,12,"pl-en"]],[[3,36,"pl-c"],[3,4,"pl-c"]],[[3,7,"pl-k"],[34,40,"pl-k"]],[],[[3,6,"pl-k"],[7,22,"pl-en"],[23,29,"pl-smi"]],[[7,11,"pl-k"],[28,34,"pl-k"]],[[7,13,"pl-k"],[43,47,"pl-c1"],[49,75,"pl-c"],[49,50,"pl-c"]],[],[[20,30,"pl-s"],[20,21,"pl-pds"],[29,30,"pl-pds"]],[[3,6,"pl-s"]],[],[[0,1,"pl-s"],[1,2,"pl-v"]],[],[[3,6,"pl-s"],[6,10,"pl-en"]],[],[],[],[[3,6,"pl-s"]],[],[[0,1,"pl-s"],[1,20,"pl-c1"],[20,21,"pl-s"]],[],[[58,59,"pl-s"],[59,86,"pl-c1"],[86,87,"pl-s"],[92,93,"pl-s"],[93,121,"pl-c1"],[121,122,"pl-s"],[185,186,"pl-s"],[204,205,"pl-s"],[205,206,"pl-s"],[206,225,"pl-corl"],[225,226,"pl-s"]],[],[[0,17,"pl-mh"],[4,17,"pl-en"]],[],[],[[0,1,"pl-v"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,35,"pl-c1"],[35,36,"pl-s"]],[[0,1,"pl-v"]],[],[],[],[[43,44,"pl-s"],[44,61,"pl-c1"],[61,62,"pl-s"]],[],[],[],[[0,30,"pl-mh"],[4,30,"pl-en"]],[],[[20,21,"pl-s"],[21,34,"pl-c1"],[34,35,"pl-s"]],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[[0,3,"pl-s"]],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[],[[0,3,"pl-s"]],[],[[36,37,"pl-s"],[37,54,"pl-c1"],[54,55,"pl-s"]],[[30,31,"pl-s"],[31,45,"pl-c1"],[45,46,"pl-s"]],[[26,27,"pl-s"],[27,64,"pl-c1"],[64,65,"pl-s"]],[[32,33,"pl-s"],[33,70,"pl-c1"],[70,71,"pl-s"]],[[0,1,"pl-s"],[1,35,"pl-c1"],[35,36,"pl-s"]],[],[[0,26,"pl-mh"],[4,26,"pl-en"]],[],[[30,31,"pl-s"],[31,39,"pl-c1"],[39,40,"pl-s"]],[[25,26,"pl-s"],[26,35,"pl-c1"],[35,36,"pl-s"]],[[24,25,"pl-s"],[25,61,"pl-c1"],[61,62,"pl-s"]],[],[],[],[],[[0,1,"pl-s"],[1,2,"pl-v"],[47,48,"pl-s"],[48,92,"pl-c1"],[92,93,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"]],[[3,4,"pl-s"],[4,13,"pl-c1"],[13,14,"pl-s"],[31,32,"pl-s"],[32,53,"pl-c1"],[53,54,"pl-s"]],[[0,1,"pl-s"],[1,2,"pl-v"],[28,29,"pl-s"],[29,37,"pl-c1"],[37,38,"pl-s"]],[[3,4,"pl-s"],[4,44,"pl-c1"],[44,45,"pl-s"],[63,64,"pl-s"],[64,89,"pl-c1"],[89,90,"pl-s"]],[],[],[],[[49,50,"pl-s"],[50,58,"pl-c1"],[58,59,"pl-s"]],[[40,41,"pl-s"],[41,58,"pl-c1"],[58,59,"pl-s"]],[],[],[[0,15,"pl-mh"],[4,15,"pl-en"]],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[[29,37,"pl-s"],[29,30,"pl-pds"],[36,37,"pl-pds"]],[[34,35,"pl-c1"]],[[25,26,"pl-c1"]],[],[[36,37,"pl-c1"]],[[0,3,"pl-s"]],[],[],[],[],[[25,26,"pl-s"],[26,30,"pl-c1"],[30,31,"pl-s"]],[],[[0,25,"pl-mh"],[4,25,"pl-en"]],[],[],[],[[0,3,"pl-s"],[3,7,"pl-en"]],[[0,27,"pl-c"],[0,1,"pl-c"]],[[2,7,"pl-ent"]],[[4,9,"pl-ent"],[11,25,"pl-s"]],[[4,9,"pl-ent"]],[[8,17,"pl-s"],[8,9,"pl-pds"],[16,17,"pl-pds"]],[[4,11,"pl-ent"]],[[8,43,"pl-s"]],[[0,3,"pl-s"],[0,1,"pl-pds"],[1,2,"pl-pds"],[2,3,"pl-pds"]],[[0,0,"pl-s"]],[[0,3,"pl-s"],[0,1,"pl-pds"],[1,2,"pl-pds"],[2,3,"pl-pds"]],[[0,11,"pl-c"],[0,1,"pl-c"]],[[0,23,"pl-s"]],[[4,26,"pl-s"]],[[0,1,"pl-s"]],[[0,3,"pl-s"]],[],[],[[0,1,"pl-v"],[20,21,"pl-s"],[21,28,"pl-c1"],[28,29,"pl-s"],[33,34,"pl-s"],[34,38,"pl-c1"],[38,39,"pl-s"]],[[0,1,"pl-v"]],[[0,1,"pl-v"]],[[0,1,"pl-v"],[14,15,"pl-s"],[15,22,"pl-c1"],[22,23,"pl-s"]],[[0,1,"pl-v"],[10,11,"pl-s"],[11,26,"pl-c1"],[26,27,"pl-s"],[32,33,"pl-s"],[33,46,"pl-c1"],[46,47,"pl-s"],[70,71,"pl-s"],[71,77,"pl-c1"],[77,78,"pl-s"]],[],[[0,19,"pl-mh"],[4,19,"pl-en"]],[],[],[],[[0,1,"pl-v"],[2,3,"pl-s"],[3,12,"pl-c1"],[12,13,"pl-s"]],[[0,1,"pl-v"],[2,3,"pl-s"],[3,14,"pl-c1"],[14,15,"pl-s"]],[],[],[],[[0,3,"pl-s"],[3,6,"pl-en"]],[[0,28,"pl-c"],[0,2,"pl-c"]],[],[[6,17,"pl-c1"],[18,28,"pl-c1"],[30,32,"pl-k"]],[[0,6,"pl-k"]],[[16,24,"pl-s"],[16,17,"pl-pds"],[23,24,"pl-pds"],[26,30,"pl-k"],[32,34,"pl-k"]],[],[[4,7,"pl-c1"],[18,20,"pl-k"]],[[4,7,"pl-c1"],[18,20,"pl-k"]],[[4,7,"pl-c1"],[18,20,"pl-k"]],[[0,4,"pl-k"]],[[0,8,"pl-k"]],[],[[0,3,"pl-s"]],[],[[0,11,"pl-mh"],[4,11,"pl-en"]],[],[],[],[],[[0,1,"pl-v"]],[[0,1,"pl-v"]],[[0,1,"pl-v"]],[[0,1,"pl-v"]]],"colorizedLines":null}},"title":"health-data-hub/README.md at main · umutkeltek/health-data-hub","appPayload":{},"meta":{"title":"health-data-hub/README.md at main · umutkeltek/health-data-hub"}}</script>
+  <div data-target="react-app.reactRoot"><meta name="github-code-view-meta-stats" id="github-code-view-meta-stats" data-hydrostats="publish"/> <!-- --> <a hidden="" id="code-view-repo-link" href="/umutkeltek/health-data-hub" data-discover="true"></a> <div class="d-none"></div><div><div style="--spacing:var(--spacing-none)" class="prc-PageLayout-PageLayoutRoot--KH-d"><div class="prc-PageLayout-PageLayoutWrapper-2BhU2" data-width="full"><div class="prc-PageLayout-PageLayoutContent-BneH9"><div class="CodeViewFileTreeLayout-module__sidebar__n_Aau" tabindex="0"><div class="prc-PageLayout-PaneWrapper-pHPop ReposFileTreePane-module__Pane__rBZpI ReposFileTreePane-module__HideTree__AYZnm ReposFileTreePane-module__HidePane__VHAVt" style="--offset-header:0px;--spacing-row:var(--spacing-none);--spacing-column:var(--spacing-none)" data-is-hidden="false" data-position="start" data-sticky="true"><div class="prc-PageLayout-HorizontalDivider-JLVqp prc-PageLayout-PaneHorizontalDivider-9tbnE" data-variant-regular="none" data-variant-narrow="none" data-position="start" style="--spacing-divider:var(--spacing-none);--spacing:var(--spacing-none)"></div><div class="prc-PageLayout-Pane-AyzHK" data-resizable="true" style="--spacing:var(--spacing-none);--pane-min-width:256px;--pane-max-width:calc(100vw - var(--pane-max-width-diff));--pane-width-size:var(--pane-width-large);--pane-width:320px"></div><div class="prc-PageLayout-VerticalDivider-9QRmK prc-PageLayout-PaneVerticalDivider-le57g" data-variant-narrow="none" data-variant-regular="line" data-variant-wide="line" data-position="start" style="--spacing:var(--spacing-none)"><div class="prc-PageLayout-DraggableHandle-9s6B4" role="slider" aria-label="Draggable pane splitter" aria-valuemin="256" aria-valuemax="600" aria-valuenow="320" aria-valuetext="Pane width 320 pixels" tabindex="0"></div></div></div></div><div class="prc-PageLayout-ContentWrapper-gR9eG"><div class="prc-PageLayout-Content-xWL-A" data-width="full" style="--spacing:var(--spacing-none)"><div class="SharedPageLayout-module__content__IwGAp" data-selector="repos-split-pane-content" tabindex="0"> <!-- --> <div class="container CodeViewHeader-module__Box__JkPOb"><div class="CodeViewHeader-module__StickyHeader__Qn7UN" id="StickyHeader"><div class="CodeViewHeader-module__Box_1__SbNDV"><div class="CodeViewHeader-module__Box_2__TB46f"><div class="react-code-view-header-wrap--narrow CodeViewHeader-module__Box_3__q1zUL"><div class="CodeViewHeader-module__treeToggleWrapper__RQ__9"><h2 class="use-tree-pane-module__Heading__s4QbZ prc-Heading-Heading-MtWFE" data-component="Heading"><button data-component="Button" type="button" aria-label="Expand file tree" data-testid="expand-file-tree-button-mobile" class="prc-Button-ButtonBase-9n-Xk ExpandFileTreeButton-module__Button_1__Svs95" data-loading="false" data-size="medium" data-variant="invisible"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="leadingVisual" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-arrow-left" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06l4.25-4.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L4.81 7h7.44a.75.75 0 0 1 0 1.5H4.81l2.97 2.97a.75.75 0 0 1 0 1.06Z"></path></svg></span><span data-component="text" class="prc-Button-Label-FWkx3">Files</span></span></button><button data-component="IconButton" type="button" data-testid="expand-file-tree-button" aria-controls="repos-file-tree" class="prc-Button-ButtonBase-9n-Xk position-relative ExpandFileTreeButton-module__expandButton__hDOcv ExpandFileTreeButton-module__filesButtonBreakpoint__zEvz3 fgColor-muted prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="invisible" aria-labelledby="_R_2aql3al1d_"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-sidebar-collapse" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M6.823 7.823a.25.25 0 0 1 0 .354l-2.396 2.396A.25.25 0 0 1 4 10.396V5.604a.25.25 0 0 1 .427-.177Z"></path><path d="M1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25V1.75C0 .784.784 0 1.75 0ZM1.5 1.75v12.5c0 .138.112.25.25.25H9.5v-13H1.75a.25.25 0 0 0-.25.25ZM11 14.5h3.25a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25H11Z"></path></svg></button><span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="se" data-component="Tooltip" aria-hidden="true" id="_R_2aql3al1d_">Expand file tree</span><div class="d-none"></div></h2></div><div class="react-code-view-header-mb--narrow mr-2"><button data-component="Button" type="button" aria-haspopup="true" aria-expanded="false" tabindex="0" aria-label="main branch" data-testid="anchor-button" data-icv-name="Switch branches/tags" class="prc-Button-ButtonBase-9n-Xk ref-selector-class RefSelectorAnchoredOverlay-module__RefSelectorOverlayBtn__a3WK3" data-loading="false" data-size="medium" data-variant="default" id="ref-picker-repos-header-ref-selector-wide"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="text" class="prc-Button-Label-FWkx3"><div class="RefSelectorAnchoredOverlay-module__RefSelectorOverlayContainer__yaf4p"><div class="RefSelectorAnchoredOverlay-module__RefSelectorOverlayHeader__XtXRG"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-git-branch" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"></path></svg></div><div style="max-width:125px" class="ref-selector-button-text-container RefSelectorAnchoredOverlay-module__RefSelectorBtnTextContainer__Di3rk"><span class="RefSelectorAnchoredOverlay-module__RefSelectorText__w_fmP"> <!-- -->main</span></div></div></span><span data-component="trailingVisual" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="m4.427 7.427 3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"></path></svg></span></span></button><div class="d-none"></div></div><div class="react-code-view-header-mb--narrow CodeViewHeader-module__Box_5__MQ0hL"><div class="Breadcrumb-module__container__Vxvev Breadcrumb-module__lg__Rjz0A"><nav data-testid="breadcrumbs" aria-labelledby="repos-header-breadcrumb-heading" id="repos-header-breadcrumb" class="Breadcrumb-module__nav__rQFDj"><h2 class="sr-only ScreenReaderHeading-module__userSelectNone__rwWIk prc-Heading-Heading-MtWFE" data-component="Heading" data-testid="screen-reader-heading" id="repos-header-breadcrumb-heading">Breadcrumbs</h2><ol class="Breadcrumb-module__list__ZH6zr"><li class="Breadcrumb-module__listItem__Ib0x_"><a class="Breadcrumb-module__repoLink__O2Nbs prc-Link-Link-9ZwDx" data-component="Link" data-testid="breadcrumbs-repo-link" href="/umutkeltek/health-data-hub/tree/main" data-discover="true">health-data-hub</a></li></ol></nav><div data-testid="breadcrumbs-filename" class="Breadcrumb-module__filename__equZR"><span class="Breadcrumb-module__separator__eNwsI Breadcrumb-module__lg__Rjz0A" aria-hidden="true">/</span><h1 class="Breadcrumb-module__filenameHeading__MNMtw Breadcrumb-module__lg__Rjz0A prc-Heading-Heading-MtWFE" data-component="Heading" tabindex="-1" id="file-name-id">README.md</h1></div><button data-component="IconButton" type="button" class="prc-Button-ButtonBase-9n-Xk ml-2 prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_R_3qql3al1d_"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-copy" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button><span class="CopyToClipboardButton-module__tooltip__BhMvU prc-TooltipV2-Tooltip-tLeuB" data-direction="nw" data-component="Tooltip" aria-label="Copy path" aria-hidden="true" id="_R_3qql3al1d_">Copy path</span></div></div></div><div class="react-code-view-header-element--wide"><div class="CodeViewHeader-module__Box_7___0R6c"><div class="d-flex gap-2"><div><div class="CodeViewHeader-module__FileResultsList__JDzUy"><span class="d-flex FileResultsList-module__FilesSearchBox__ivVkc TextInput-wrapper prc-components-TextInputWrapper-Hpdqi prc-components-TextInputBaseWrapper-wY-n0" data-no-trailing-action="true" data-component="TextInput" data-leading-visual="true" data-trailing-visual="true" aria-busy="false"><span class="TextInput-icon" id="_R_2pcql3al1d_" aria-hidden="true" data-component="TextInput.LeadingVisual"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-search" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z"></path></svg></span><input type="text" aria-label="Go to file" role="combobox" aria-controls="file-results-list" aria-expanded="false" aria-haspopup="dialog" autoCorrect="off" spellCheck="false" placeholder="Go to file" aria-describedby="_R_2pcql3al1d_ _R_2pcql3al1dH1_" data-component="input" class="prc-components-Input-IwWrt" value=""/><span class="TextInput-icon" id="_R_2pcql3al1dH1_" aria-hidden="true" data-component="TextInput.TrailingVisual"></span></span></div><div class="d-none"></div></div><button data-component="Button" type="button" style="display:none" class="prc-Button-ButtonBase-9n-Xk NavigationMenu-module__Button__LpKgm" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="default"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="text" class="prc-Button-Label-FWkx3">Blame</span></span></button><div class="d-none"></div><button data-component="IconButton" type="button" data-testid="more-file-actions-button-nav-menu-wide" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk js-blob-dropdown-click NavigationMenu-module__IconButton__HpX3G prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="default" aria-labelledby="_R_ficql3al1d_" id="_R_icql3al1d_"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-kebab-horizontal" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M8 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM1.5 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm13 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path></svg></button><span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="nw" data-component="Tooltip" aria-hidden="true" id="_R_ficql3al1d_">More file actions</span></div></div></div><div class="react-code-view-header-element--narrow"><div class="CodeViewHeader-module__Box_7___0R6c"><div class="d-flex gap-2"><button data-component="Button" type="button" style="display:none" class="prc-Button-ButtonBase-9n-Xk NavigationMenu-module__Button__LpKgm" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="default"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="text" class="prc-Button-Label-FWkx3">Blame</span></span></button><div class="d-none"></div><button data-component="IconButton" type="button" data-testid="more-file-actions-button-nav-menu-narrow" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk js-blob-dropdown-click NavigationMenu-module__IconButton__HpX3G prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="medium" data-variant="default" aria-labelledby="_R_fieql3al1d_" id="_R_ieql3al1d_"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-kebab-horizontal" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M8 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM1.5 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm13 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path></svg></button><span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="nw" data-component="Tooltip" aria-hidden="true" id="_R_fieql3al1d_">More file actions</span></div></div></div></div></div></div></div><div class="CodeView-module__contentWrapper__cG2JH"><div class="react-code-view-bottom-padding"><div class="BlobTopBanners-module__Box__v_nvx"></div></div> <div class="d-none"></div><div class="d-flex flex-column border rounded-2 tmp-mb-3 pl-1"><div class="LatestCommit-module__Box__B25ZT"><h2 class="sr-only ScreenReaderHeading-module__userSelectNone__rwWIk prc-Heading-Heading-MtWFE" data-component="Heading" data-testid="screen-reader-heading">Latest commit</h2><div style="width:120px" class="Skeleton Skeleton--text" data-testid="loading"> </div><div class="d-flex flex-shrink-0 gap-2"><div data-testid="latest-commit-details" class="d-none d-sm-flex flex-items-center"></div><div class="d-flex gap-2"><h2 class="sr-only ScreenReaderHeading-module__userSelectNone__rwWIk prc-Heading-Heading-MtWFE" data-component="Heading" data-testid="screen-reader-heading">History</h2><a data-component="LinkButton" href="/umutkeltek/health-data-hub/commits/main/README.md" class="prc-Button-ButtonBase-9n-Xk d-none d-lg-flex LinkButton-module__linkButton__nFnov flex-items-center fgColor-default" data-loading="false" data-size="small" data-variant="invisible"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="leadingVisual" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-history" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="m.427 1.927 1.215 1.215a8.002 8.002 0 1 1-1.6 5.685.75.75 0 1 1 1.493-.154 6.5 6.5 0 1 0 1.18-4.458l1.358 1.358A.25.25 0 0 1 3.896 6H.25A.25.25 0 0 1 0 5.75V2.104a.25.25 0 0 1 .427-.177ZM7.75 4a.75.75 0 0 1 .75.75v2.992l2.028.812a.75.75 0 0 1-.557 1.392l-2.5-1A.751.751 0 0 1 7 8.25v-3.5A.75.75 0 0 1 7.75 4Z"></path></svg></span><span data-component="text" class="prc-Button-Label-FWkx3"><span class="fgColor-default">History</span></span></span></a><div class="d-sm-none"></div><div class="d-flex d-lg-none"><a data-component="LinkButton" aria-label="View commit history for this file." href="/umutkeltek/health-data-hub/commits/main/README.md" class="prc-Button-ButtonBase-9n-Xk LinkButton-module__linkButton__nFnov flex-items-center fgColor-default" data-loading="false" data-size="small" data-variant="invisible" aria-describedby="_R_2balal3al1d_"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="leadingVisual" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-history" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="m.427 1.927 1.215 1.215a8.002 8.002 0 1 1-1.6 5.685.75.75 0 1 1 1.493-.154 6.5 6.5 0 1 0 1.18-4.458l1.358 1.358A.25.25 0 0 1 3.896 6H.25A.25.25 0 0 1 0 5.75V2.104a.25.25 0 0 1 .427-.177ZM7.75 4a.75.75 0 0 1 .75.75v2.992l2.028.812a.75.75 0 0 1-.557 1.392l-2.5-1A.751.751 0 0 1 7 8.25v-3.5A.75.75 0 0 1 7.75 4Z"></path></svg></span></span></a><span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="s" data-component="Tooltip" role="tooltip" aria-hidden="true" id="_R_2balal3al1d_">History</span></div></div></div></div></div><div class="d-flex flex-row"><div class="container BlobViewContent-module__blobContainer__DtH2d"><div class="react-code-size-details-banner BlobViewContent-module__codeSizeDetails__e5sUw"><div class="react-code-size-details-banner CodeSizeDetails-module__Box__VcD6l"><div class="text-mono CodeSizeDetails-module__Box_1__GVxQL"><div data-testid="blob-size" class="CodeSizeDetails-module__Truncate_1__lE93V prc-Truncate-Truncate-2G1eo" data-inline="true" title="31.1 KB" style="--truncate-max-width:100%"><span>672 lines (484 loc) · 31.1 KB</span></div></div></div></div><div class="react-blob-view-header-sticky BlobViewContent-module__stickyHeader__VwxB5" id="repos-sticky-header"><div class="BlobViewHeader-module__Box__yhm9u"><div class="react-blob-sticky-header"><div class="FileNameStickyHeader-module__outerWrapper__ZL4Xc FileNameStickyHeader-module__outerWrapperHidden__Zpynk"><div class="FileNameStickyHeader-module__Box_1__Hazu5"><div class="FileNameStickyHeader-module__Box_2__hoolP"><div class="FileNameStickyHeader-module__Box_3__MVKsk"><button data-component="Button" type="button" aria-haspopup="true" aria-expanded="false" tabindex="0" aria-label="main branch" data-testid="anchor-button" data-icv-name="Switch branches/tags" class="prc-Button-ButtonBase-9n-Xk ref-selector-class RefSelectorAnchoredOverlay-module__RefSelectorOverlayBtn__a3WK3" data-loading="false" data-size="medium" data-variant="default" id="ref-picker-repos-header-ref-selector"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="text" class="prc-Button-Label-FWkx3"><div class="RefSelectorAnchoredOverlay-module__RefSelectorOverlayContainer__yaf4p"><div class="RefSelectorAnchoredOverlay-module__RefSelectorOverlayHeader__XtXRG"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-git-branch" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z"></path></svg></div><div style="max-width:125px" class="ref-selector-button-text-container RefSelectorAnchoredOverlay-module__RefSelectorBtnTextContainer__Di3rk"><span class="RefSelectorAnchoredOverlay-module__RefSelectorText__w_fmP"> <!-- -->main</span></div></div></span><span data-component="trailingVisual" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-triangle-down" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="m4.427 7.427 3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z"></path></svg></span></span></button><div class="d-none"></div></div><div class="FileNameStickyHeader-module__Box_4__FLhtt"><div class="Breadcrumb-module__container__Vxvev Breadcrumb-module__md__Wb1Gs"><nav data-testid="breadcrumbs" aria-labelledby="sticky-breadcrumb-heading" id="sticky-breadcrumb" class="Breadcrumb-module__nav__rQFDj"><h2 class="sr-only ScreenReaderHeading-module__userSelectNone__rwWIk prc-Heading-Heading-MtWFE" data-component="Heading" data-testid="screen-reader-heading" id="sticky-breadcrumb-heading">Breadcrumbs</h2><ol class="Breadcrumb-module__list__ZH6zr"><li class="Breadcrumb-module__listItem__Ib0x_"><a class="Breadcrumb-module__repoLink__O2Nbs prc-Link-Link-9ZwDx" data-component="Link" data-testid="breadcrumbs-repo-link" href="/umutkeltek/health-data-hub/tree/main" data-discover="true">health-data-hub</a></li></ol></nav><div data-testid="breadcrumbs-filename" class="Breadcrumb-module__filename__equZR"><span class="Breadcrumb-module__separator__eNwsI Breadcrumb-module__md__Wb1Gs" aria-hidden="true">/</span><h1 class="Breadcrumb-module__filenameHeading__MNMtw Breadcrumb-module__md__Wb1Gs prc-Heading-Heading-MtWFE" data-component="Heading" tabindex="-1" id="sticky-file-name-id">README.md</h1></div></div></div></div><button data-component="Button" type="button" class="prc-Button-ButtonBase-9n-Xk FileNameStickyHeader-module__Button__LSEU_ FileNameStickyHeader-module__GoToTopButton__nxAFn" data-loading="false" data-size="small" data-variant="invisible"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="leadingVisual" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-arrow-up" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M3.47 7.78a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0l4.25 4.25a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018L9 4.81v7.44a.75.75 0 0 1-1.5 0V4.81L4.53 7.78a.75.75 0 0 1-1.06 0Z"></path></svg></span><span data-component="text" class="prc-Button-Label-FWkx3">Top</span></span></button></div></div></div><div class="BlobViewHeader-module__Box_1__VEmuQ"><h2 class="sr-only ScreenReaderHeading-module__userSelectNone__rwWIk prc-Heading-Heading-MtWFE" data-component="Heading" data-testid="screen-reader-heading">File metadata and controls</h2><div class="BlobViewHeader-module__Box_2__icUs2"><ul aria-label="File view" class="prc-SegmentedControl-SegmentedControl-lqIXp BlobTabButtons-module__SegmentedControl__jen2u" data-variant="default" data-size="small"><li class="prc-SegmentedControl-Item-tSCQh" data-selected=""><button aria-current="true" class="prc-SegmentedControl-Button-E48xz" type="button" style="--separator-color:transparent"><span class="prc-SegmentedControl-Content-1COlk segmentedControl-content"><div class="prc-SegmentedControl-Text-7S2y2 segmentedControl-text" data-text="Preview">Preview</div></span></button></li><li class="prc-SegmentedControl-Item-tSCQh"><button aria-current="false" class="prc-SegmentedControl-Button-E48xz" type="button" style="--separator-color:var(--borderColor-default)"><span class="prc-SegmentedControl-Content-1COlk segmentedControl-content"><div class="prc-SegmentedControl-Text-7S2y2 segmentedControl-text" data-text="Code">Code</div></span></button></li><li class="prc-SegmentedControl-Item-tSCQh"><button aria-current="false" class="prc-SegmentedControl-Button-E48xz" type="button" style="--separator-color:var(--borderColor-default)"><span class="prc-SegmentedControl-Content-1COlk segmentedControl-content"><div class="prc-SegmentedControl-Text-7S2y2 segmentedControl-text" data-text="Blame">Blame</div></span></button></li></ul><div class="d-none"></div><div class="react-code-size-details-in-header CodeSizeDetails-module__Box__VcD6l"><div class="text-mono CodeSizeDetails-module__Box_1__GVxQL"><div data-testid="blob-size" class="CodeSizeDetails-module__Truncate_1__lE93V prc-Truncate-Truncate-2G1eo" data-inline="true" title="31.1 KB" style="--truncate-max-width:100%"><span>672 lines (484 loc) · 31.1 KB</span></div></div></div></div><div class="BlobViewHeader-module__Box_3__ng6v2"><div class="d-none"></div><div class="react-blob-header-edit-and-raw-actions BlobViewHeader-module__Box_4__J4Y4W"><div class="d-none"></div><div class="prc-ButtonGroup-ButtonGroup-vFUrY" data-component="ButtonGroup"><div><a data-component="LinkButton" href="https://github.com/umutkeltek/health-data-hub/raw/refs/heads/main/README.md" data-testid="raw-button" class="prc-Button-ButtonBase-9n-Xk LinkButton-module__linkButton__nFnov BlobViewHeader-module__LinkButton__X9kx2" data-loading="false" data-no-visuals="true" data-size="small" data-variant="default"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="text" class="prc-Button-Label-FWkx3">Raw</span></span></a></div><div><button data-component="IconButton" type="button" data-testid="copy-raw-button" class="prc-Button-ButtonBase-9n-Xk prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="default" aria-labelledby="_R_d5f6clal3al1d_"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-copy" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg></button><span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="n" data-component="Tooltip" aria-hidden="true" id="_R_d5f6clal3al1d_">Copy raw file</span></div><div><button data-component="IconButton" type="button" data-testid="download-raw-button" class="prc-Button-ButtonBase-9n-Xk BlobViewHeader-module__downloadButton__ef459 prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="default" aria-labelledby="_R_75f6clal3al1d_"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-download" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"></path><path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.969a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.78a.749.749 0 1 1 1.06-1.06l1.97 1.969Z"></path></svg></button><span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="n" data-component="Tooltip" aria-hidden="true" id="_R_75f6clal3al1d_">Download raw file</span></div></div></div><button data-component="IconButton" type="button" aria-pressed="false" class="prc-Button-ButtonBase-9n-Xk tmp-mr-2 TableOfContents-module__IconButton__jrlNM prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_R_1v6clal3al1d_"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-list-unordered" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M5.75 2.5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5Zm0 5h8.5a.75.75 0 0 1 0 1.5h-8.5a.75.75 0 0 1 0-1.5ZM2 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-6a1 1 0 1 1-2 0 1 1 0 0 1 2 0ZM2 4a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"></path></svg></button><span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="n" data-component="Tooltip" aria-hidden="true" id="_R_1v6clal3al1d_">Outline</span><div class="react-blob-header-edit-and-raw-actions-combined"><button data-component="IconButton" type="button" title="More file actions" data-testid="more-file-actions-button" aria-haspopup="true" aria-expanded="false" tabindex="0" class="prc-Button-ButtonBase-9n-Xk js-blob-dropdown-click BlobViewHeader-module__IconButton__XrMQY prc-Button-IconButton-fyge7" data-loading="false" data-no-visuals="true" data-size="small" data-variant="invisible" aria-labelledby="_R_7q76clal3al1d_" id="_R_a76clal3al1d_"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-kebab-horizontal" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M8 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3ZM1.5 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm13 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"></path></svg></button><span class="prc-TooltipV2-Tooltip-tLeuB" data-direction="nw" data-component="Tooltip" aria-hidden="true" id="_R_7q76clal3al1d_">Edit and raw actions</span></div></div></div></div><div></div></div><div class="BlobViewContent-module__blobContentWrapper__JS0W6"><section aria-labelledby="file-name-id-wide file-name-id-mobile" class="BlobContent-module__blobContentSection__VOgZq BlobContent-module__blobContentSectionMarkdown__mPLOK" style="margin-top:46px"><div class="js-snippet-clipboard-copy-unpositioned BlobContent-module__markdownBlob__T8jpG" data-hpc="true"><article class="markdown-body entry-content container-lg" itemprop="text"><div class="markdown-heading" dir="auto"><h1 tabindex="-1" class="heading-element" dir="auto">Health Data Hub</h1><a id="user-content-health-data-hub" class="anchor" aria-label="Permalink: Health Data Hub" href="#health-data-hub"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="https://github.com/umutkeltek/health-data-hub/actions/workflows/ci.yml"><img src="https://github.com/umutkeltek/health-data-hub/actions/workflows/ci.yml/badge.svg" alt="CI" style="max-width: 100%;"></a>
+<a href="/umutkeltek/health-data-hub/blob/main/LICENSE"><img src="https://camo.githubusercontent.com/4b16f685c1349e68f267f0b909391739f067b3b9c4d07ae4f56ef6dd6c27fe8c/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4c6963656e73652d456c61737469632d2d322e302d3030353537312e737667" alt="License: Elastic 2.0" data-canonical-src="https://img.shields.io/badge/License-Elastic--2.0-005571.svg" style="max-width: 100%;"></a>
+<a href="https://www.python.org/downloads/" rel="nofollow"><img src="https://camo.githubusercontent.com/0906ab8f9e81a8fac61a4b1717d44a7eb5255d5649a5635c203613aa54e1227a/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f707974686f6e2d332e31322d3337373641422e7376673f6c6f676f3d707974686f6e266c6f676f436f6c6f723d7768697465" alt="Python 3.12" data-canonical-src="https://img.shields.io/badge/python-3.12-3776AB.svg?logo=python&amp;logoColor=white" style="max-width: 100%;"></a>
+<a href="https://fastapi.tiangolo.com/" rel="nofollow"><img src="https://camo.githubusercontent.com/3b750845d27fafb6e721afb3c79b6406a43d0ada92aa36a16a50e602f817d4ce/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f466173744150492d302e3131352d3030393638382e7376673f6c6f676f3d66617374617069266c6f676f436f6c6f723d7768697465" alt="FastAPI" data-canonical-src="https://img.shields.io/badge/FastAPI-0.115-009688.svg?logo=fastapi&amp;logoColor=white" style="max-width: 100%;"></a>
+<a href="https://www.timescale.com/" rel="nofollow"><img src="https://camo.githubusercontent.com/c30c7055ca20538dd19e2fd4c95561ed19b576cc5de6676e23d242cabd1e1339/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f54696d657363616c6544422d506f737467726553514c2d4644423531352e7376673f6c6f676f3d706f737467726573716c266c6f676f436f6c6f723d7768697465" alt="TimescaleDB" data-canonical-src="https://img.shields.io/badge/TimescaleDB-PostgreSQL-FDB515.svg?logo=postgresql&amp;logoColor=white" style="max-width: 100%;"></a>
+<a href="https://www.docker.com/" rel="nofollow"><img src="https://camo.githubusercontent.com/8dc861ee5c6d090d50c53d14187195f7615ad1bf66d66303b52871da1ee5f735/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f446f636b65722d72656164792d3234393645442e7376673f6c6f676f3d646f636b6572266c6f676f436f6c6f723d7768697465" alt="Docker" data-canonical-src="https://img.shields.io/badge/Docker-ready-2496ED.svg?logo=docker&amp;logoColor=white" style="max-width: 100%;"></a>
+<a href="https://ollama.com/" rel="nofollow"><img src="https://camo.githubusercontent.com/ab1005e3f01dd605e92b17b35b7d8e7e4d705b419514da0725b05d342bdc9146/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f4f6c6c616d612d6c6f63616c2532304c4c4d2d3030303030302e737667" alt="Ollama" data-canonical-src="https://img.shields.io/badge/Ollama-local%20LLM-000000.svg" style="max-width: 100%;"></a>
+<a href="https://apps.apple.com/app/id6759843047" rel="nofollow"><img src="https://camo.githubusercontent.com/65e83e38b99cfd92e0f060beb36fd6ce377049e33d7e2542c4149f686a1bb3f3/68747470733a2f2f696d672e736869656c64732e696f2f62616467652f446f776e6c6f61642d41707025323053746f72652d3044393646363f6c6f676f3d6170706c65266c6f676f436f6c6f723d7768697465" alt="Download on the App Store" data-canonical-src="https://img.shields.io/badge/Download-App%20Store-0D96F6?logo=apple&amp;logoColor=white" style="max-width: 100%;"></a></p>
+<blockquote>
+<p dir="auto"><strong>Self-hosted Apple Health server</strong> - sync HealthKit data from your iPhone and Apple Watch into TimescaleDB, visualize it in Grafana, and get an AI-written daily briefing via a local Ollama model. Private. Local-first. Your data stays on your hardware.</p>
+</blockquote>
+<blockquote>
+<p dir="auto"><strong>New here?</strong> <a href="/umutkeltek/health-data-hub/blob/main/BRIDGE.md">BRIDGE.md</a> is the one-page tour: pipeline diagram, who it's for, what's local vs self-hosted, setup gotchas. Read that first if 500 lines of README is too much.</p>
+</blockquote>
+<p dir="auto"><strong>Keywords:</strong> <code>apple-health</code> · <code>healthkit</code> · <code>self-hosted</code> · <code>quantified-self</code> · <code>timescaledb</code> · <code>grafana</code> · <code>fastapi</code> · <code>ollama</code> · <code>local-llm</code> · <code>home-assistant</code> · <code>docker</code> · <code>privacy</code> · <code>health-data</code> · <code>wearables</code></p>
+<p dir="auto">Your own server, on your own hardware, turning the health data your phone already collects into an AI-written daily briefing - no cloud, no subscription, no one else reading your numbers.</p>
+<p dir="auto">You point your iPhone at it. It stores everything from your Apple Watch (heart rate, HRV, SpO2, sleep, workouts, steps, and more), graphs it in Grafana, and - if you turn it on - runs a small local AI model that writes you a short narrative every morning about how your body is actually doing.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Don't want to self-host?</h2><a id="user-content-dont-want-to-self-host" class="anchor" aria-label="Permalink: Don't want to self-host?" href="#dont-want-to-self-host"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><a href="https://apps.apple.com/app/id6759843047" rel="nofollow">HealthSave</a> is the iOS app side of this stack. It runs standalone — Dashboard, Trends, Export to CSV / JSON / PDF, all on-device. Self-hosting is only needed if you want long-term storage, Grafana dashboards, or AI briefings.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">What you get</h2><a id="user-content-what-you-get" class="anchor" aria-label="Permalink: What you get" href="#what-you-get"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<ul dir="auto">
+<li>A long-term store for every Apple Health metric your phone collects, queryable with normal SQL</li>
+<li>A set of ready-made Grafana dashboards (heart, sleep, activity, workouts) that work the moment data starts flowing</li>
+<li>An optional AI briefing system that turns numbers into plain English ("HRV trended down three days in a row, sleep was light last night, expect a low-energy morning")</li>
+<li>A clean ingest API anyone can build against - the iOS app is one client, Garmin Connect exports and Samsung/Huawei Health Sync CSVs are others via <a href="/umutkeltek/health-data-hub/blob/main/scripts/import_garmin.py"><code>scripts/import_garmin.py</code></a> and <a href="/umutkeltek/health-data-hub/blob/main/scripts/import_samsung.py"><code>scripts/import_samsung.py</code></a></li>
+<li>Drop-in examples for piping selected metrics into Home Assistant for automations</li>
+</ul>
+<p dir="auto">The entire stack runs in Docker on a laptop, a NUC, a Mac mini, a Synology, or a beefy workstation - your choice. Nothing phones home.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Quick start</h2><a id="user-content-quick-start" class="anchor" aria-label="Permalink: Quick start" href="#quick-start"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">You need <a href="https://www.docker.com/products/docker-desktop/" rel="nofollow">Docker</a> installed and running, plus a terminal. On Windows, run this inside WSL2 - <code>setup.sh</code> is a bash script.</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="git clone https://github.com/umutkeltek/health-data-hub.git
+cd health-data-hub
+./setup.sh"><pre>git clone https://github.com/umutkeltek/health-data-hub.git
+<span class="pl-c1">cd</span> health-data-hub
+./setup.sh</pre></div>
+<p dir="auto">That's it. <code>setup.sh</code>:</p>
+<ol dir="auto">
+<li>Generates secure passwords and writes a <code>.env</code> for you</li>
+<li>Asks if you want the AI briefing system, then <strong>detects your RAM + GPU and recommends the right Ollama model</strong> (you can override)</li>
+<li>Brings the whole stack up with <code>docker compose up -d</code></li>
+</ol>
+<p dir="auto">When it finishes, run <code>./setup.sh doctor</code> to confirm every service is healthy. The doctor prints the exact iOS-app URL to paste into <a href="https://apps.apple.com/app/id6759843047" rel="nofollow">HealthSave</a> under Settings → Server Sync.</p>
+<p dir="auto">Re-running <code>./setup.sh</code> is safe - it preserves passwords and updates only the AI-related config based on your answers.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Hardware recommendations</h2><a id="user-content-hardware-recommendations" class="anchor" aria-label="Permalink: Hardware recommendations" href="#hardware-recommendations"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The AI briefing uses a local language model running through <a href="https://ollama.com" rel="nofollow">Ollama</a> (a tiny daemon that runs LLMs on your own machine). Different models need different amounts of RAM. <code>setup.sh</code> reads your system RAM + GPU and suggests one - but you can pick any Ollama tag.</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>System RAM</th>
+<th>No GPU / Apple Silicon</th>
+<th>NVIDIA GPU detected</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>&lt; 6 GB</td>
+<td><em>too small - skip AI</em></td>
+<td><em>too small - skip AI</em></td>
+</tr>
+<tr>
+<td>6–10 GB</td>
+<td><code>llama3.2:1b</code> (~1.3 GB)</td>
+<td><code>gemma3:4b</code> (~3 GB)</td>
+</tr>
+<tr>
+<td>10–18 GB</td>
+<td><code>gemma3:4b</code> (~3 GB)</td>
+<td><code>qwen3:8b</code> (~5 GB)</td>
+</tr>
+<tr>
+<td>18–36 GB</td>
+<td><code>qwen3:8b</code> (~5 GB)</td>
+<td><code>qwen3:14b</code> (~9 GB)</td>
+</tr>
+<tr>
+<td>36–96 GB</td>
+<td><code>qwen3:14b</code> (~9 GB)</td>
+<td><code>gemma3:27b</code> (~17 GB)</td>
+</tr>
+<tr>
+<td>&gt; 96 GB</td>
+<td><code>llama3.3:70b</code> (~40 GB)</td>
+<td><code>llama4:scout</code> (MoE, ~40 GB) or <code>llama3.3:70b</code></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">A quick translation:</p>
+<ul dir="auto">
+<li><strong>Apple Silicon Macs</strong> (M1/M2/M3/M4) use unified memory, so system RAM ≈ what the model can use. A 16 GB MacBook Air handles <code>gemma3:4b</code> comfortably; a 64 GB Studio runs <code>qwen3:14b</code> with headroom.</li>
+<li><strong>Linux box with an NVIDIA GPU</strong> - Ollama uses CUDA. The recommendation bumps a tier because the GPU absorbs most of the work.</li>
+<li><strong>AMD GPU on Linux</strong> - Ollama can use ROCm but coverage varies; treated as CPU-only in the recommendation logic.</li>
+<li><strong>Intel Macs and Windows-without-WSL</strong> - fall back to CPU-only conservative defaults; still works, just slower.</li>
+</ul>
+<p dir="auto">These picks default to the <strong>2026 instruction-tuned generations</strong> (Llama 3.3, Qwen 3, Gemma 3, Llama 4 Scout) because the AI briefing is a narrative-prose task — generalist chat models beat reasoning specialists like DeepSeek-R1 here. Older <code>llama3.1:8b</code> / <code>qwen2.5:14b</code> still work fine if that's what you have pulled; the table is a recommendation, not a requirement. Llama 4 Scout uses Mixture-of-Experts so only ~17 B parameters are active per token, which is why it fits the 70 B-class slot despite its 109 B total parameter count.</p>
+<p dir="auto">You can change the model later (see Troubleshooting).</p>
+<p dir="auto">If you're on something smaller than 6 GB RAM (a Pi 4, an old NAS), <code>setup.sh</code> will recommend skipping AI entirely. The ingest pipeline still runs - you just won't get the morning narrative.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">How the AI analysis works</h2><a id="user-content-how-the-ai-analysis-works" class="anchor" aria-label="Permalink: How the AI analysis works" href="#how-the-ai-analysis-works"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The briefing isn't "feed everything to ChatGPT and hope". It's a <strong>two-brain system</strong>:</p>
+<ul dir="auto">
+<li><strong>Brain 1 - the statistical engine.</strong> A small Python module that runs on a schedule, reads your time-series data (heart rate, HRV, sleep, etc.), computes baselines and trends, and flags anything statistically interesting (a 3-day HRV decline, a heart-rate-recovery anomaly, a sleep-stage shift). It produces structured findings, not prose.</li>
+<li><strong>Brain 2 - the narrative LLM.</strong> A local Ollama model takes those findings and rewrites them as a short, readable briefing. It doesn't see raw numbers it doesn't need; it sees flagged findings and turns them into "Your HRV has dropped three days running while sleep efficiency stayed flat - this often shows up before a stress spike".</li>
+</ul>
+<p dir="auto">This split is deliberate: the math stays deterministic and auditable; the LLM only handles the part where natural language actually helps. No cloud, no per-query cost, no data leaving your network.</p>
+<p dir="auto">What's included in the MVP:</p>
+<ul dir="auto">
+<li>Daily HR / HRV summary</li>
+<li>HR / HRV anomaly detection against your rolling baseline</li>
+<li>HR / HRV trend detection over a configurable 30-day window</li>
+<li>Workout recovery hints when HR or HRV deviates from baseline</li>
+<li>A <code>POST /api/insights/trigger</code> endpoint for running briefings or trend checks on demand</li>
+</ul>
+<p dir="auto">What's <em>not</em> yet included (and on the roadmap): goal-tracking, anomaly alerting via Home Assistant, multi-person households, correlation analysis, weekly summaries.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Your first insight</h2><a id="user-content-your-first-insight" class="anchor" aria-label="Permalink: Your first insight" href="#your-first-insight"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Briefings need at least one full day of heart-rate data to say anything useful. Once you've synced from HealthSave at least once, you have two ways to see your first briefing:</p>
+<p dir="auto"><strong>Option A - wait for the daily cron.</strong> The analysis worker ticks once a day (default 7am local) and writes a fresh briefing. Easiest, but slow if you just installed.</p>
+<p dir="auto"><strong>Option B - trigger one now.</strong> Hit the trigger endpoint:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="curl -X POST http://localhost:8000/api/insights/trigger"><pre>curl -X POST http://localhost:8000/api/insights/trigger</pre></div>
+<p dir="auto">(Add <code>-H "X-API-Key: your-key"</code> if you set an <code>API_KEY</code> in <code>.env</code>.)</p>
+<p dir="auto">The response includes the run ID; you can poll <code>GET /api/insights/latest</code> for the rendered briefing once the run completes (usually 5–30 seconds depending on model size).</p>
+<p dir="auto">If the briefing comes back empty or terse, it usually means there isn't enough data yet. Sync another day's worth and trigger again.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Connect HealthSave</h2><a id="user-content-connect-healthsave" class="anchor" aria-label="Permalink: Connect HealthSave" href="#connect-healthsave"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The easiest way to push HealthKit data into this stack is the <a href="https://apps.apple.com/app/id6759843047" rel="nofollow">HealthSave iOS app</a>.</p>
+<p dir="auto">HealthSave expects a base server URL and appends the API paths itself:</p>
+<p dir="auto"><code>http://your-server-ip:8000</code></p>
+<ol dir="auto">
+<li>Open HealthSave → Settings → Server Sync</li>
+<li>Set Server URL to: <code>http://your-server-ip:8000</code></li>
+<li>(Optional) Set your API key if you configured one</li>
+<li>Tap "Sync New Data"</li>
+</ol>
+<p dir="auto">If you're building another client, the batch ingest endpoint is:</p>
+<p dir="auto"><code>http://your-server-ip:8000/api/apple/batch</code></p>
+<p dir="auto">The full request/response contract, including the exact <code>/api/apple/status</code> shape expected by the iOS app, is documented in <a href="/umutkeltek/health-data-hub/blob/main/API.md">API.md</a>.</p>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">Troubleshooting</h2><a id="user-content-troubleshooting" class="anchor" aria-label="Permalink: Troubleshooting" href="#troubleshooting"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><strong>The Ollama container won't start.</strong></p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="docker compose logs ollama"><pre>docker compose logs ollama</pre></div>
+<p dir="auto">The most common causes are: not enough free RAM (Ollama refuses to load a model that won't fit), the override file missing (re-run <code>./setup.sh</code> - it copies the example), or another process holding port 11434 (stop it, or edit <code>docker-compose.override.yml</code> to bind a different port).</p>
+<p dir="auto"><strong>My briefing came back empty (or said "not enough data").</strong></p>
+<p dir="auto">Two things to check:</p>
+<ol dir="auto">
+<li>Has HealthSave actually synced? Hit <code>http://localhost:8000/api/apple/status</code> - if the table counts are all zero, sync from your phone first.</li>
+<li>How much history do you have? The statistical engine needs at least ~24 hours of heart-rate data to compute anything. Newly-installed users typically see a real briefing on day 2.</li>
+</ol>
+<p dir="auto"><strong>I want to change the model after setup.</strong></p>
+<p dir="auto">Edit the <code>OLLAMA_MODEL=</code> line in your <code>.env</code>, then pull the new tag and restart:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="# Edit .env to set OLLAMA_MODEL=&lt;new-tag&gt;
+docker compose exec ollama ollama pull &lt;new-tag&gt;
+docker compose restart api"><pre><span class="pl-c"><span class="pl-c">#</span> Edit .env to set OLLAMA_MODEL=&lt;new-tag&gt;</span>
+docker compose <span class="pl-c1">exec</span> ollama ollama pull <span class="pl-k">&lt;</span>new-tag<span class="pl-k">&gt;</span>
+docker compose restart api</pre></div>
+<p dir="auto">The tier table above is a starting point - any Ollama model tag works. Browse <a href="https://ollama.com/library" rel="nofollow">ollama.com/library</a> for the full list.</p>
+<p dir="auto"><strong><code>./setup.sh doctor</code> says a service isn't running.</strong></p>
+<p dir="auto">Run <code>docker compose logs &lt;service&gt;</code> (e.g. <code>docker compose logs api</code>) to see why. Most first-time failures are Docker not having enough memory allocated - bump it in Docker Desktop's preferences and re-run <code>./setup.sh</code>.</p>
+<hr>
+<div class="markdown-heading" dir="auto"><h2 tabindex="-1" class="heading-element" dir="auto">For developers</h2><a id="user-content-for-developers" class="anchor" aria-label="Permalink: For developers" href="#for-developers"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Stack</h3><a id="user-content-stack" class="anchor" aria-label="Permalink: Stack" href="#stack"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">FastAPI + TimescaleDB + Grafana, plus an optional Ollama sidecar for the LLM. Python 3.12, async SQLAlchemy with asyncpg, ruff for lint+format, pytest for tests.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Architecture</h3><a id="user-content-architecture" class="anchor" aria-label="Permalink: Architecture" href="#architecture"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="iPhone (HealthSave app)
     │
     │  POST /api/apple/batch (JSON over HTTPS)
     │
@@ -154,102 +1468,662 @@ TimescaleDB (port 5432)
     │
     │  SQL queries + continuous aggregates
     │
+    ├──────────────────────────────┐
+    ▼                              ▼
+Grafana (port 3000)        Analysis worker
+                                   │
+                                   │  findings (structured)
+                                   ▼
+                           Ollama (port 11434)
+                                   │
+                                   │  briefing (prose)
+                                   ▼
+                           /api/insights/latest"><pre class="notranslate"><code>iPhone (HealthSave app)
+    │
+    │  POST /api/apple/batch (JSON over HTTPS)
+    │
     ▼
-Grafana (port 3000)
-```
+FastAPI (port 8000)
+    │
+    │  INSERT ... ON CONFLICT DO UPDATE (idempotent)
+    │
+    ▼
+TimescaleDB (port 5432)
+    │
+    │  SQL queries + continuous aggregates
+    │
+    ├──────────────────────────────┐
+    ▼                              ▼
+Grafana (port 3000)        Analysis worker
+                                   │
+                                   │  findings (structured)
+                                   ▼
+                           Ollama (port 11434)
+                                   │
+                                   │  briefing (prose)
+                                   ▼
+                           /api/insights/latest
+</code></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">What gets synced</h3><a id="user-content-what-gets-synced" class="anchor" aria-label="Permalink: What gets synced" href="#what-gets-synced"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The server receives and stores 120+ HealthKit metrics:</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>heart_rate</code></td>
+<td>Continuous HR from Apple Watch / Whoop</td>
+</tr>
+<tr>
+<td><code>hrv</code></td>
+<td>Heart rate variability (SDNN)</td>
+</tr>
+<tr>
+<td><code>blood_oxygen</code></td>
+<td>SpO2 readings, with source labels for provider data</td>
+</tr>
+<tr>
+<td><code>daily_activity</code></td>
+<td>Steps, distance, calories, exercise minutes</td>
+</tr>
+<tr>
+<td><code>sleep_sessions</code></td>
+<td>Sleep duration, stages, respiratory rate</td>
+</tr>
+<tr>
+<td><code>workouts</code></td>
+<td>Workout type, duration, HR zones, source labels</td>
+</tr>
+<tr>
+<td><code>quantity_samples</code></td>
+<td>Catch-all for optional HealthKit metrics and provider aggregates such as Whoop recovery score, resting HR, strain, and sleep aggregates</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Manual quick-start (without <code>setup.sh</code>)</h3><a id="user-content-manual-quick-start-without-setupsh" class="anchor" aria-label="Permalink: Manual quick-start (without setup.sh)" href="#manual-quick-start-without-setupsh"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="cp .env.example .env
+# Edit .env with your passwords
 
-## API Endpoints
+docker compose up -d"><pre>cp .env.example .env
+<span class="pl-c"><span class="pl-c">#</span> Edit .env with your passwords</span>
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/api/health` | GET | App-friendly health check |
-| `/ready` | GET | API plus database readiness check |
-| `/api/apple/batch` | POST | Receive metric batch from the client bridge |
-| `/api/apple/status` | GET | Return flat per-table status objects |
+docker compose up -d</pre></div>
+<p dir="auto">This starts:</p>
+<ul dir="auto">
+<li><strong>TimescaleDB</strong> on port 5432</li>
+<li><strong>FastAPI</strong> on port 8000</li>
+<li><strong>Grafana</strong> on port 3000 (default login: admin / your GRAFANA_PASSWORD)</li>
+</ul>
+<p dir="auto">The database port is bound to <code>127.0.0.1</code> by default so it is available for
+local tooling without being exposed on your LAN.</p>
+<p dir="auto">To opt into Ollama manually, copy <code>docker-compose.override.yml.example</code> to <code>docker-compose.override.yml</code>, copy <code>config.yaml.example</code> to <code>config.yaml</code>, set <code>analysis.daily_briefing.enabled</code> and <code>analysis.anomaly_detection.enabled</code> to <code>true</code>, and set <code>OLLAMA_MODEL</code> in <code>.env</code> to the tag you want.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">API Endpoints</h3><a id="user-content-api-endpoints" class="anchor" aria-label="Permalink: API Endpoints" href="#api-endpoints"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/health</code></td>
+<td>GET</td>
+<td>Health check</td>
+</tr>
+<tr>
+<td><code>/api/health</code></td>
+<td>GET</td>
+<td>App-friendly health check</td>
+</tr>
+<tr>
+<td><code>/ready</code></td>
+<td>GET</td>
+<td>API plus database readiness check</td>
+</tr>
+<tr>
+<td><code>/api/apple/batch</code></td>
+<td>POST</td>
+<td>Receive metric batch from the client bridge</td>
+</tr>
+<tr>
+<td><code>/api/apple/status</code></td>
+<td>GET</td>
+<td>Return flat per-table status objects</td>
+</tr>
+<tr>
+<td><code>/api/v2/sync/runs/latest</code></td>
+<td>GET</td>
+<td>Optional latest HealthSave delivery receipt</td>
+</tr>
+<tr>
+<td><code>/api/v2/sync/coverage</code></td>
+<td>GET</td>
+<td>Optional metric-level receipt coverage</td>
+</tr>
+<tr>
+<td><code>/api/insights/latest</code></td>
+<td>GET</td>
+<td>Most recent briefing (if AI enabled)</td>
+</tr>
+<tr>
+<td><code>/api/insights/anomalies</code></td>
+<td>GET</td>
+<td>Recent anomaly findings, filterable by <code>since</code> and <code>severity</code></td>
+</tr>
+<tr>
+<td><code>/api/insights/trends</code></td>
+<td>GET</td>
+<td>Recent HR / HRV trend findings, filterable by <code>period=30d</code></td>
+</tr>
+<tr>
+<td><code>/api/insights/trigger</code></td>
+<td>POST</td>
+<td>Run an analysis pass now (if AI enabled)</td>
+</tr>
+<tr>
+<td><code>/metrics</code></td>
+<td>GET</td>
+<td>Prometheus text exposition (no auth, DB-independent)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><code>/api/apple/status</code> intentionally returns top-level metric objects, not a
+wrapped <code>{"status":"ok","counts":...}</code> payload. See <a href="/umutkeltek/health-data-hub/blob/main/API.md">API.md</a> for
+the compatibility contract.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Prometheus Metrics</h3><a id="user-content-prometheus-metrics" class="anchor" aria-label="Permalink: Prometheus Metrics" href="#prometheus-metrics"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto"><code>/metrics</code> exposes runtime counters and a histogram in Prometheus text
+exposition format. The endpoint is unauthenticated by design (so scrapers
+do not need <code>X-API-Key</code>) and does not touch the database, so it returns
+200 even when Postgres is down — safe to use as a liveness target.</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hdh_ingest_batches_total</code></td>
+<td>counter</td>
+<td><code>metric</code></td>
+<td>Batches accepted by <code>/api/apple/batch</code>, including empty ones</td>
+</tr>
+<tr>
+<td><code>hdh_ingest_rows_total</code></td>
+<td>counter</td>
+<td><code>metric</code></td>
+<td>Rows persisted per metric (cumulative)</td>
+</tr>
+<tr>
+<td><code>hdh_ingest_duration_seconds</code></td>
+<td>histogram</td>
+<td><code>metric</code></td>
+<td>End-to-end batch handler latency</td>
+</tr>
+<tr>
+<td><code>hdh_ai_briefing_runs_total</code></td>
+<td>counter</td>
+<td><code>job</code>, <code>result</code></td>
+<td>Daily briefing / anomaly check / trend analysis runs by outcome (<code>success</code> / <code>failure</code>)</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">Prometheus scrape config:</p>
+<div class="highlight highlight-source-yaml notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="scrape_configs:
+  - job_name: health-data-hub
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['health-data-hub:8000']  # or 'localhost:8000' for host scrape"><pre><span class="pl-ent">scrape_configs</span>:
+  - <span class="pl-ent">job_name</span>: <span class="pl-s">health-data-hub</span>
+    <span class="pl-ent">metrics_path</span>: <span class="pl-s">/metrics</span>
+    <span class="pl-ent">static_configs</span>:
+      - <span class="pl-ent">targets</span>: <span class="pl-s">['health-data-hub:8000']  </span><span class="pl-c"><span class="pl-c">#</span> or 'localhost:8000' for host scrape</span></pre></div>
+<p dir="auto">Sample Grafana panel — rows ingested per second, broken down by metric
+(Time series panel):</p>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="sum by (metric) (rate(hdh_ingest_rows_total[5m]))"><pre lang="promql" class="notranslate"><code>sum by (metric) (rate(hdh_ingest_rows_total[5m]))
+</code></pre></div>
+<p dir="auto">Pair <code>rate(hdh_ai_briefing_runs_total{result="failure"}[1h])</code> with an
+alert if you want a heads-up when nightly analysis starts failing.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Garmin Imports</h3><a id="user-content-garmin-imports" class="anchor" aria-label="Permalink: Garmin Imports" href="#garmin-imports"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Garmin Connect users can sideload data into the same <code>/api/apple/batch</code>
+endpoint via <code>scripts/import_garmin.py</code>. The script supports the bulk
+"Export Your Data" ZIP, individual FIT/TCX activity files, and the
+JSON files Garmin includes for daily steps and sleep stages.</p>
+<p dir="auto">Install the optional FIT-parsing dependency once:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="pip install -e &quot;.[garmin]&quot;   # adds fitparse for FIT activity files"><pre>pip install -e <span class="pl-s"><span class="pl-pds">"</span>.[garmin]<span class="pl-pds">"</span></span>   <span class="pl-c"><span class="pl-c">#</span> adds fitparse for FIT activity files</span></pre></div>
+<p dir="auto">(TCX, JSON, and ZIP parsing use only the standard library.)</p>
+<p dir="auto">Run it:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="# Bulk export ZIP - walks every supported file inside
+python scripts/import_garmin.py \
+  --zip GarminConnect_Export.zip \
+  --server http://localhost:8000 \
+  --api-key $HDH_API_KEY
 
-`/api/apple/status` intentionally returns top-level metric objects, not a
-wrapped `{"status":"ok","counts":...}` payload. See [API.md](API.md) for
-the compatibility contract.
+# Individual files
+python scripts/import_garmin.py --tcx run.tcx --steps-json steps.json --sleep-json sleep.json
 
-## Deduplication
+# Sanity-check the payload before sending
+python scripts/import_garmin.py --tcx run.tcx --dry-run"><pre><span class="pl-c"><span class="pl-c">#</span> Bulk export ZIP - walks every supported file inside</span>
+python scripts/import_garmin.py \
+  --zip GarminConnect_Export.zip \
+  --server http://localhost:8000 \
+  --api-key <span class="pl-smi">$HDH_API_KEY</span>
 
-All ingestion is idempotent:
-- Unique indexes on first-class metric identity columns
-- `INSERT ... ON CONFLICT DO UPDATE` for upsert behavior
-- In-memory dedup within each batch to avoid PG errors
+<span class="pl-c"><span class="pl-c">#</span> Individual files</span>
+python scripts/import_garmin.py --tcx run.tcx --steps-json steps.json --sleep-json sleep.json
 
-You can safely re-sync or retry without inflating your data.
+<span class="pl-c"><span class="pl-c">#</span> Sanity-check the payload before sending</span>
+python scripts/import_garmin.py --tcx run.tcx --dry-run</pre></div>
+<p dir="auto">Mapping:</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Source</th>
+<th>HealthSave metric</th>
+<th>Server table</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>FIT/TCX heart-rate records</td>
+<td><code>heart_rate</code></td>
+<td><code>heart_rate</code></td>
+</tr>
+<tr>
+<td>Daily step totals (JSON)</td>
+<td><code>step_count</code></td>
+<td><code>daily_activity.steps</code></td>
+</tr>
+<tr>
+<td>Sleep stages (JSON)</td>
+<td><code>sleep_analysis</code></td>
+<td><code>sleep_sessions</code> + <code>sleep_stages</code></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Samsung / Huawei Health Sync Imports</h3><a id="user-content-samsung--huawei-health-sync-imports" class="anchor" aria-label="Permalink: Samsung / Huawei Health Sync Imports" href="#samsung--huawei-health-sync-imports"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Android users can sideload Samsung Health or Huawei Health data exported through
+the Android <a href="https://healthsync.app/" rel="nofollow">Health Sync</a> app via
+<code>scripts/import_samsung.py</code>. The importer reads Health Sync CSV folders and sends
+the same <code>/api/apple/batch</code> payload shape as the iOS app, so deduplication,
+auditing, sync receipts, and dashboards all stay on the normal ingest path.</p>
+<p dir="auto">Supported Health Sync folders:</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Folder</th>
+<th>HealthSave metric</th>
+<th>Server table</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Health Sync Steps/</code></td>
+<td><code>step_count</code></td>
+<td><code>daily_activity.steps</code></td>
+</tr>
+<tr>
+<td><code>Health Sync Heart rate/</code></td>
+<td><code>heart_rate</code></td>
+<td><code>heart_rate</code></td>
+</tr>
+<tr>
+<td><code>Health Sync Sleep/</code></td>
+<td><code>sleep_analysis</code></td>
+<td><code>sleep_sessions</code> + <code>sleep_stages</code></td>
+</tr>
+<tr>
+<td><code>Health Sync Weight/</code></td>
+<td><code>body_mass</code>, <code>body_fat_percentage</code></td>
+<td><code>quantity_samples</code></td>
+</tr>
+<tr>
+<td><code>Health Sync Oxygen saturation/</code></td>
+<td><code>oxygen_saturation</code></td>
+<td><code>blood_oxygen</code></td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">Run it:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="# Sanity-check the export before sending
+python scripts/import_samsung.py /path/to/health-sync-export --dry-run
 
-The API also stores each received batch in `raw_ingestion_log` before
+# Send to a local datahub
+python scripts/import_samsung.py /path/to/health-sync-export \
+  --server http://localhost:8000 \
+  --api-key $HDH_API_KEY"><pre><span class="pl-c"><span class="pl-c">#</span> Sanity-check the export before sending</span>
+python scripts/import_samsung.py /path/to/health-sync-export --dry-run
+
+<span class="pl-c"><span class="pl-c">#</span> Send to a local datahub</span>
+python scripts/import_samsung.py /path/to/health-sync-export \
+  --server http://localhost:8000 \
+  --api-key <span class="pl-smi">$HDH_API_KEY</span></pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Grafana Dashboards</h3><a id="user-content-grafana-dashboards" class="anchor" aria-label="Permalink: Grafana Dashboards" href="#grafana-dashboards"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">A curated starter dashboard set is included in <code>deploy/grafana/</code>, so a fresh <code>docker compose up -d</code> should bring Grafana up with the datasource and the supported dashboards already wired.</p>
+<p dir="auto">Included files:</p>
+<ul dir="auto">
+<li><code>deploy/grafana/provisioning/datasources/healthsave.yaml</code></li>
+<li><code>deploy/grafana/provisioning/dashboards/default.yaml</code></li>
+<li><code>deploy/grafana/dashboards/</code></li>
+</ul>
+<p dir="auto">Supported dashboards loaded automatically:</p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Dashboard</th>
+<th>File</th>
+<th>Depends On</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>HealthSave Overview</td>
+<td><code>deploy/grafana/dashboards/healthsave-overview.json</code></td>
+<td><code>heart_rate</code>, <code>hrv</code>, <code>blood_oxygen</code>, <code>daily_activity</code>, <code>sleep_sessions</code>, <code>workouts</code></td>
+<td>Supported</td>
+<td>Best first dashboard for a fresh install</td>
+</tr>
+<tr>
+<td>Activity &amp; Movement</td>
+<td><code>deploy/grafana/dashboards/activity.json</code></td>
+<td><code>daily_activity</code>, <code>quantity_samples</code></td>
+<td>Supported</td>
+<td>Gait-related panels only populate if those optional metrics are synced</td>
+</tr>
+<tr>
+<td>Heart</td>
+<td><code>deploy/grafana/dashboards/heart.json</code></td>
+<td><code>heart_rate</code>, <code>hrv</code>, <code>quantity_samples</code></td>
+<td>Supported</td>
+<td>Source-aware heart-rate, HRV, SpO2, and respiratory panels</td>
+</tr>
+<tr>
+<td>Sleep</td>
+<td><code>deploy/grafana/dashboards/sleep.json</code></td>
+<td><code>sleep_sessions</code>, <code>sleep_stages</code>, <code>quantity_samples</code></td>
+<td>Supported</td>
+<td>Apple sleep sessions plus provider aggregate sleep metrics</td>
+</tr>
+<tr>
+<td>Insights</td>
+<td><code>deploy/grafana/dashboards/insights.json</code></td>
+<td><code>heart_rate</code>, <code>hrv</code>, <code>blood_oxygen</code>, <code>body_temperature</code>, <code>quantity_samples</code>, <code>sleep_sessions</code>, <code>workouts</code></td>
+<td>Supported</td>
+<td>Cross-source comparison and Whoop recovery/sleep/strain views through the public schema</td>
+</tr>
+<tr>
+<td>Workouts</td>
+<td><code>deploy/grafana/dashboards/workouts.json</code></td>
+<td><code>workouts</code></td>
+<td>Supported</td>
+<td>Focused workout view with type, duration, calories, and HR panels</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto">The datasource is auto-provisioned - no manual setup needed.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Home Assistant Integration</h3><a id="user-content-home-assistant-integration" class="anchor" aria-label="Permalink: Home Assistant Integration" href="#home-assistant-integration"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">There are two supported Home Assistant paths:</p>
+<ol dir="auto">
+<li><strong>MQTT bridge (recommended):</strong> Health Data Hub reads TimescaleDB and publishes retained Home Assistant MQTT discovery + state topics. This keeps Home Assistant out of the database and works even when Grafana is deployed separately.</li>
+<li><strong>Direct SQL package (legacy/example):</strong> Home Assistant queries TimescaleDB directly using <code>integrations/home-assistant/healthsave-package.yaml</code>.</li>
+</ol>
+<p dir="auto">The bridge publishes in two layers each cycle:</p>
+<p dir="auto"><strong>Aggregate parent device</strong> (one device, one state topic, the legacy shape):</p>
+<ul dir="auto">
+<li>Retained state topic: <code>healthsave/sensor/state</code></li>
+<li>Discovery topics: <code>homeassistant/sensor/healthsave/&lt;metric&gt;/config</code></li>
+<li>Availability: <code>healthsave/status</code></li>
+</ul>
+<p dir="auto">Six entities on the parent device by default:</p>
+<ul dir="auto">
+<li><code>sensor.healthsave_heart_rate</code></li>
+<li><code>sensor.healthsave_hrv_7d_avg</code></li>
+<li><code>sensor.healthsave_steps_today</code></li>
+<li><code>sensor.healthsave_last_sleep_hours</code></li>
+<li><code>sensor.healthsave_source_model</code></li>
+<li><code>sensor.healthsave_room_health_state</code></li>
+</ul>
+<p dir="auto"><strong>Per-source sub-devices</strong> (one device per distinct <code>source_id</code> seen in recent data — Apple Watch, Whoop, iPhone, etc.):</p>
+<ul dir="auto">
+<li>Retained state topic: <code>healthsave/source/&lt;slug&gt;/state</code> (one JSON payload per source)</li>
+<li>Discovery topics: <code>homeassistant/sensor/healthsave_&lt;slug&gt;/&lt;metric&gt;/config</code></li>
+<li>Linked to the parent via Home Assistant's <code>via_device</code> so HA nests sub-devices under the parent.</li>
+<li>Metrics carried per sub-device: <code>heart_rate</code>, <code>hrv_latest_ms</code>, <code>steps_today</code>, <code>last_sleep_hours</code>. Only metrics with a recent non-null value get a discovery message, so HA never sees ghost entities.</li>
+</ul>
+<p dir="auto">Example: a household running both an Apple Watch and a Whoop sees:</p>
+<ul dir="auto">
+<li><code>sensor.healthsave_apple_watch_heart_rate</code>, <code>_hrv_latest_ms</code>, <code>_steps_today</code>, <code>_last_sleep_hours</code></li>
+<li><code>sensor.healthsave_whoop_heart_rate</code>, <code>_hrv_latest_ms</code>, <code>_last_sleep_hours</code> (no <code>_steps_today</code> if Whoop hasn't logged any).</li>
+</ul>
+<p dir="auto">Source attribution comes from <code>source_id</code> on the ingestion tables (added to <code>daily_activity</code> and <code>sleep_sessions</code> in migration 009; native to <code>heart_rate</code> / <code>hrv</code> since v1). Rows with NULL <code>source_id</code> collapse to a single <code>sensor.healthsave_unknown_*</code> sub-device so legacy data never fragments into empty entities.</p>
+<p dir="auto">Both layers share <code>healthsave/status</code> so HA marks every sub-device offline together if the bridge stops.</p>
+<p dir="auto"><strong>Legacy MQTT namespace migration.</strong> Fresh installs should keep the
+primary <code>HA_MQTT_STATE_TOPIC_PREFIX</code>, <code>HA_MQTT_DEVICE_IDENTIFIER</code>, and
+<code>HA_MQTT_DEVICE_NAME</code> values on <code>healthsave</code> / <code>HealthSave</code>. If an
+existing Home Assistant install still has dashboards or automations on
+an older namespace, set <code>HA_MQTT_LEGACY_STATE_TOPIC_PREFIX</code> plus the
+matching legacy device identifier/name. The bridge then publishes both
+shapes from the same Data Hub service so Home Assistant can be migrated
+one entity at a time.</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="HA_MQTT_STATE_TOPIC_PREFIX=healthsave
+HA_MQTT_DEVICE_IDENTIFIER=healthsave
+HA_MQTT_DEVICE_NAME=HealthSave
+HA_MQTT_LEGACY_STATE_TOPIC_PREFIX=&lt;old-prefix&gt;
+HA_MQTT_LEGACY_DEVICE_IDENTIFIER=&lt;old-device-id&gt;
+HA_MQTT_LEGACY_DEVICE_NAME=&lt;old-display-name&gt;"><pre>HA_MQTT_STATE_TOPIC_PREFIX=healthsave
+HA_MQTT_DEVICE_IDENTIFIER=healthsave
+HA_MQTT_DEVICE_NAME=HealthSave
+HA_MQTT_LEGACY_STATE_TOPIC_PREFIX=<span class="pl-k">&lt;</span>old-prefix<span class="pl-k">&gt;</span>
+HA_MQTT_LEGACY_DEVICE_IDENTIFIER=<span class="pl-k">&lt;</span>old-device-id<span class="pl-k">&gt;</span>
+HA_MQTT_LEGACY_DEVICE_NAME=<span class="pl-k">&lt;</span>old-display-name<span class="pl-k">&gt;</span></pre></div>
+<p dir="auto">Enable it with Docker Compose. Two patterns:</p>
+<p dir="auto"><strong>(a) Bring your own broker.</strong> Point the bridge at an MQTT server you already run:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="HA_MQTT_ENABLED=true \
+HA_MQTT_BROKER=&lt;your-mqtt-host&gt; \
+HA_MQTT_USERNAME=&lt;optional-user&gt; \
+HA_MQTT_PASSWORD=&lt;optional-password&gt; \
+docker compose --profile home-assistant up -d homeassistant-mqtt"><pre>HA_MQTT_ENABLED=true \
+HA_MQTT_BROKER=<span class="pl-k">&lt;</span>your-mqtt-host<span class="pl-k">&gt;</span> \
+HA_MQTT_USERNAME=<span class="pl-k">&lt;</span>optional-user<span class="pl-k">&gt;</span> \
+HA_MQTT_PASSWORD=<span class="pl-k">&lt;</span>optional-password<span class="pl-k">&gt;</span> \
+docker compose --profile home-assistant up -d homeassistant-mqtt</pre></div>
+<p dir="auto"><strong>(b) Use the bundled broker.</strong> Add the <code>mosquitto</code> profile and the
+stack runs an <code>eclipse-mosquitto:2</code> container alongside the bridge.
+The bridge's default <code>HA_MQTT_BROKER=mqtt</code> resolves through docker DNS,
+and host port <code>1883</code> is published so a Home Assistant install on the
+same LAN can also connect by host IP. Persistence is on a docker
+volume so retained messages survive restarts.</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="HA_MQTT_ENABLED=true \
+docker compose --profile mosquitto --profile home-assistant up -d"><pre>HA_MQTT_ENABLED=true \
+docker compose --profile mosquitto --profile home-assistant up -d</pre></div>
+<p dir="auto">The bundled broker defaults to anonymous-on-LAN. To require auth,
+overlay a <code>docker-compose.override.yml</code> that flips
+<code>allow_anonymous false</code> and mounts a password file — the conf at
+<code>deploy/mosquitto/mosquitto.conf</code> is read-only so the override is the
+right seam.</p>
+<p dir="auto">Useful defaults:</p>
+<ul dir="auto">
+<li>Discovery prefix: <code>homeassistant</code></li>
+<li>State prefix: <code>healthsave</code></li>
+<li>Device identifier: <code>healthsave</code></li>
+<li>Publish interval: <code>60</code> seconds</li>
+</ul>
+<p dir="auto">Direct SQL example files remain available for setups that prefer DB polling:</p>
+<ul dir="auto">
+<li><code>integrations/home-assistant/healthsave-package.yaml</code></li>
+<li><code>integrations/home-assistant/secrets.example.yaml</code></li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Community Backends</h3><a id="user-content-community-backends" class="anchor" aria-label="Permalink: Community Backends" href="#community-backends"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The ingest API is intentionally simple so anyone can build a compatible backend for their own stack. The first community implementation is already live:</p>
+<ul dir="auto">
+<li><strong><a href="https://github.com/bietiekay/health-data-to-mqtt">health-data-to-mqtt</a></strong> by <a href="https://github.com/bietiekay">@bietiekay</a> - A lightweight Node.js server that stores raw JSON and forwards selected metrics to MQTT. Built for alerting and home automation pipelines where MQTT is the primary transport.</li>
+</ul>
+<p dir="auto">If you've built a compatible backend, open an issue or PR and we'll add it here. The full API contract including every supported metric is documented in <a href="/umutkeltek/health-data-hub/blob/main/API.md">API.md</a>.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Pluggable Storage Backends</h3><a id="user-content-pluggable-storage-backends" class="anchor" aria-label="Permalink: Pluggable Storage Backends" href="#pluggable-storage-backends"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The default backend is TimescaleDB (a Postgres extension), which is what <code>setup.sh</code> provisions. If you already run a different time-series store and don't want to add a second one, the ingest path is pluggable: write a Python module that implements the <code>IngestStorage</code> protocol, register it, and point the server at it via env vars.</p>
+<p dir="auto"><strong>Built-in backends:</strong></p>
+<markdown-accessiblity-table><table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Backed by</th>
+<th>Audit log</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>postgres</code> (default)</td>
+<td>TimescaleDB hypertables</td>
+<td>yes (<code>raw_ingestion_log</code>)</td>
+<td>Joins, transactions, continuous aggregates</td>
+</tr>
+</tbody>
+</table></markdown-accessiblity-table>
+<p dir="auto"><strong>Selecting a backend:</strong></p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="HDH_STORAGE_BACKEND=postgres docker compose up -d   # explicit (also the default)"><pre>HDH_STORAGE_BACKEND=postgres docker compose up -d   <span class="pl-c"><span class="pl-c">#</span> explicit (also the default)</span></pre></div>
+<p dir="auto"><strong>Writing your own (e.g. InfluxDB, ClickHouse, DuckDB, MQTT-only):</strong></p>
+<ol dir="auto">
+<li>
+<p dir="auto">Implement <code>server.ingestion.storage.IngestStorage</code> in your own package — two methods: <code>get_or_create_device()</code> and <code>ingest_metric()</code>.</p>
+</li>
+<li>
+<p dir="auto">Optionally implement <code>server.ingestion.storage.AuditLog</code> if your store supports an audit row pattern. Append-only stores (InfluxDB) skip this; the route notices and skips audit calls.</p>
+</li>
+<li>
+<p dir="auto">Register a factory at module-import time:</p>
+<div class="highlight highlight-source-python notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="# mycorp_health/influx_backend.py
+from server.ingestion.registry import register_backend
+
+def _influx_factory(config):
+    from .influx_storage import InfluxIngestStorage
+    return InfluxIngestStorage(config), None  # append-only, no AuditLog
+
+register_backend(&quot;influxdb&quot;, _influx_factory)"><pre><span class="pl-c"># mycorp_health/influx_backend.py</span>
+<span class="pl-k">from</span> <span class="pl-s1">server</span>.<span class="pl-s1">ingestion</span>.<span class="pl-s1">registry</span> <span class="pl-k">import</span> <span class="pl-s1">register_backend</span>
+
+<span class="pl-k">def</span> <span class="pl-en">_influx_factory</span>(<span class="pl-s1">config</span>):
+    <span class="pl-k">from</span> .<span class="pl-s1">influx_storage</span> <span class="pl-k">import</span> <span class="pl-v">InfluxIngestStorage</span>
+    <span class="pl-k">return</span> <span class="pl-en">InfluxIngestStorage</span>(<span class="pl-s1">config</span>), <span class="pl-c1">None</span>  <span class="pl-c"># append-only, no AuditLog</span>
+
+<span class="pl-en">register_backend</span>(<span class="pl-s">"influxdb"</span>, <span class="pl-s1">_influx_factory</span>)</pre></div>
+</li>
+<li>
+<p dir="auto">Tell the server to load your plugin and use it:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="HDH_STORAGE_PLUGINS=mycorp_health.influx_backend \
+HDH_STORAGE_BACKEND=influxdb \
+docker compose up -d"><pre>HDH_STORAGE_PLUGINS=mycorp_health.influx_backend \
+HDH_STORAGE_BACKEND=influxdb \
+docker compose up -d</pre></div>
+</li>
+</ol>
+<p dir="auto"><code>HDH_STORAGE_PLUGINS</code> is comma-separated — multiple plugin modules are imported in order before the backend lookup runs. A failed plugin import is logged but doesn't abort startup, so a missing optional dependency degrades to "fall back to the built-in default" rather than "server doesn't boot."</p>
+<p dir="auto">The protocols, the registry, and a worked example live in <code>server/ingestion/storage.py</code> and <code>server/ingestion/registry.py</code>. If you ship a backend, open an issue and we'll list it under <a href="#community-backends">Community Backends</a>.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Deduplication</h3><a id="user-content-deduplication" class="anchor" aria-label="Permalink: Deduplication" href="#deduplication"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">All ingestion is idempotent:</p>
+<ul dir="auto">
+<li>Unique indexes on first-class metric identity columns</li>
+<li><code>INSERT ... ON CONFLICT DO UPDATE</code> for upsert behavior</li>
+<li>In-memory dedup within each batch to avoid PG errors</li>
+</ul>
+<p dir="auto">You can safely re-sync or retry without inflating your data.</p>
+<p dir="auto">The API also stores each received batch in <code>raw_ingestion_log</code> before
 processing, then marks it processed after a successful commit. That gives you a
-minimal audit trail and a useful starting point if you ever need replay tooling.
-
-## Updating Existing Installs
-
-Fresh installs load `schema.sql` automatically. Existing Docker volumes keep
-their original schema, so apply migrations manually when upgrading:
-
-```bash
-docker compose exec -T db psql -U healthsave -d healthsave < migrations/001_audit_hardening.sql
-```
-
-## Development
-
-Local verification uses the same commands as CI:
-
-```bash
-python3.12 -m pip install -e ".[dev]"
+minimal audit trail and a useful starting point if you ever need replay tooling.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Updating Existing Installs</h3><a id="user-content-updating-existing-installs" class="anchor" aria-label="Permalink: Updating Existing Installs" href="#updating-existing-installs"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Fresh installs load <code>db/schema.sql</code> automatically. Existing Docker volumes keep
+their original schema, so the Compose stack runs the migration service before
+the API, worker, agents, or Home Assistant bridge start:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="docker compose up -d --build"><pre>docker compose up -d --build</pre></div>
+<p dir="auto">To run the same migration pass explicitly:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="docker compose run --rm migrate"><pre>docker compose run --rm migrate</pre></div>
+<p dir="auto">The runner records applied files in <code>schema_migrations</code>, so re-runs are safe.
+Migration files still live in <code>db/migrations/</code> for review and manual recovery.
+The current set starts at <code>db/migrations/001_audit_hardening.sql</code> and includes
+later additive upgrades such as <code>db/migrations/002_analysis_tables.sql</code> and
+<code>db/migrations/008_oauth_tokens.sql</code>; files apply in filename order.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Multi-user / Household</h3><a id="user-content-multi-user--household" class="anchor" aria-label="Permalink: Multi-user / Household" href="#multi-user--household"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Every metric table carries an <code>owner_id</code> UUID. Single-user installs need
+to do nothing — when the <code>X-User-Id</code> header is absent, ingest writes
+under the sentinel UUID <code>00000000-0000-0000-0000-000000000001</code> and the
+schema-level default backfills any pre-migration rows to the same value.</p>
+<p dir="auto">To split a household across multiple residents:</p>
+<ol dir="auto">
+<li>Pick a UUID per person (any v4 UUID works — <code>python -c "import uuid; print(uuid.uuid4())"</code>).</li>
+<li>Configure each HealthSave client / import script to send that UUID as the
+<code>X-User-Id</code> header on every <code>POST /api/apple/batch</code> call.</li>
+<li>Filter Grafana panels by <code>owner_id</code> (add a dashboard variable bound to the
+<code>SELECT DISTINCT owner_id FROM heart_rate</code> query, then drop <code>WHERE owner_id = '$owner'</code>
+into each panel query).</li>
+</ol>
+<p dir="auto">Existing single-user installs keep working untouched if step 2 is skipped.
+The unique indexes on every metric table include <code>owner_id</code>, so two
+residents can have a sample at the same <code>(time, device_id)</code> without
+collisions, and re-syncing from one client remains idempotent.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Development</h3><a id="user-content-development" class="anchor" aria-label="Permalink: Development" href="#development"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">Local verification uses the same commands as CI:</p>
+<div class="highlight highlight-source-shell notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="python3.12 -m pip install -e &quot;.[dev]&quot;
 python3.12 -m ruff format --check .
 python3.12 -m ruff check .
 python3.12 -m pytest -q
-docker build -t health-data-hub-dev .
-```
-
-The project targets Python 3.12, matching the Docker image and CI runtime.
-
-The CI workflow runs formatting, linting, tests, and a Docker build on every
-push and pull request to `main`.
-
-## HTTPS / Reverse Proxy
-
-For production, put a reverse proxy in front of the API:
-
-```yaml
-# Add to docker-compose.yml
+docker build -t health-data-hub-dev ."><pre>python3.12 -m pip install -e <span class="pl-s"><span class="pl-pds">"</span>.[dev]<span class="pl-pds">"</span></span>
+python3.12 -m ruff format --check <span class="pl-c1">.</span>
+python3.12 -m ruff check <span class="pl-c1">.</span>
+python3.12 -m pytest -q
+docker build -t health-data-hub-dev <span class="pl-c1">.</span></pre></div>
+<p dir="auto">The project targets Python 3.12, matching the Docker image and CI runtime.</p>
+<p dir="auto">The CI workflow runs formatting, linting, tests, and a Docker build on every
+push and pull request to <code>main</code>.</p>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">HTTPS / Reverse Proxy</h3><a id="user-content-https--reverse-proxy" class="anchor" aria-label="Permalink: HTTPS / Reverse Proxy" href="#https--reverse-proxy"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">For production, put a reverse proxy in front of the API:</p>
+<div class="highlight highlight-source-yaml notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="# Add to docker-compose.yml
   caddy:
     image: caddy:2-alpine
     ports:
-      - "443:443"
+      - &quot;443:443&quot;
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-```
-
-```
-# Caddyfile
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro"><pre><span class="pl-c"><span class="pl-c">#</span> Add to docker-compose.yml</span>
+  <span class="pl-ent">caddy</span>:
+    <span class="pl-ent">image</span>: <span class="pl-s">caddy:2-alpine</span>
+    <span class="pl-ent">ports</span>:
+      - <span class="pl-s"><span class="pl-pds">"</span>443:443<span class="pl-pds">"</span></span>
+    <span class="pl-ent">volumes</span>:
+      - <span class="pl-s">./Caddyfile:/etc/caddy/Caddyfile:ro</span></pre></div>
+<div class="snippet-clipboard-content notranslate position-relative overflow-auto" data-snippet-clipboard-copy-content="# Caddyfile
+health.yourdomain.com {
+    reverse_proxy api:8000
+}"><pre class="notranslate"><code># Caddyfile
 health.yourdomain.com {
     reverse_proxy api:8000
 }
-```
-
-Recommended production posture:
-- Set a long random `API_KEY` in `.env` and in the HealthSave app.
-- Keep TimescaleDB bound to localhost or a private Docker network.
-- Terminate HTTPS at your reverse proxy.
-- Back up the `db_data` Docker volume regularly.
-- Upgrade `TIMESCALE_IMAGE` and `GRAFANA_IMAGE` deliberately, not via `latest`.
-
-## Derived Metrics
-
-The schema includes continuous aggregates for common derived metrics:
-
-- `hr_hourly` — Hourly avg/min/max heart rate
-- `sleep_daily` — Daily sleep stage breakdown
-
-Add your own with TimescaleDB continuous aggregates:
-
-```sql
--- Example: weekly HRV trend
+</code></pre></div>
+<p dir="auto">Recommended production posture:</p>
+<ul dir="auto">
+<li>Set a long random <code>API_KEY</code> in <code>.env</code> and in the HealthSave app.</li>
+<li>Keep TimescaleDB bound to localhost or a private Docker network.</li>
+<li>Terminate HTTPS at your reverse proxy.</li>
+<li>Back up the <code>db_data</code> Docker volume regularly.</li>
+<li>Upgrade <code>TIMESCALE_IMAGE</code> and <code>GRAFANA_IMAGE</code> deliberately, not via <code>latest</code>.</li>
+</ul>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Derived Metrics</h3><a id="user-content-derived-metrics" class="anchor" aria-label="Permalink: Derived Metrics" href="#derived-metrics"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">The schema includes continuous aggregates for common derived metrics:</p>
+<ul dir="auto">
+<li><code>hr_hourly</code> - Hourly avg/min/max heart rate</li>
+<li><code>sleep_daily</code> - Daily sleep stage breakdown</li>
+</ul>
+<p dir="auto">Add your own with TimescaleDB continuous aggregates:</p>
+<div class="highlight highlight-source-sql notranslate position-relative overflow-auto" dir="auto" data-snippet-clipboard-copy-content="-- Example: weekly HRV trend
 CREATE MATERIALIZED VIEW hrv_weekly
 WITH (timescaledb.continuous) AS
 SELECT
@@ -260,5 +2134,198 @@ SELECT
     max(value_ms) AS max_hrv
 FROM hrv
 GROUP BY bucket, device_id
-WITH NO DATA;
-```
+WITH NO DATA;"><pre><span class="pl-c"><span class="pl-c">--</span> Example: weekly HRV trend</span>
+CREATE MATERIALIZED VIEW hrv_weekly
+WITH (<span class="pl-c1">timescaledb</span>.<span class="pl-c1">continuous</span>) <span class="pl-k">AS</span>
+<span class="pl-k">SELECT</span>
+    time_bucket(<span class="pl-s"><span class="pl-pds">'</span>1 week<span class="pl-pds">'</span></span>, <span class="pl-k">time</span>) <span class="pl-k">AS</span> bucket,
+    device_id,
+    <span class="pl-c1">avg</span>(value_ms) <span class="pl-k">AS</span> avg_hrv,
+    <span class="pl-c1">min</span>(value_ms) <span class="pl-k">AS</span> min_hrv,
+    <span class="pl-c1">max</span>(value_ms) <span class="pl-k">AS</span> max_hrv
+<span class="pl-k">FROM</span> hrv
+<span class="pl-k">GROUP BY</span> bucket, device_id
+WITH NO DATA;</pre></div>
+<div class="markdown-heading" dir="auto"><h3 tabindex="-1" class="heading-element" dir="auto">Roadmap</h3><a id="user-content-roadmap" class="anchor" aria-label="Permalink: Roadmap" href="#roadmap"><svg data-component="Octicon" class="octicon octicon-link" viewBox="0 0 16 16" version="1.1" width="16" height="16" aria-hidden="true"><path d="m7.775 3.275 1.25-1.25a3.5 3.5 0 1 1 4.95 4.95l-2.5 2.5a3.5 3.5 0 0 1-4.95 0 .751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018 1.998 1.998 0 0 0 2.83 0l2.5-2.5a2.002 2.002 0 0 0-2.83-2.83l-1.25 1.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042Zm-4.69 9.64a1.998 1.998 0 0 0 2.83 0l1.25-1.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042l-1.25 1.25a3.5 3.5 0 1 1-4.95-4.95l2.5-2.5a3.5 3.5 0 0 1 4.95 0 .751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018 1.998 1.998 0 0 0-2.83 0l-2.5 2.5a1.998 1.998 0 0 0 0 2.83Z"></path></svg></a></div>
+<p dir="auto">This community release is intentionally small and focused on the ingestion pipeline plus the first slice of AI briefings.</p>
+<p dir="auto">Next things to improve:</p>
+<ul dir="auto">
+<li>More dashboard polish and curation across recovery, workouts, and long-term trends</li>
+<li>Goal tracking and trend-based alerts wired into Home Assistant</li>
+<li>More comprehensive analysis windows (monthly / quarterly trends)</li>
+<li>Production deployment notes for reverse proxy, auth, backups, and retention</li>
+</ul>
+</article></div><div class="d-none"></div></section></div></div></div> </div> <!-- --> </div></div></div></div></div></div><div class="ScrollMarksContainer-module__scrollMarksContainer__Eu7uU" id="find-result-marks-container"></div><div class="d-none"></div><div class="d-none"></div></div> <!-- --> <!-- --> <script type="application/json" id="__PRIMER_DATA__R_1___">{"resolvedServerColorMode":"day"}</script></div>
+</react-app>
+
+
+
+
+  </div>
+
+</turbo-frame>
+
+    </main>
+  </div>
+
+  </div>
+
+          <footer class="footer tmp-pt-7 tmp-pb-6 f6 color-fg-muted color-border-subtle p-responsive" role="contentinfo" >
+  <h2 class='sr-only'>Footer</h2>
+
+  
+
+
+  <div class="d-flex flex-justify-center flex-items-center flex-column-reverse flex-lg-row flex-wrap flex-lg-nowrap">
+    <div class="d-flex flex-items-center flex-shrink-0 mx-2">
+      <a aria-label="GitHub Homepage" class="footer-octicon mr-2" href="https://github.com">
+        <svg aria-hidden="true" data-component="Octicon" height="24" viewBox="0 0 24 24" version="1.1" width="24" data-view-component="true" class="octicon octicon-mark-github">
+    <path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"></path>
+</svg>
+</a>
+      <span>
+        &copy; 2026 GitHub,&nbsp;Inc.
+      </span>
+    </div>
+
+    <nav aria-label="Footer">
+      <h3 class="sr-only" id="sr-footer-heading">Footer navigation</h3>
+
+      <ul class="list-style-none d-flex flex-justify-center flex-wrap mb-2 mb-lg-0" aria-labelledby="sr-footer-heading">
+
+
+          <li class="mx-2">
+            <a data-analytics-event="{&quot;category&quot;:&quot;Footer&quot;,&quot;action&quot;:&quot;go to Terms&quot;,&quot;label&quot;:&quot;text:terms&quot;}" href="https://docs.github.com/site-policy/github-terms/github-terms-of-service" data-view-component="true" class="Link--secondary Link">Terms</a>
+          </li>
+
+          <li class="mx-2">
+            <a data-analytics-event="{&quot;category&quot;:&quot;Footer&quot;,&quot;action&quot;:&quot;go to privacy&quot;,&quot;label&quot;:&quot;text:privacy&quot;}" href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement" data-view-component="true" class="Link--secondary Link">Privacy</a>
+          </li>
+
+          <li class="mx-2">
+            <a data-analytics-event="{&quot;category&quot;:&quot;Footer&quot;,&quot;action&quot;:&quot;go to security&quot;,&quot;label&quot;:&quot;text:security&quot;}" href="https://github.com/security" data-view-component="true" class="Link--secondary Link">Security</a>
+          </li>
+
+          <li class="mx-2">
+            <a data-analytics-event="{&quot;category&quot;:&quot;Footer&quot;,&quot;action&quot;:&quot;go to status&quot;,&quot;label&quot;:&quot;text:status&quot;}" href="https://www.githubstatus.com/" data-view-component="true" class="Link--secondary Link">Status</a>
+          </li>
+
+          <li class="mx-2">
+            <a data-analytics-event="{&quot;category&quot;:&quot;Footer&quot;,&quot;action&quot;:&quot;go to community&quot;,&quot;label&quot;:&quot;text:community&quot;}" href="https://github.community/" data-view-component="true" class="Link--secondary Link">Community</a>
+          </li>
+
+          <li class="mx-2">
+            <a data-analytics-event="{&quot;category&quot;:&quot;Footer&quot;,&quot;action&quot;:&quot;go to docs&quot;,&quot;label&quot;:&quot;text:docs&quot;}" href="https://docs.github.com/" data-view-component="true" class="Link--secondary Link">Docs</a>
+          </li>
+
+          <li class="mx-2">
+            <a data-analytics-event="{&quot;category&quot;:&quot;Footer&quot;,&quot;action&quot;:&quot;go to contact&quot;,&quot;label&quot;:&quot;text:contact&quot;}" href="https://support.github.com?tags=dotcom-footer" data-view-component="true" class="Link--secondary Link">Contact</a>
+          </li>
+
+          <li class="mx-2" >
+  <cookie-consent-link>
+    <button
+      type="button"
+      class="Link--secondary underline-on-hover border-0 p-0 color-bg-transparent"
+      data-action="click:cookie-consent-link#showConsentManagement"
+      data-analytics-event="{&quot;location&quot;:&quot;footer&quot;,&quot;action&quot;:&quot;cookies&quot;,&quot;context&quot;:&quot;subfooter&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;label&quot;:&quot;cookies_link_subfooter_footer&quot;}"
+    >
+       Manage cookies
+    </button>
+  </cookie-consent-link>
+</li>
+
+<li class="mx-2">
+  <cookie-consent-link>
+    <button
+      type="button"
+      class="Link--secondary underline-on-hover border-0 p-0 color-bg-transparent text-left"
+      data-action="click:cookie-consent-link#showConsentManagement"
+      data-analytics-event="{&quot;location&quot;:&quot;footer&quot;,&quot;action&quot;:&quot;dont_share_info&quot;,&quot;context&quot;:&quot;subfooter&quot;,&quot;tag&quot;:&quot;link&quot;,&quot;label&quot;:&quot;dont_share_info_link_subfooter_footer&quot;}"
+    >
+      Do not share my personal information
+    </button>
+  </cookie-consent-link>
+</li>
+
+      </ul>
+    </nav>
+  </div>
+</footer>
+
+
+
+    <ghcc-consent id="ghcc" class="position-fixed bottom-0 left-0" style="z-index: 999999"
+      data-locale="en"
+      data-initial-cookie-consent-allowed=""
+      data-cookie-consent-required="true"
+    ></ghcc-consent>
+
+
+
+
+  <div id="ajax-error-message" class="ajax-error-message flash flash-error" hidden>
+    <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-alert">
+    <path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path>
+</svg>
+    <button type="button" class="flash-close js-ajax-error-dismiss" aria-label="Dismiss error">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path>
+</svg>
+    </button>
+    You can’t perform that action at this time.
+  </div>
+
+    <template id="site-details-dialog">
+  <details class="details-reset details-overlay details-overlay-dark lh-default color-fg-default hx_rsm" open>
+    <summary role="button" aria-label="Close dialog"></summary>
+    <details-dialog class="Box Box--overlay d-flex flex-column anim-fade-in fast hx_rsm-dialog hx_rsm-modal">
+      <button class="Box-btn-octicon m-0 btn-octicon position-absolute right-0 top-0" type="button" aria-label="Close dialog" data-close-dialog>
+        <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-x">
+    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z"></path>
+</svg>
+      </button>
+      <div class="octocat-spinner tmp-my-6 js-details-dialog-spinner"></div>
+    </details-dialog>
+  </details>
+</template>
+
+    <div class="Popover js-hovercard-content position-absolute" style="display: none; outline: none;">
+  <div class="Popover-message Popover-message--bottom-left Popover-message--large Box color-shadow-large" style="width:360px;">
+  </div>
+</div>
+
+    <template id="snippet-clipboard-copy-button">
+  <div class="zeroclipboard-container position-absolute right-0 top-0">
+    <clipboard-copy aria-label="Copy code to clipboard" class="ClipboardButton btn js-clipboard-copy m-2 p-0" data-copy-feedback="Copied!" data-tooltip-direction="w">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon m-2 tmp-m-2">
+    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none m-2 tmp-m-2">
+    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+</svg>
+    </clipboard-copy>
+  </div>
+</template>
+<template id="snippet-clipboard-copy-button-unpositioned">
+  <div class="zeroclipboard-container">
+    <clipboard-copy aria-label="Copy code to clipboard" class="ClipboardButton btn btn-invisible js-clipboard-copy m-2 p-0 d-flex flex-justify-center flex-items-center" data-copy-feedback="Copied!" data-tooltip-direction="w">
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon">
+    <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path>
+</svg>
+      <svg aria-hidden="true" data-component="Octicon" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-check js-clipboard-check-icon color-fg-success d-none">
+    <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path>
+</svg>
+    </clipboard-copy>
+  </div>
+</template>
+
+
+
+
+    </div>
+    <div id="js-global-screen-reader-notice" class="sr-only mt-n1" aria-live="polite" aria-atomic="true" ></div>
+    <div id="js-global-screen-reader-notice-assertive" class="sr-only mt-n1" aria-live="assertive" aria-atomic="true"></div>
+  </body>
+</html>
+

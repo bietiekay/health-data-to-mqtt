@@ -7,6 +7,15 @@ import {
 } from "./mqtt/publisher.js";
 import { registerAppleRoutes } from "./routes/apple.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerV2Routes } from "./routes/v2.js";
+import {
+  createIdempotencyStore,
+  type IdempotencyStore,
+} from "./state/idempotency-store.js";
+import {
+  createSyncReceiptStore,
+  type SyncReceiptStore,
+} from "./state/sync-receipts.js";
 import { createStateStore, type StateStore } from "./state/store.js";
 import {
   createRawBatchStorage,
@@ -18,6 +27,8 @@ interface BuildAppOptions {
   stateStore?: StateStore;
   mqttPublisher?: HealthMqttPublisher;
   rawBatchStorage?: RawBatchStorage;
+  syncReceiptStore?: SyncReceiptStore;
+  idempotencyStore?: IdempotencyStore;
 }
 
 export async function buildApp(
@@ -29,6 +40,10 @@ export async function buildApp(
     options.mqttPublisher ?? (await createMqttPublisher(config));
   const rawBatchStorage =
     options.rawBatchStorage ?? createRawBatchStorage(config);
+  const syncReceiptStore =
+    options.syncReceiptStore ?? createSyncReceiptStore(config);
+  const idempotencyStore =
+    options.idempotencyStore ?? createIdempotencyStore(config);
 
   const app = Fastify({
     bodyLimit: config.httpBodyLimitBytes,
@@ -47,13 +62,23 @@ export async function buildApp(
   for (const context of config.contexts) {
     await app.register(
       async (contextApp) => {
-        await registerHealthRoutes(contextApp);
+        await registerHealthRoutes(contextApp, {
+          config,
+          mqttPublisher,
+        });
         await registerAppleRoutes(contextApp, {
           config,
           context,
           stateStore,
           mqttPublisher,
           rawBatchStorage,
+          syncReceiptStore,
+          idempotencyStore,
+        });
+        await registerV2Routes(contextApp, {
+          config,
+          context,
+          syncReceiptStore,
         });
       },
       { prefix: context.prefix === "/" ? "" : context.prefix },

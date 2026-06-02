@@ -1,12 +1,18 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import { getRequestApiKey, isAuthorized } from "../auth.js";
+import { requireApiKey } from "../auth.js";
 import type { AppConfig, AppContextConfig } from "../config.js";
 import {
   batchRequestSchema,
   createStatusObservations,
-  normalizeBatch,
+  normalizeBatchWithStats,
 } from "../ingest.js";
 import type { HealthMqttPublisher } from "../mqtt/publisher.js";
+import type { IdempotencyStore } from "../state/idempotency-store.js";
+import {
+  parseSyncReceiptHeaders,
+  type BatchResponseBody,
+  type SyncReceiptStore,
+} from "../state/sync-receipts.js";
 import type { StateStore } from "../state/store.js";
 import type { RawBatchStorage } from "../storage/raw-batch-storage.js";
 
@@ -16,19 +22,8 @@ interface AppleRouteOptions {
   stateStore: StateStore;
   mqttPublisher: HealthMqttPublisher;
   rawBatchStorage: RawBatchStorage;
-}
-
-function requireApiKey(
-  request: FastifyRequest,
-  reply: FastifyReply,
-  config: AppConfig,
-): boolean {
-  if (isAuthorized(config, getRequestApiKey(request))) {
-    return true;
-  }
-
-  reply.code(401).send({ detail: "Invalid API key" });
-  return false;
+  syncReceiptStore: SyncReceiptStore;
+  idempotencyStore: IdempotencyStore;
 }
 
 export async function registerAppleRoutes(
@@ -60,8 +55,40 @@ export async function registerAppleRoutes(
     }
 
     const batch = parsed.data;
+    const receiptHeaders = parseSyncReceiptHeaders(request.headers);
+    if (receiptHeaders.idempotencyKey) {
+      const existingReceipt =
+        (await options.idempotencyStore.getEntry(
+          options.context.name,
+          receiptHeaders.idempotencyKey,
+        )) ??
+        (await options.syncReceiptStore.getIdempotencyReceipt(
+          options.context.name,
+          receiptHeaders.idempotencyKey,
+        ));
+      if (existingReceipt) {
+        if (existingReceipt.payload_hash !== receiptHeaders.payloadHash) {
+          return reply.code(409).send({
+            status: "error",
+            error: "Idempotency key was already used with a different payload hash",
+          });
+        }
+
+        request.log.debug(
+          {
+            context: options.context.name,
+            metric: batch.metric,
+            idempotency_key: receiptHeaders.idempotencyKey,
+          },
+          "replayed apple health batch response from sync receipt",
+        );
+        return existingReceipt.response;
+      }
+    }
+
     const rawRecords = batch.samples.length;
-    const normalizedRecords = normalizeBatch(batch);
+    const normalizationResult = normalizeBatchWithStats(batch);
+    const normalizedRecords = normalizationResult.records;
     const processedRecords = normalizedRecords.length;
     const statusObservations = createStatusObservations(normalizedRecords);
     request.log.debug(
@@ -81,12 +108,28 @@ export async function registerAppleRoutes(
     );
 
     if (batch.samples.length === 0) {
-      return {
+      const response: BatchResponseBody = {
         status: "empty",
         metric: batch.metric,
         batch: batch.batch_index,
         records: 0,
       };
+
+      await options.syncReceiptStore.recordBatch({
+        contextName: options.context.name,
+        headers: receiptHeaders,
+        metric: batch.metric,
+        batchIndex: batch.batch_index,
+        totalBatches: batch.total_batches,
+        recordsReceived: 0,
+        recordsAccepted: 0,
+        recordsRejected: 0,
+        recordsDedupedInBatch: 0,
+        response,
+      });
+      await recordIdempotencySuccess(request, options, receiptHeaders, response);
+
+      return response;
     }
 
     try {
@@ -107,6 +150,17 @@ export async function registerAppleRoutes(
         },
         "failed to store raw apple health batch",
       );
+
+      await options.syncReceiptStore.recordFailedBatch({
+        contextName: options.context.name,
+        headers: receiptHeaders,
+        metric: batch.metric,
+        batchIndex: batch.batch_index,
+        totalBatches: batch.total_batches,
+        recordsReceived: rawRecords,
+        failureStatusCode: 500,
+        failureReason: "Failed to store raw batch",
+      });
 
       return reply.code(500).send({
         status: "error",
@@ -159,6 +213,17 @@ export async function registerAppleRoutes(
         "failed to publish apple health batch to mqtt",
       );
 
+      await options.syncReceiptStore.recordFailedBatch({
+        contextName: options.context.name,
+        headers: receiptHeaders,
+        metric: batch.metric,
+        batchIndex: batch.batch_index,
+        totalBatches: batch.total_batches,
+        recordsReceived: normalizationResult.stats.recordsReceived,
+        failureStatusCode: 502,
+        failureReason: "Failed to publish batch to MQTT",
+      });
+
       return reply.code(502).send({
         status: "error",
         error: "Failed to publish batch to MQTT",
@@ -180,13 +245,31 @@ export async function registerAppleRoutes(
       "updated apple health status ledger",
     );
 
-    return {
+    const response: BatchResponseBody = {
       status: "processed",
       metric: batch.metric,
       batch: batch.batch_index,
       total_batches: batch.total_batches,
       records: processedRecords,
     };
+
+    await options.syncReceiptStore.recordBatch({
+      contextName: options.context.name,
+      headers: receiptHeaders,
+      metric: batch.metric,
+      batchIndex: batch.batch_index,
+      totalBatches: batch.total_batches,
+      recordsReceived: normalizationResult.stats.recordsReceived,
+      recordsAccepted: normalizationResult.stats.recordsAccepted,
+      recordsRejected: normalizationResult.stats.recordsRejected,
+      recordsDedupedInBatch: normalizationResult.stats.recordsDedupedInBatch,
+      latestDestinationSampleTime:
+        latestDestinationSampleTime(statusObservations),
+      response,
+    });
+    await recordIdempotencySuccess(request, options, receiptHeaders, response);
+
+    return response;
   });
 
   app.get("/api/apple/status", async (request, reply) => {
@@ -205,6 +288,45 @@ export async function registerAppleRoutes(
 
     return status;
   });
+}
+
+async function recordIdempotencySuccess(
+  request: FastifyRequest,
+  options: AppleRouteOptions,
+  receiptHeaders: { idempotencyKey?: string; payloadHash?: string },
+  response: BatchResponseBody,
+): Promise<void> {
+  if (!receiptHeaders.idempotencyKey) {
+    return;
+  }
+
+  try {
+    await options.idempotencyStore.recordSuccess({
+      contextName: options.context.name,
+      idempotencyKey: receiptHeaders.idempotencyKey,
+      payloadHash: receiptHeaders.payloadHash,
+      response,
+    });
+  } catch (error) {
+    request.log.error(
+      {
+        err: error,
+        context: options.context.name,
+        metric: response.metric,
+        batch: response.batch,
+      },
+      "failed to record apple health idempotency key after batch acceptance",
+    );
+  }
+}
+
+function latestDestinationSampleTime(
+  observations: Array<{ observedAt: string }>,
+): string | undefined {
+  return observations
+    .map((observation) => observation.observedAt)
+    .sort()
+    .at(-1);
 }
 
 function getFirstSampleKeys(samples: Array<Record<string, unknown>>): string[] {

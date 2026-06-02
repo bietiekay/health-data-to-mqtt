@@ -25,7 +25,11 @@ Unit tests cover small deterministic behavior:
 - topic rendering,
 - raw MQTT payload construction,
 - raw batch archive path handling,
-- idempotency key generation.
+- idempotency index persistence and replay lookups,
+- sync receipt header parsing and receipt store persistence,
+- readiness probe helpers,
+- ingest accounting for accepted, rejected, and in-batch deduped records,
+- ECG and category-event compatibility behavior.
 
 ### API Integration Tests
 
@@ -33,12 +37,17 @@ API integration tests cover the HealthSave-facing contract:
 
 - `GET /health`,
 - `GET /api/health`,
+- `GET /ready`,
 - `POST /api/apple/batch`,
 - empty batch responses,
 - status counters,
 - optional API-key behavior.
 - prefixed context endpoints.
 - raw batch archive success, skip, and failure behavior.
+- v2 setup diagnostics.
+- v2 sync receipt authorization, summaries, coverage, and 404 behavior.
+- idempotency replay and conflict behavior before ingest side effects.
+- failed sync-run receipt visibility.
 
 ### MQTT Tests
 

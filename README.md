@@ -2,7 +2,7 @@
 
 Health Data to MQTT is a drop-in server for the [HealthSave iOS app](https://apps.apple.com/app/id6759843047). It accepts HealthKit-derived sync batches through the same HTTP API as the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
 
-The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, optional raw batch storage, Docker support, and tests. Replay fixtures and persistent idempotency are still planned implementation phases.
+The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, a durable idempotency index, HealthSave sync receipt endpoints, optional raw batch storage, Docker support, and tests. Replay fixtures and broader deterministic record idempotency are still planned implementation phases.
 
 ![Health Data to MQTT screenshot](./screenshot.png)
 
@@ -18,7 +18,7 @@ The repository currently contains a Node.js + TypeScript Fastify server with com
 
 ## Current Status
 
-This repository contains the compatibility server, a durable status ledger, and the initial raw plus normalized MQTT pipeline, not the final idempotent pipeline.
+This repository contains the compatibility server, a durable status ledger, a durable `Idempotency-Key` index, HealthSave sync receipts, and the initial raw plus normalized MQTT pipeline. Replay fixtures and broader deterministic record idempotency remain planned.
 
 Available now:
 
@@ -122,9 +122,16 @@ Supported client-facing endpoints:
 | Endpoint | Method | Purpose |
 | --- | --- | --- |
 | `/health` | GET | Basic service health check |
-| `/api/health` | GET | App-compatible health check |
+| `/api/health` | GET | App-compatible health check. HealthSave 1.5 checks this first and falls back to `/health` if needed. |
+| `/ready` | GET | Unauthenticated readiness check for local state writability and MQTT availability when enabled |
 | `/api/apple/batch` | POST | Receive one metric batch |
 | `/api/apple/status` | GET | Return flat sync/status objects with `count`, `oldest`, and `newest` |
+| `/api/v2/setup/diagnostics` | GET | Unauthenticated setup diagnostics for confirming the API base URL |
+| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
+| `/api/v2/sync/runs/{sync_run_id}` | GET | Delivery receipt summary for one HealthSave sync run |
+| `/api/v2/sync/coverage` | GET | Metric-level receipt coverage summary |
+
+`/health` and `/api/health` are lightweight liveness checks. `/ready` is stricter and returns `503` when file-backed state cannot be written or when MQTT is enabled but disconnected. Docker keeps using `/health` for container liveness by default; operators can point load balancers or orchestrators at `/ready` when dependency-gated readiness is desired.
 
 ## Multiple Client Contexts
 
@@ -248,6 +255,10 @@ Exact normalized payload fields may still change while the porting plan is final
 
 `GET /api/apple/status` returns a flat JSON object whose top-level keys are the HealthSave status metrics. Each value has the shape `{ "count": number, "oldest": string | null, "newest": string | null }`. The file-backed implementation stores a deduplicated observation ledger when `STATE_BACKEND=file`, so retries do not inflate counts and `oldest` / `newest` survive restarts.
 
+When HealthSave sends `Idempotency-Key`, the service records a lightweight idempotency entry for every successful batch so matching retries replay the original response without publishing or counting the same batch again. Reusing an idempotency key with a different `X-HealthSave-Payload-Hash` returns `409 Conflict`.
+
+When HealthSave also sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, the service records delivery receipts. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and can show both processed and failed batch attempts for a sync run.
+
 Docker example:
 
 ```env
@@ -260,6 +271,20 @@ The file-backed status ledger is written under:
 ```text
 <DATA_PATH>/status/<context>/observations.ndjson
 ```
+
+The file-backed sync receipt ledger is written under:
+
+```text
+<DATA_PATH>/receipts/<context>/receipts.ndjson
+```
+
+The file-backed idempotency index is written under:
+
+```text
+<DATA_PATH>/idempotency/<context>/keys.ndjson
+```
+
+Status endpoint timestamps are returned as ISO UTC strings. This keeps internal ledgers, MQTT payloads, and API responses aligned while remaining compatible with the HealthSave API note that ISO 8601 timestamps with trailing `Z` are accepted.
 
 Docker Compose mounts `/data` as a persistent volume, so the HealthSave app can see already-observed records after container restarts. Set `STATE_BACKEND=memory` only for disposable local runs or tests.
 
@@ -356,9 +381,7 @@ State and migration options:
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DATA_PATH` | `/data` | Persistent application data directory |
-| `STATE_BACKEND` | `file` | Local status ledger backend. Use `file` for durable status observations or `memory` for disposable runs. |
-| `IDEMPOTENCY_ENABLED` | `true` | Avoid duplicate processing where possible |
-| `IDEMPOTENCY_WINDOW_DAYS` | `30` | Retention window for idempotency keys |
+| `STATE_BACKEND` | `file` | Local status, sync receipt, and idempotency backend. Use `file` for durable observations/receipts/keys or `memory` for disposable runs. |
 | `TIMESCALE_MODE` | `off` | Optional reference mode: `off`, `shadow`, or `bridge` |
 | `TIMESCALE_URL` | empty | Optional Timescale/PostgreSQL connection string |
 | `TIMESCALE_STRICT_STARTUP` | `false` | Fail startup if reference mode cannot connect |

@@ -1,4 +1,5 @@
 import type { FastifyRequest } from "fastify";
+import type { FastifyReply } from "fastify";
 import type { AppConfig } from "./config.js";
 
 export function isAuthorized(
@@ -20,4 +21,17 @@ export function getRequestApiKey(request: FastifyRequest): string | undefined {
   }
 
   return header;
+}
+
+export function requireApiKey(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  config: Pick<AppConfig, "apiKey">,
+): boolean {
+  if (isAuthorized(config, getRequestApiKey(request))) {
+    return true;
+  }
+
+  reply.code(401).send({ detail: "Invalid API key" });
+  return false;
 }

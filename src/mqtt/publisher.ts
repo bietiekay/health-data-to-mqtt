@@ -8,6 +8,8 @@ import { renderMetricTopic } from "./topics.js";
 type MqttQos = 0 | 1 | 2;
 
 export interface MqttPublishClient {
+  connected?: boolean;
+  reconnecting?: boolean;
   publishAsync(
     topic: string,
     message: string | Buffer,
@@ -50,6 +52,7 @@ export interface HealthMqttPublisher {
     context: AppContextConfig,
     records: NormalizedRecord[],
   ): Promise<CurrentPublishResult>;
+  isReady(): boolean;
   close(): Promise<void>;
 }
 
@@ -97,6 +100,9 @@ export function createNoopMqttPublisher(): HealthMqttPublisher {
         records: 0,
         topics: [],
       };
+    },
+    isReady() {
+      return true;
     },
     async close() {
       return undefined;
@@ -255,6 +261,18 @@ class MqttHealthPublisher implements HealthMqttPublisher {
 
   async close(): Promise<void> {
     await this.client.endAsync(false);
+  }
+
+  isReady(): boolean {
+    if (!this.config.mqtt.enabled) {
+      return true;
+    }
+
+    if (this.client.connected === undefined) {
+      return true;
+    }
+
+    return this.client.connected && !this.client.reconnecting;
   }
 }
 

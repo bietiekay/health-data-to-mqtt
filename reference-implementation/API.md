@@ -396,6 +396,224 @@ Correct response shape:
 Do not wrap this endpoint as `{"status":"ok","counts":{...}}`; that shape is
 not compatible with the current iOS status UI.
 
+## Sync Receipts and Setup Diagnostics
+
+These v2 operator endpoints are additive. They do not change the released v1
+HealthSave ingest/status contract, but they make setup and end-to-end proof much
+clearer.
+
+## Compatibility tiers
+
+HealthSave-compatible servers do **not** need to be Data Hub. The stable minimum
+contract is split into a small core app/setup surface, recommended retry-safe
+behavior, and optional Data Hub proof endpoints.
+
+**Core app/setup contract**
+
+1. `GET /api/health` returns a successful `2xx` liveness response. iOS 1.5+
+   also accepts `GET /health` as a fallback — see "iOS liveness probe
+   behavior" below.
+2. `GET /api/apple/status` returns flat metric status objects.
+3. `POST /api/apple/batch` accepts HealthSave metric batches and returns a
+   successful `2xx` response for uploads it accepts.
+
+**Recommended retry-safe behavior**
+
+Servers should make `POST /api/apple/batch` idempotent by batch ID, run ID, or a
+deterministic record key so retries and backfills do not double-count records.
+This is strongly recommended for production destinations, but it is separate
+from the minimal setup probe contract.
+
+**Optional Data Hub extensions**
+
+Data Hub also implements `GET /api/v2/sync/runs/latest` and
+`GET /api/v2/sync/coverage` for richer receipt and coverage diagnostics.
+HealthSave uses those only when present, so third-party servers can start with
+the core contract and add receipt proof later. The iOS app reads run-specific
+receipts via `GET /api/v2/sync/runs/{sync_run_id}` to light up its
+"delivery receipt" confidence tier; a v1-only server still syncs cleanly and
+simply doesn't unlock that tier.
+
+### iOS liveness probe behavior (1.5+)
+
+HealthSave 1.5 broadened the liveness probe so third-party servers don't fail
+on plausible variations the v1 contract never pinned. Third-party
+implementers should know the tolerances:
+
+- **Endpoint discovery.** iOS calls `GET /api/health` first. If the response
+  is `404`, iOS retries once at `GET /health`. Implement either one (or both);
+  Data Hub exposes both.
+- **Status-value accept-list.** The response `status` field is matched
+  case-insensitively with surrounding whitespace trimmed against
+  `{ "ok", "healthy", "alive", "ready", "up" }`. The reference Data Hub
+  returns `"ok"`; other values in the set are accepted. Anything else
+  (`"broken"`, `"error"`, `"down"`, `"starting"`, …) is rejected as
+  not-HealthSave.
+- **Authentication.** The configured `x-api-key` header is forwarded on the
+  liveness request when the user has set one. Servers that protect
+  `/api/health` (defense in depth) are welcome.
+- **Auth classification.** `401` or `403` on the liveness path is classified
+  as `authFailed` (the user sees "check your API key" copy), not
+  `notHealthsave`. This means a key-rotation issue surfaces with actionable
+  copy instead of pointing the user at the wrong problem.
+- **Timeout.** 10 seconds on the liveness request.
+
+These behaviors are pinned by `BackendCompatibilityTests` in the iOS repo;
+see `ios_app/Sources/HealthSync/BackendCompatibility.swift` for the source of
+truth.
+
+### `GET /api/v2/setup/diagnostics`
+
+Unauthenticated, no health data. Use this to confirm that a base URL points at
+Data Hub API rather than Grafana or Homepage.
+
+Example response:
+
+```json
+{
+  "service": "health-data-hub",
+  "kind": "HealthSave Data Hub API",
+  "status": "ok",
+  "auth_required": true,
+  "health_endpoint": "/api/health",
+  "status_endpoint": "/api/apple/status",
+  "ingest_endpoint": "/api/apple/batch",
+  "latest_sync_endpoint": "/api/v2/sync/runs/latest",
+  "coverage_endpoint": "/api/v2/sync/coverage",
+  "grafana_required": false,
+  "wrong_port_hint": "If you see Grafana auth JSON or Homepage HTML 404, the app is pointed at the wrong port. Use the Data Hub API base URL, not Grafana/Homepage."
+}
+```
+
+### HealthSave sync receipt headers
+
+The released iOS app already sends these optional headers on batch sync:
+
+- `Idempotency-Key`
+- `X-HealthSave-Sync-Run-ID`
+- `X-HealthSave-Batch-ID`
+- `X-HealthSave-Payload-Hash`
+- `X-HealthSave-Metric`
+- `X-HealthSave-Batch-Index`
+- `X-HealthSave-Total-Batches`
+- `X-HealthSave-Sync-Mode`
+- `X-HealthSave-Anchor-Present`
+- `X-HealthSave-Lower-Bound-Reason`
+- `X-HealthSave-Full-Export`
+- `X-HealthSave-Query-Lower-Bound`
+- `X-HealthSave-Sample-Min-Time`
+- `X-HealthSave-Sample-Max-Time`
+
+Data Hub records them in `healthsave_sync_receipts` so operators can prove that a
+sync reached the API, see which batches were processed, and separate delivery
+receipt time from sample-window freshness and Grafana dashboard visibility.
+If the same `Idempotency-Key` is reused with a different payload hash, Data Hub
+returns `409 Conflict` and does not ingest the replacement payload.
+
+### `GET /api/v2/sync/runs/latest`
+
+Protected by `x-api-key` when `API_KEY` is set. Returns the latest observed
+HealthSave sync run with batch counts, accepted / rejected / in-batch-deduped
+record counts, and metric names.
+
+### `GET /api/v2/sync/runs/{sync_run_id}`
+
+Protected by `x-api-key` when `API_KEY` is set. Returns the delivery receipt
+summary for one HealthSave sync run. This endpoint proves Data Hub saw the
+batches HealthSave sent; it is not a full sample-by-sample manifest verifier.
+
+Example response:
+
+```json
+{
+  "status": "ok",
+  "sync_run_id": "run_01HY...",
+  "receipt_id": "run_01HY...",
+  "verification_level": "delivery_receipt",
+  "records_received": 512,
+  "records_accepted": 488,
+  "records_inserted_new": null,
+  "records_deduped_existing": null,
+  "storage_result_level": "accepted_only",
+  "records_skipped": 0,
+  "records_rejected": 0,
+  "records_deduped_in_batch": 24,
+  "sample_window": {
+    "min_sample_time": "2026-05-24T07:10:00Z",
+    "max_sample_time": "2026-05-24T07:13:00Z"
+  },
+  "latest_sample_time": "2026-05-24T07:13:00Z",
+  "batches_seen": 2,
+  "batches_processed": 2,
+  "batches_failed": 0,
+  "metrics": ["heart_rate", "step_count"],
+  "oldest_received_at": "2026-05-24T07:12:00Z",
+  "newest_receipt_at": "2026-05-24T07:13:22Z"
+}
+```
+
+**Honest accounting (1.5+).** `records_rejected` (and the persisted
+`records_skipped`) count ONLY true validation failures — samples missing a
+parseable time/value/date. They never include aggregation rollup (sleep stage
+samples folded into sessions are preserved in `sleep_stages`) nor
+`records_deduped_in_batch` (legitimate HealthKit full-export overlap collapsed
+on the conflict key). A healthy full-history sync therefore reports
+`records_rejected: 0`, not a large number derived from
+`records_received - records_accepted`. In the example above, 512 received
+samples yielded 488 unique rows with 24 in-batch duplicates collapsed and 0
+genuine rejections.
+
+### `GET /api/v2/sync/coverage`
+
+Protected by `x-api-key` when `API_KEY` is set. Returns metric-level receipt
+coverage and destination sample coverage. `newest_receipt_at` proves delivery
+time; `latest_destination_sample_time` proves the newest sample currently stored
+for that metric. They are intentionally separate because a recent receipt can
+contain old samples.
+
+The Timescale writer splits accepted rows into inserted-new vs deduped-existing
+(`storage_result_level: inserted_vs_existing`) and reports true
+`records_rejected` plus `records_deduped_in_batch` counts. Backends that cannot
+distinguish inserted-vs-existing leave those fields nullable and report
+`storage_result_level: accepted_only`.
+
+## Insights
+
+These endpoints are server-side analysis surfaces. They do not change the
+HealthSave iOS ingestion/status contract.
+
+### `GET /api/insights/anomalies`
+
+Returns recent anomaly findings. Optional query parameters:
+
+- `since`: ISO-8601 lower bound on finding creation time
+- `severity`: comma-separated list of `info`, `watch`, `alert`
+
+### `GET /api/insights/trends`
+
+Returns persisted HR / HRV trend findings from the statistical engine.
+Optional query parameters:
+
+- `period`: day window such as `30d` or `90d`
+
+Example response:
+
+```json
+{
+  "trends": [
+    {
+      "metric": "hrv",
+      "slope": -0.9,
+      "direction": "down",
+      "period_days": 30,
+      "p_value": 0.02,
+      "confidence": "medium"
+    }
+  ],
+  "count": 1
+}
+```
+
 ## Compatibility Notes
 
 - Timestamp values should be ISO 8601 strings. A trailing `Z` is accepted.

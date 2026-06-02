@@ -4,11 +4,35 @@ All notable changes to this project will be documented in this file.
 
 Version headers must match the `version` field in `package.json`.
 
+## 0.4.0
+
+### Added
+
+- Added a dedicated file and memory idempotency index for all successful batches with `Idempotency-Key`, including batches without sync-run receipt headers.
+- Added `GET /ready` readiness checks for local state writability and MQTT connection state.
+- Added failed-batch sync receipt rows so v2 run summaries report processed and failed batch counts separately.
+- Added ECG compatibility handling and category-event timestamp fallbacks for generic quantity ingestion.
+- Added tests for idempotency persistence, readiness probes, failed receipt summaries, ECG compatibility, and category-event fallback timestamps.
+
+### Changed
+
+- Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
+- Documented `/api/insights/*` as out of scope and kept status timestamps as ISO UTC strings for API compatibility.
+
 ## 0.3.0
 
 ### Changed
 
 - Bumped the app version to 0.3.0.
+- Changed ingest normalization to expose accepted, rejected, and in-batch deduped record counts for sync receipt accounting.
+
+### Added
+
+- Added unauthenticated `GET /api/v2/setup/diagnostics` for HealthSave setup checks.
+- Added protected `GET /api/v2/sync/runs/latest`, `GET /api/v2/sync/runs/{sync_run_id}`, and `GET /api/v2/sync/coverage` delivery receipt endpoints.
+- Added memory and file-backed sync receipt storage under `<DATA_PATH>/receipts/<context>/receipts.ndjson`.
+- Added HealthSave receipt header capture plus idempotency replay/conflict handling for matching `Idempotency-Key` and payload hash values.
+- Added tests for v2 diagnostics, sync receipts, receipt coverage, prefixed receipt isolation, and idempotency replay/conflict behavior.
 
 ## 0.2.0
 

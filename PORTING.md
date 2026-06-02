@@ -69,8 +69,13 @@ Do not use the reference implementation as the runtime target. The new service s
 | --- | --- | --- |
 | `/health` | GET | Return `{"status":"ok"}` |
 | `/api/health` | GET | Return `{"status":"ok"}` |
+| `/ready` | GET | Return readiness for local state and MQTT dependencies |
 | `/api/apple/batch` | POST | Receive and process one metric batch |
 | `/api/apple/status` | GET | Return flat status objects in reference-compatible shape |
+| `/api/v2/setup/diagnostics` | GET | Return unauthenticated setup diagnostics for API base URL checks |
+| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
+| `/api/v2/sync/runs/{sync_run_id}` | GET | Return one run-specific delivery receipt summary |
+| `/api/v2/sync/coverage` | GET | Return metric-level sync receipt coverage |
 
 ### 4.2 Authentication
 
@@ -84,8 +89,13 @@ This must apply to:
 
 - `POST /api/apple/batch`
 - `GET /api/apple/status`
+- `GET /api/v2/sync/runs/latest`
+- `GET /api/v2/sync/runs/{sync_run_id}`
+- `GET /api/v2/sync/coverage`
 
-Health endpoints should remain unauthenticated unless we explicitly decide otherwise.
+Health, readiness, and setup diagnostics endpoints remain unauthenticated. This satisfies
+HealthSave 1.5 liveness behavior, which checks `/api/health` first and accepts
+`/health` as a fallback.
 
 ### 4.3 Status Response
 
@@ -106,6 +116,19 @@ known HealthSave status metrics, even when they are empty:
 
 Status values should represent deduplicated logical records, not request
 volume or retained MQTT messages.
+
+Status timestamps currently return ISO UTC strings, for example
+`2026-04-10T12:00:00.000Z`, while `daily_activity` returns date-only values.
+This is intentional: the API compatibility notes accept ISO 8601 timestamps with
+a trailing `Z`, and keeping the same format in ledgers, MQTT payloads, and API
+responses avoids migration churn.
+
+### 4.4 Explicit Non-Goals
+
+`GET /api/insights/anomalies` and `GET /api/insights/trends` are Data Hub
+analysis surfaces, not part of the HealthSave sync replacement contract. They
+remain out of scope until this MQTT-first port has a local analysis engine that
+can produce those findings honestly.
 
 ## 5) Batch API Contract
 
@@ -373,11 +396,14 @@ This structure can change if implementation reveals a simpler local pattern.
 4. Ingest router selects the metric mapper.
 5. Mapper parses timestamps/dates and normalizes fields.
 6. Non-empty valid raw batches are optionally archived to local NDJSON storage.
-7. Idempotency layer filters duplicates where enabled.
+7. Dedicated idempotency index replays already accepted matching
+   `Idempotency-Key` requests and rejects conflicting payload hashes.
 8. MQTT publisher emits raw, normalized, and current events using the active client context.
 9. State store updates logical counters.
-10. Optional Timescale reference mode performs shadow write or comparison.
-11. API returns the reference-compatible response.
+10. Sync receipt store records run metadata and accepted/rejected/deduped counts
+    when `X-HealthSave-Sync-Run-ID` is present.
+11. Optional Timescale reference mode performs shadow write or comparison.
+12. API returns the reference-compatible response.
 
 ## 9) MQTT Plan
 
@@ -477,15 +503,24 @@ contexts:
 | --- | --- |
 | `DATA_PATH` | `/data` |
 | `STATE_BACKEND` | `file` |
-| `IDEMPOTENCY_ENABLED` | `true` |
-| `IDEMPOTENCY_WINDOW_DAYS` | `30` |
 
 The current durable state backend stores a deduplicated `/api/apple/status`
 ledger under `<DATA_PATH>/status/<context>/observations.ndjson`. The ledger is
 rebuilt on startup so HealthSave clients can read `count`, `oldest`, and
-`newest` after restarts without double-counting retries. `STATE_BACKEND=memory`
-remains available for disposable local runs and tests. Persistent idempotency
-is still planned separately.
+`newest` after restarts without double-counting retries.
+
+The same backend also stores lightweight sync delivery receipts under
+`<DATA_PATH>/receipts/<context>/receipts.ndjson` when clients send
+`X-HealthSave-Sync-Run-ID`. These records contain sync metadata and counts, not
+raw health samples.
+
+Idempotency entries are stored separately under
+`<DATA_PATH>/idempotency/<context>/keys.ndjson` for every successful batch with
+`Idempotency-Key`, including batches without `X-HealthSave-Sync-Run-ID`.
+Matching `Idempotency-Key` plus payload hash requests replay the original
+response without repeating raw storage, MQTT publication, or status updates.
+Reusing the same key with a different payload hash returns `409`.
+`STATE_BACKEND=memory` remains available for disposable local runs and tests.
 
 ### 10.4 Raw Batch Storage
 
@@ -560,7 +595,7 @@ Cover:
 - metric mappers,
 - topic rendering,
 - file-backed status state persistence,
-- idempotency key generation,
+- sync receipt header parsing and idempotency replay metadata,
 - auth behavior,
 - config parsing.
 
@@ -635,9 +670,11 @@ Create realistic replay fixtures with:
 
 - Add file-backed local status state. Status: deduplicated NDJSON observation ledger complete.
 - Track logical counters. Status: flat `count` / `oldest` / `newest` status objects complete.
-- Add idempotency keys and retention.
+- Add HealthSave `Idempotency-Key` idempotency. Status: complete for all successful
+  batches with `Idempotency-Key`, independent of v2 sync receipt headers.
+- Add broader deterministic record-key idempotency and retention. Status: planned.
 - Add optional raw batch archive. Status: initial NDJSON archive complete for non-empty valid batches.
-- Add duplicate replay tests.
+- Add duplicate replay tests. Status: `Idempotency-Key` replay/conflict tests complete.
 
 ### Phase E: Reference Validation
 

@@ -34,6 +34,18 @@ export interface NormalizedRecord {
   normalizedSample: Record<string, unknown>;
 }
 
+export interface NormalizationStats {
+  recordsReceived: number;
+  recordsAccepted: number;
+  recordsRejected: number;
+  recordsDedupedInBatch: number;
+}
+
+export interface NormalizationResult {
+  records: NormalizedRecord[];
+  stats: NormalizationStats;
+}
+
 interface DedicatedMetricSpec {
   normalizedMetric: string;
   valueField: string;
@@ -157,6 +169,10 @@ export function createStatusObservations(
 }
 
 export function normalizeBatch(batch: BatchRequest): NormalizedRecord[] {
+  return normalizeBatchWithStats(batch).records;
+}
+
+export function normalizeBatchWithStats(batch: BatchRequest): NormalizationResult {
   if (batch.metric === "activity_summaries") {
     return normalizeActivity(batch);
   }
@@ -175,10 +191,14 @@ export function normalizeBatch(batch: BatchRequest): NormalizedRecord[] {
   }
 
   if (batch.metric === "workouts") {
-    const workoutRecords = normalizeWorkouts(batch);
-    return workoutRecords.length > 0
-      ? workoutRecords
+    const workoutResult = normalizeWorkouts(batch);
+    return workoutResult.records.length > 0
+      ? workoutResult
       : normalizeActiveEnergyQuantity(batch);
+  }
+
+  if (batch.metric === "ecg") {
+    return createNormalizationResult(batch, [], batch.samples.length, 0);
   }
 
   const dedicatedSpec = dedicatedMetricSpecs[batch.metric];
@@ -192,7 +212,7 @@ export function normalizeBatch(batch: BatchRequest): NormalizedRecord[] {
 function normalizeDedicated(
   batch: BatchRequest,
   spec: DedicatedMetricSpec,
-): NormalizedRecord[] {
+): NormalizationResult {
   const records = batch.samples.flatMap((sample, sampleIndex) => {
     const time = parseTimestamp(
       firstPresent(sample, ...(spec.timeFields ?? ["date", "startDate", "start"])),
@@ -222,15 +242,18 @@ function normalizeDedicated(
   });
 
   return dedupeRecords(
+    batch,
     records,
     (record) =>
       `${record.normalizedMetric}:${record.deviceId}:${String(record.normalizedSample.time)}`,
   );
 }
 
-function normalizeGenericQuantity(batch: BatchRequest): NormalizedRecord[] {
+function normalizeGenericQuantity(batch: BatchRequest): NormalizationResult {
   const records = batch.samples.flatMap((sample, sampleIndex) => {
-    const time = parseTimestamp(sample.date);
+    const time = parseTimestamp(
+      firstPresent(sample, "date", "startDate", "start", "endDate", "end"),
+    );
     const value = toNumber(sample.qty);
     if (!time || value === undefined) {
       return [];
@@ -254,6 +277,7 @@ function normalizeGenericQuantity(batch: BatchRequest): NormalizedRecord[] {
   });
 
   return dedupeRecords(
+    batch,
     records,
     (record) =>
       `${record.normalizedMetric}:${String(record.normalizedSample.metric_name)}:${record.deviceId}:${String(record.normalizedSample.time)}`,
@@ -263,7 +287,7 @@ function normalizeGenericQuantity(batch: BatchRequest): NormalizedRecord[] {
 function normalizeDailyQuantity(
   batch: BatchRequest,
   spec: { field: string; transformValue?: (value: number) => number },
-): NormalizedRecord[] {
+): NormalizationResult {
   const records = batch.samples.flatMap((sample, sampleIndex) => {
     const activityDate = parseDateValue(sample.date);
     const rawValue = toNumber(sample.qty);
@@ -286,13 +310,14 @@ function normalizeDailyQuantity(
   });
 
   return dedupeRecords(
+    batch,
     records,
     (record) =>
       `${record.normalizedMetric}:${record.deviceId}:${String(record.normalizedSample.date)}`,
   );
 }
 
-function normalizeActiveEnergyQuantity(batch: BatchRequest): NormalizedRecord[] {
+function normalizeActiveEnergyQuantity(batch: BatchRequest): NormalizationResult {
   const records = batch.samples.flatMap((sample, sampleIndex) => {
     const time = parseTimestamp(firstPresent(sample, "date", "startDate", "start"));
     const value = toNumber(
@@ -326,13 +351,14 @@ function normalizeActiveEnergyQuantity(batch: BatchRequest): NormalizedRecord[] 
   });
 
   return dedupeRecords(
+    batch,
     records,
     (record) =>
       `${record.normalizedMetric}:${record.metric}:${record.deviceId}:${String(record.normalizedSample.time)}`,
   );
 }
 
-function normalizeActivity(batch: BatchRequest): NormalizedRecord[] {
+function normalizeActivity(batch: BatchRequest): NormalizationResult {
   const records = batch.samples.flatMap((sample, sampleIndex) => {
     const activityDate = parseDateValue(sample.date);
     if (!activityDate) {
@@ -361,13 +387,14 @@ function normalizeActivity(batch: BatchRequest): NormalizedRecord[] {
   });
 
   return dedupeRecords(
+    batch,
     records,
     (record) =>
       `${record.normalizedMetric}:${record.deviceId}:${String(record.normalizedSample.date)}`,
   );
 }
 
-function normalizeSleep(batch: BatchRequest): NormalizedRecord[] {
+function normalizeSleep(batch: BatchRequest): NormalizationResult {
   if (batch.samples.some((sample) => "startDate" in sample || "value" in sample)) {
     return aggregateSleepStages(batch);
   }
@@ -402,13 +429,14 @@ function normalizeSleep(batch: BatchRequest): NormalizedRecord[] {
   });
 
   return dedupeRecords(
+    batch,
     records,
     (record) =>
       `${record.normalizedMetric}:${record.deviceId}:${String(record.normalizedSample.start_time)}`,
   );
 }
 
-function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
+function aggregateSleepStages(batch: BatchRequest): NormalizationResult {
   const segments = batch.samples.flatMap((sample, sampleIndex) => {
     const start = parseDateObject(
       firstPresent(sample, "start_date", "startDate", "start", "date"),
@@ -432,7 +460,7 @@ function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
   });
 
   if (segments.length === 0) {
-    return [];
+    return createNormalizationResult(batch, [], 0, 0);
   }
 
   segments.sort((left, right) => left.start.getTime() - right.start.getTime());
@@ -490,7 +518,7 @@ function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
     }
   }
 
-  return sessions.flatMap((session, index) => {
+  const records = sessions.flatMap((session, index) => {
     const totalDurationMs = session.deepMs + session.remMs + session.lightMs;
     if (totalDurationMs === 0 && session.awakeMs === 0) {
       return [];
@@ -517,9 +545,11 @@ function aggregateSleepStages(batch: BatchRequest): NormalizedRecord[] {
       },
     ];
   });
+
+  return createNormalizationResult(batch, records, segments.length, 0);
 }
 
-function normalizeWorkouts(batch: BatchRequest): NormalizedRecord[] {
+function normalizeWorkouts(batch: BatchRequest): NormalizationResult {
   const records = batch.samples.flatMap((sample, sampleIndex) => {
     const start = parseTimestamp(
       firstPresent(sample, "start_date", "startDate", "start", "date"),
@@ -563,6 +593,7 @@ function normalizeWorkouts(batch: BatchRequest): NormalizedRecord[] {
   });
 
   return dedupeRecords(
+    batch,
     records,
     (record) =>
       `${record.normalizedMetric}:${record.deviceId}:${String(record.normalizedSample.start_time)}`,
@@ -772,15 +803,39 @@ function maxDate(left: Date, right: Date): Date {
 }
 
 function dedupeRecords(
+  batch: BatchRequest,
   records: NormalizedRecord[],
   keyForRecord: (record: NormalizedRecord) => string,
-): NormalizedRecord[] {
+): NormalizationResult {
   const seen = new Map<string, NormalizedRecord>();
   for (const record of records) {
     seen.set(keyForRecord(record), record);
   }
 
-  return [...seen.values()];
+  const dedupedRecords = [...seen.values()];
+  return createNormalizationResult(
+    batch,
+    dedupedRecords,
+    records.length,
+    records.length - dedupedRecords.length,
+  );
+}
+
+function createNormalizationResult(
+  batch: BatchRequest,
+  records: NormalizedRecord[],
+  acceptedBeforeDedupe: number,
+  recordsDedupedInBatch: number,
+): NormalizationResult {
+  return {
+    records,
+    stats: {
+      recordsReceived: batch.samples.length,
+      recordsAccepted: records.length,
+      recordsRejected: Math.max(0, batch.samples.length - acceptedBeforeDedupe),
+      recordsDedupedInBatch,
+    },
+  };
 }
 
 function deserializeBatchPayload(value: unknown): unknown {

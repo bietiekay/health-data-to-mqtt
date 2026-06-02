@@ -3,6 +3,7 @@ import {
   batchRequestSchema,
   createStatusObservations,
   normalizeBatch,
+  normalizeBatchWithStats,
   parseTimestamp,
   resolveDeviceIdentity,
 } from "../../src/ingest.js";
@@ -45,6 +46,55 @@ describe("batchRequestSchema", () => {
 });
 
 describe("normalizeBatch", () => {
+  it("reports true rejected and in-batch deduped records separately", () => {
+    const result = normalizeBatchWithStats({
+      metric: "heart_rate",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        { date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" },
+        { date: "2026-04-10T12:00:00Z", qty: 73, source: "Watch" },
+        { date: "not-a-date", qty: 74, source: "Watch" },
+      ],
+    });
+
+    expect(result.records).toHaveLength(1);
+    expect(result.stats).toEqual({
+      recordsReceived: 3,
+      recordsAccepted: 1,
+      recordsRejected: 1,
+      recordsDedupedInBatch: 1,
+    });
+  });
+
+  it("does not count sleep stage aggregation as in-batch dedupe", () => {
+    const result = normalizeBatchWithStats({
+      metric: "sleep_analysis",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        {
+          startDate: "2026-04-10T22:00:00Z",
+          endDate: "2026-04-11T02:00:00Z",
+          value: "core",
+        },
+        {
+          startDate: "2026-04-11T02:00:00Z",
+          endDate: "2026-04-11T06:00:00Z",
+          value: "deep",
+        },
+      ],
+    });
+
+    expect(result.records).toHaveLength(1);
+    expect(result.stats).toEqual({
+      recordsReceived: 2,
+      recordsAccepted: 1,
+      recordsRejected: 0,
+      recordsDedupedInBatch: 0,
+    });
+  });
+
   it("extracts dedicated heart rate datapoints", () => {
     expect(
       normalizeBatch({
@@ -89,6 +139,56 @@ describe("normalizeBatch", () => {
       value: 1.4,
       unit: "m/s",
       source_id: "iPhone",
+    });
+  });
+
+  it("uses category event fallback timestamps for generic quantities", () => {
+    expect(
+      normalizeBatch({
+        metric: "mindful_session",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            endDate: "2024-03-15T08:15:00Z",
+            qty: 900,
+            rawValue: 0,
+            source: "Apple Watch",
+          },
+        ],
+      })[0]?.normalizedSample,
+    ).toEqual({
+      time: "2024-03-15T08:15:00.000Z",
+      metric_name: "mindful_session",
+      value: 900,
+      unit: "",
+      source_id: "Apple Watch",
+    });
+  });
+
+  it("accepts ECG compatibility payloads without rejected records", () => {
+    const result = normalizeBatchWithStats({
+      metric: "ecg",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        {
+          start: "2026-04-10T12:00:00Z",
+          end: "2026-04-10T12:00:30Z",
+          classification: "sinusRhythm",
+          numberOfVoltageMeasurements: 512,
+          samplingFrequency: 512,
+          averageHeartRate: 72,
+        },
+      ],
+    });
+
+    expect(result.records).toEqual([]);
+    expect(result.stats).toEqual({
+      recordsReceived: 1,
+      recordsAccepted: 0,
+      recordsRejected: 0,
+      recordsDedupedInBatch: 0,
     });
   });
 
