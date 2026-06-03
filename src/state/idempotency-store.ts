@@ -226,7 +226,11 @@ function isBatchResponseBody(value: unknown): value is BatchResponseBody {
       (value as Partial<BatchResponseBody>).status === "empty") &&
     typeof (value as Partial<BatchResponseBody>).metric === "string" &&
     typeof (value as Partial<BatchResponseBody>).batch === "number" &&
-    typeof (value as Partial<BatchResponseBody>).records === "number"
+    typeof (value as Partial<BatchResponseBody>).total_batches === "number" &&
+    typeof (value as Partial<BatchResponseBody>).records === "number" &&
+    typeof (value as Partial<BatchResponseBody>).receipt_id === "string" &&
+    (value as Partial<BatchResponseBody>).verification_level ===
+      "delivery_receipt"
   );
 }
 

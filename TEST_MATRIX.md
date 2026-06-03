@@ -59,19 +59,26 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | State | Sync receipt summaries separate processed and failed rows | Existing | `test/unit/sync-receipts.test.ts` | Verifies `batches_processed` and `batches_failed` aggregation |
 | State | File-backed sync receipt ledger persists by context | Existing | `test/unit/sync-receipts.test.ts` | Verifies `<DATA_PATH>/receipts/<context>/receipts.ndjson` reload behavior |
 | Readiness | Memory and file readiness probes | Existing | `test/unit/readiness.test.ts` | Verifies reference success shape and file-backed state probe behavior |
-| Readiness | Dependency readiness failures | Existing | `test/unit/readiness.test.ts` | Verifies unavailable local state and MQTT readiness failures |
+| Readiness | Reference-compatible readiness ignores MQTT state | Existing | `test/unit/readiness.test.ts` | Verifies unavailable local state failures and DB/state-only V1 readiness semantics |
 | API | `GET /health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /api/health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /ready` returns reference-compatible success when ready | Existing | `test/integration/app.test.ts` | Verifies unauthenticated readiness success shape |
-| API | `GET /ready` returns `503` when dependencies are unavailable | Existing | `test/integration/app.test.ts` | Verifies local state and MQTT readiness failures |
+| API | `GET /ready` returns `503` when local state is unavailable | Existing | `test/integration/app.test.ts` | Verifies reference-compatible local state failure behavior |
+| API | Frozen reference V1 route inventory is served | Existing | `test/integration/app.test.ts` | Verifies health, readiness, Apple, metrics, and insights routes respond |
+| API | Reference-shaped no-data insight and metrics responses | Existing | `test/integration/app.test.ts` | Verifies `/metrics` names and empty `/api/insights/*` response shapes |
+| API | Insight query parameter validation | Existing | `test/integration/app.test.ts` | Verifies invalid `since`, `severity`, and `period` reference-style errors |
 | API | `GET /api/v2/setup/diagnostics` is unauthenticated | Existing | `test/integration/app.test.ts` | Verifies port identity, auth-required flag, endpoint paths, and wrong-port hint |
 | API | Protected v2 sync endpoints enforce API key auth | Existing | `test/integration/app.test.ts` | Verifies v2 sync routes use the same optional `x-api-key` behavior as v1 protected routes |
 | API | V2 sync receipts summarize batches with HealthSave run headers | Existing | `test/integration/app.test.ts` | Verifies latest run, run-specific receipt, coverage, and accepted/rejected/deduped counts |
 | API | Batches without sync run IDs do not appear in v2 receipts | Existing | `test/integration/app.test.ts` | Verifies latest returns an empty success, specific run lookup returns `404`, and coverage stays empty for v1-style requests |
-| API | Batch happy path returns processed response | Existing | `test/integration/app.test.ts` | Counts valid deduplicated logical records |
+| API | Batch body validation errors match reference style | Existing | `test/integration/app.test.ts` | Verifies invalid JSON `400` and schema validation `422` response shapes |
+| API | Batch happy path returns processed delivery receipt | Existing | `test/integration/app.test.ts` | Counts valid deduplicated logical records and verifies reference delivery receipt fields |
 | API | Non-empty batches without normalized records return `records: 0` and unchanged status | Existing | `test/integration/app.test.ts` | Verifies invalid samples are skipped without inflating status |
 | API | Large batch payloads above Fastify default parser limit are accepted | Existing | `test/integration/app.test.ts` | Regression coverage for HealthSave sync batches larger than 1 MiB |
-| API | Empty batch returns reference-compatible empty response | Existing | `test/integration/app.test.ts` | No counter increment |
+| API | Empty batch returns reference-compatible delivery receipt | Existing | `test/integration/app.test.ts` | Verifies empty receipt fields and no counter increment |
+| API | Batch delivery receipts include sample-window headers | Existing | `test/integration/app.test.ts` | Verifies HealthSave sample-window headers are normalized and echoed |
+| API | Batch delivery receipts derive sample windows from payload bounds | Existing | `test/integration/app.test.ts` | Verifies start/end payload fallback when window headers are absent |
+| API | Malformed sample-window headers return null windows | Existing | `test/integration/app.test.ts` | Verifies malformed HealthSave timestamp headers do not fail batch ingest |
 | API | Status endpoint returns flat metric objects | Existing | `test/integration/app.test.ts` | Verifies HRV status uses `{count, oldest, newest}` without wrapper keys |
 | API | Duplicate retries do not inflate status and oldest/newest expand correctly | Existing | `test/integration/app.test.ts` | Verifies deduplicated logical-record status behavior |
 | API | Status endpoint survives app restart | Existing | `test/integration/app.test.ts` | Verifies `DATA_PATH/status/<context>/observations.ndjson` rebuilds already-observed status |
@@ -96,9 +103,11 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | State | Idempotency key replay avoids repeated ingest side effects | Existing | `test/integration/app.test.ts` | Verifies matching `Idempotency-Key` and payload hash replays the original response without MQTT/status duplication |
 | State | Idempotency key conflict rejects before ingest side effects | Existing | `test/integration/app.test.ts` | Verifies reused keys with different payload hashes return `409` without MQTT/status duplication |
 | State | Idempotency key replay works without sync run IDs | Existing | `test/integration/app.test.ts` | Verifies idempotency is decoupled from v2 delivery receipts |
+| State | Batch ID fallback idempotency replays accepted batches | Existing | `test/integration/app.test.ts` | Verifies `X-HealthSave-Batch-ID` is used when explicit `Idempotency-Key` is absent |
+| State | Sync-run fallback idempotency replays accepted batches | Existing | `test/integration/app.test.ts` | Verifies `sync_run_id:metric:batch_index` fallback when explicit key and batch ID are absent |
 | State | File-backed idempotency survives app restart | Existing | `test/integration/app.test.ts` | Verifies replay works after restarting with the same `DATA_PATH` |
 | State | Failed sync-run batches appear in receipt summaries | Existing | `test/integration/app.test.ts` | Verifies MQTT failure records `batches_failed` and retry can later succeed |
 | MQTT | Broker-backed raw publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | MQTT | Broker-backed normalized publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | Replay | Realistic multi-metric sync fixtures | Planned | Not implemented | Add with mapper implementation |
-| State | Broader deterministic record idempotency | Planned | Not implemented | `Idempotency-Key` replay exists; deterministic record-key filtering beyond status counters remains future work |
+| State | Broader deterministic record idempotency | Planned | Not implemented | Retry-key replay exists; deterministic record-key filtering beyond status counters remains future work |

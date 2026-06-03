@@ -66,13 +66,13 @@ describe("checkReadiness", () => {
     await expect(checkReadiness(config, { isReady: () => true })).resolves.toEqual({
       statusCode: 503,
       body: {
-        status: "error",
+        detail: "database unavailable",
         database: "unavailable",
       },
     });
   });
 
-  it("returns unavailable when MQTT is enabled but not ready", async () => {
+  it("keeps V1 readiness independent from MQTT state", async () => {
     const config = loadConfig({
       STATE_BACKEND: "memory",
       MQTT_ENABLED: "true",
@@ -80,11 +80,10 @@ describe("checkReadiness", () => {
     });
 
     await expect(checkReadiness(config, { isReady: () => false })).resolves.toEqual({
-      statusCode: 503,
+      statusCode: 200,
       body: {
-        status: "error",
+        status: "ok",
         database: "ok",
-        mqtt: "unavailable",
       },
     });
   });

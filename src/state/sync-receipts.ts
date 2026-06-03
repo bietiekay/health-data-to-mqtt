@@ -26,8 +26,40 @@ export interface BatchResponseBody {
   status: "processed" | "empty";
   metric: string;
   batch: number;
-  total_batches?: number;
+  total_batches: number;
   records: number;
+  receipt_id: string;
+  sync_run_id: string | null;
+  batch_id: string | null;
+  idempotency_key: string | null;
+  batch_index: number;
+  records_received: number;
+  records_accepted: number;
+  records_rejected: number;
+  records_inserted_new: null;
+  records_deduped_existing: null;
+  records_deduped_in_batch: number | null;
+  storage_result_level: "accepted_only";
+  sample_window: {
+    min_sample_time: string | null;
+    max_sample_time: string | null;
+  };
+  verification_level: "delivery_receipt";
+  per_metric: Record<
+    string,
+    {
+      received: number;
+      accepted: number;
+      rejected: number;
+      inserted_new: null;
+      deduped_existing: null;
+      deduped_in_batch: number | null;
+      sample_window: {
+        min_sample_time: string | null;
+        max_sample_time: string | null;
+      };
+    }
+  >;
 }
 
 export interface IdempotencyReceipt {
@@ -372,7 +404,7 @@ function createReceiptRecord(
     received_at: receivedAt,
     context: normalizeContextName(input.contextName),
     sync_run_id: syncRunId,
-    receipt_id: syncRunId,
+    receipt_id: input.response.receipt_id,
     outcome: "processed",
     ...optionalField("idempotency_key", input.headers.idempotencyKey),
     ...optionalField("batch_id", input.headers.batchId),
@@ -413,7 +445,10 @@ function createFailedReceiptRecord(
     received_at: receivedAt,
     context: normalizeContextName(input.contextName),
     sync_run_id: syncRunId,
-    receipt_id: syncRunId,
+    receipt_id:
+      input.headers.idempotencyKey ??
+      input.headers.batchId ??
+      `${syncRunId}:${input.metric}:${input.batchIndex}`,
     outcome: "failed",
     ...optionalField("idempotency_key", input.headers.idempotencyKey),
     ...optionalField("batch_id", input.headers.batchId),
@@ -632,7 +667,11 @@ function isBatchResponseBody(value: unknown): value is BatchResponseBody {
     (value as Partial<BatchResponseBody>).status !== undefined &&
     typeof (value as Partial<BatchResponseBody>).metric === "string" &&
     typeof (value as Partial<BatchResponseBody>).batch === "number" &&
-    typeof (value as Partial<BatchResponseBody>).records === "number"
+    typeof (value as Partial<BatchResponseBody>).total_batches === "number" &&
+    typeof (value as Partial<BatchResponseBody>).records === "number" &&
+    typeof (value as Partial<BatchResponseBody>).receipt_id === "string" &&
+    (value as Partial<BatchResponseBody>).verification_level ===
+      "delivery_receipt"
   );
 }
 

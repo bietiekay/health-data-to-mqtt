@@ -1,4 +1,6 @@
+import type { IncomingHttpHeaders } from "node:http";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { ZodError } from "zod";
 import { requireApiKey } from "../auth.js";
 import type { AppConfig, AppContextConfig } from "../config.js";
 import {
@@ -11,9 +13,10 @@ import type { IdempotencyStore } from "../state/idempotency-store.js";
 import {
   parseSyncReceiptHeaders,
   type BatchResponseBody,
+  type SyncReceiptHeaders,
   type SyncReceiptStore,
 } from "../state/sync-receipts.js";
-import type { StateStore } from "../state/store.js";
+import { createEmptyStatus, type StateStore } from "../state/store.js";
 import type { RawBatchStorage } from "../storage/raw-batch-storage.js";
 
 interface AppleRouteOptions {
@@ -47,15 +50,17 @@ export async function registerAppleRoutes(
     const rawBody = request.body;
     const parsed = batchRequestSchema.safeParse(rawBody);
     if (!parsed.success) {
-      return reply.code(400).send({
-        status: "error",
-        error: "Invalid batch payload",
-        details: parsed.error.flatten(),
-      });
+      return reply.code(422).send({ detail: toValidationErrors(parsed.error) });
     }
 
     const batch = parsed.data;
-    const receiptHeaders = parseSyncReceiptHeaders(request.headers);
+    const sampleWindow = sampleWindowFromRequest(request.headers, batch.samples);
+    const receiptHeaders = withDerivedReceiptFields(
+      parseSyncReceiptHeaders(request.headers),
+      batch.metric,
+      batch.batch_index,
+      sampleWindow,
+    );
     if (receiptHeaders.idempotencyKey) {
       const existingReceipt =
         (await options.idempotencyStore.getEntry(
@@ -67,11 +72,12 @@ export async function registerAppleRoutes(
           receiptHeaders.idempotencyKey,
         ));
       if (existingReceipt) {
-        if (existingReceipt.payload_hash !== receiptHeaders.payloadHash) {
-          return reply.code(409).send({
-            status: "error",
-            error: "Idempotency key was already used with a different payload hash",
-          });
+        if (
+          receiptHeaders.payloadHash &&
+          existingReceipt.payload_hash &&
+          existingReceipt.payload_hash !== receiptHeaders.payloadHash
+        ) {
+          return reply.code(409).send(idempotencyConflictResponse());
         }
 
         request.log.debug(
@@ -108,12 +114,16 @@ export async function registerAppleRoutes(
     );
 
     if (batch.samples.length === 0) {
-      const response: BatchResponseBody = {
+      const response = createBatchResponse({
         status: "empty",
-        metric: batch.metric,
-        batch: batch.batch_index,
-        records: 0,
-      };
+        batch,
+        receiptHeaders,
+        sampleWindow,
+        recordsReceived: 0,
+        recordsAccepted: 0,
+        recordsRejected: 0,
+        recordsDedupedInBatch: null,
+      });
 
       await options.syncReceiptStore.recordBatch({
         contextName: options.context.name,
@@ -245,13 +255,16 @@ export async function registerAppleRoutes(
       "updated apple health status ledger",
     );
 
-    const response: BatchResponseBody = {
+    const response = createBatchResponse({
       status: "processed",
-      metric: batch.metric,
-      batch: batch.batch_index,
-      total_batches: batch.total_batches,
-      records: processedRecords,
-    };
+      batch,
+      receiptHeaders,
+      sampleWindow,
+      recordsReceived: normalizationResult.stats.recordsReceived,
+      recordsAccepted: normalizationResult.stats.recordsAccepted,
+      recordsRejected: normalizationResult.stats.recordsRejected,
+      recordsDedupedInBatch: normalizationResult.stats.recordsDedupedInBatch,
+    });
 
     await options.syncReceiptStore.recordBatch({
       contextName: options.context.name,
@@ -277,7 +290,16 @@ export async function registerAppleRoutes(
       return reply;
     }
 
-    const status = await options.stateStore.getStatus(options.context.name);
+    let status;
+    try {
+      status = await options.stateStore.getStatus(options.context.name);
+    } catch (error) {
+      request.log.error(
+        { err: error, context: options.context.name },
+        "failed to load apple health status snapshot",
+      );
+      status = createEmptyStatus();
+    }
     request.log.debug(
       {
         context: options.context.name,
@@ -318,6 +340,237 @@ async function recordIdempotencySuccess(
       "failed to record apple health idempotency key after batch acceptance",
     );
   }
+}
+
+function withDerivedReceiptFields(
+  headers: SyncReceiptHeaders,
+  metric: string,
+  batchIndex: number,
+  sampleWindow: SampleWindow,
+): SyncReceiptHeaders {
+  const idempotencyKey =
+    headers.idempotencyKey ??
+    headers.batchId ??
+    (headers.syncRunId ? `${headers.syncRunId}:${metric}:${batchIndex}` : undefined);
+
+  return {
+    ...headers,
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+    ...(sampleWindow.min_sample_time
+      ? { sampleMinTime: sampleWindow.min_sample_time }
+      : {}),
+    ...(sampleWindow.max_sample_time
+      ? { sampleMaxTime: sampleWindow.max_sample_time }
+      : {}),
+  };
+}
+
+interface SampleWindow {
+  min_sample_time: string | null;
+  max_sample_time: string | null;
+}
+
+interface CreateBatchResponseInput {
+  status: "processed" | "empty";
+  batch: {
+    metric: string;
+    batch_index: number;
+    total_batches: number;
+  };
+  receiptHeaders: SyncReceiptHeaders;
+  sampleWindow: SampleWindow;
+  recordsReceived: number;
+  recordsAccepted: number;
+  recordsRejected: number;
+  recordsDedupedInBatch: number | null;
+}
+
+function createBatchResponse(input: CreateBatchResponseInput): BatchResponseBody {
+  const receiptId =
+    input.receiptHeaders.idempotencyKey ??
+    input.receiptHeaders.batchId ??
+    `${input.receiptHeaders.syncRunId ?? "runless"}:${input.batch.metric}:${input.batch.batch_index}`;
+  const perMetric = {
+    [input.batch.metric]: {
+      received: input.recordsReceived,
+      accepted: input.recordsAccepted,
+      rejected: input.recordsRejected,
+      inserted_new: null,
+      deduped_existing: null,
+      deduped_in_batch: input.recordsDedupedInBatch,
+      sample_window: input.sampleWindow,
+    },
+  };
+
+  return {
+    status: input.status,
+    metric: input.batch.metric,
+    batch: input.batch.batch_index,
+    total_batches: input.batch.total_batches,
+    records: input.recordsAccepted,
+    receipt_id: receiptId,
+    sync_run_id: input.receiptHeaders.syncRunId ?? null,
+    batch_id: input.receiptHeaders.batchId ?? null,
+    idempotency_key: input.receiptHeaders.idempotencyKey ?? null,
+    batch_index: input.batch.batch_index,
+    records_received: input.recordsReceived,
+    records_accepted: input.recordsAccepted,
+    records_rejected: input.recordsRejected,
+    records_inserted_new: null,
+    records_deduped_existing: null,
+    records_deduped_in_batch: input.recordsDedupedInBatch,
+    storage_result_level: "accepted_only",
+    sample_window: input.sampleWindow,
+    verification_level: "delivery_receipt",
+    per_metric: perMetric,
+  };
+}
+
+function idempotencyConflictResponse() {
+  return {
+    detail: {
+      status: "rejected",
+      error_code: "idempotency_key_payload_mismatch",
+      message:
+        "This idempotency key was already received with a different payload hash.",
+    },
+  };
+}
+
+function sampleWindowFromRequest(
+  headers: IncomingHttpHeaders,
+  samples: Array<Record<string, unknown>>,
+): SampleWindow {
+  const headerMin = headerString(headers["x-healthsave-sample-min-time"]);
+  const headerMax = headerString(headers["x-healthsave-sample-max-time"]);
+  if (headerMin !== undefined || headerMax !== undefined) {
+    return {
+      min_sample_time: formatHeaderTimestamp(headerMin),
+      max_sample_time: formatHeaderTimestamp(headerMax),
+    };
+  }
+
+  return sampleWindowFromSamples(samples);
+}
+
+function sampleWindowFromSamples(samples: Array<Record<string, unknown>>): SampleWindow {
+  const starts: Array<{ date: Date; text: string }> = [];
+  const ends: Array<{ date: Date; text: string }> = [];
+
+  for (const sample of samples) {
+    const start = firstParseableSampleTime(
+      sample,
+      "date",
+      "startDate",
+      "start_date",
+      "start",
+      "start_time",
+      "time",
+    );
+    if (start) {
+      starts.push(start);
+    }
+
+    const end = firstParseableSampleTime(
+      sample,
+      "endDate",
+      "end_date",
+      "end",
+      "end_time",
+      "date",
+      "time",
+    );
+    if (end) {
+      ends.push(end);
+    }
+  }
+
+  return {
+    min_sample_time: minParsedTime(starts)?.text ?? null,
+    max_sample_time: maxParsedTime(ends)?.text ?? null,
+  };
+}
+
+function firstParseableSampleTime(
+  sample: Record<string, unknown>,
+  ...keys: string[]
+): { date: Date; text: string } | undefined {
+  for (const key of keys) {
+    const parsed = parseSampleTime(sample[key]);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
+  return undefined;
+}
+
+function parseSampleTime(value: unknown): { date: Date; text: string } | undefined {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return undefined;
+  }
+
+  const text = value.trim();
+  const timestamp = Date.parse(text.replace(/Z$/, "+00:00"));
+  if (Number.isNaN(timestamp)) {
+    return undefined;
+  }
+
+  return {
+    date: new Date(timestamp),
+    text,
+  };
+}
+
+function formatHeaderTimestamp(value: string | undefined): string | null {
+  if (value === undefined) {
+    return null;
+  }
+
+  const parsed = parseSampleTime(value);
+  if (!parsed) {
+    return null;
+  }
+
+  return parsed.date.toISOString().replace(".000Z", "Z");
+}
+
+function minParsedTime(
+  values: Array<{ date: Date; text: string }>,
+): { date: Date; text: string } | undefined {
+  return values.reduce<typeof values[number] | undefined>(
+    (minimum, value) =>
+      !minimum || value.date.getTime() < minimum.date.getTime()
+        ? value
+        : minimum,
+    undefined,
+  );
+}
+
+function maxParsedTime(
+  values: Array<{ date: Date; text: string }>,
+): { date: Date; text: string } | undefined {
+  return values.reduce<typeof values[number] | undefined>(
+    (maximum, value) =>
+      !maximum || value.date.getTime() > maximum.date.getTime()
+        ? value
+        : maximum,
+    undefined,
+  );
+}
+
+function headerString(value: string | string[] | undefined): string | undefined {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const trimmed = rawValue?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function toValidationErrors(error: ZodError): Array<Record<string, unknown>> {
+  return error.issues.map((issue) => ({
+    type: issue.code,
+    loc: ["body", ...issue.path],
+    msg: issue.message,
+  }));
 }
 
 function latestDestinationSampleTime(

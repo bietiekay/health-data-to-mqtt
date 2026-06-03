@@ -7,6 +7,8 @@ import {
 } from "./mqtt/publisher.js";
 import { registerAppleRoutes } from "./routes/apple.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerInsightRoutes } from "./routes/insights.js";
+import { registerMetricsRoutes } from "./routes/metrics.js";
 import { registerV2Routes } from "./routes/v2.js";
 import {
   createIdempotencyStore,
@@ -55,6 +57,18 @@ export async function buildApp(
       : false,
   });
 
+  app.setErrorHandler((error, _request, reply) => {
+    const errorCode =
+      typeof error === "object" && error !== null && "code" in error
+        ? (error as { code?: string }).code
+        : undefined;
+    if (errorCode === "FST_ERR_CTP_INVALID_JSON_BODY") {
+      return reply.code(400).send({ detail: "invalid JSON body" });
+    }
+
+    return reply.send(error);
+  });
+
   app.addHook("onClose", async () => {
     await mqttPublisher.close();
   });
@@ -66,6 +80,8 @@ export async function buildApp(
           config,
           mqttPublisher,
         });
+        await registerMetricsRoutes(contextApp);
+        await registerInsightRoutes(contextApp, { config });
         await registerAppleRoutes(contextApp, {
           config,
           context,

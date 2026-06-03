@@ -8,17 +8,24 @@ Version headers must match the `version` field in `package.json`.
 
 ### Added
 
+- Added the frozen reference V1 `/metrics` and `/api/insights/*` route surface with reference-shaped no-data responses.
+- Added reference delivery receipt fields to `POST /api/apple/batch` responses, including receipt IDs, accepted/rejected counts, sample windows, and per-metric summaries.
+- Added idempotency fallback handling for `X-HealthSave-Batch-ID` and sync-run-derived retry keys.
+- Added tests for the full V1 route inventory, insight stubs, batch validation errors, sample-window handling, delivery receipts, and fallback idempotency replay.
 - Added a dedicated file and memory idempotency index for all successful batches with `Idempotency-Key`, including batches without sync-run receipt headers.
-- Added `GET /ready` readiness checks for local state writability and MQTT connection state.
+- Added `GET /ready` readiness checks for local state writability.
 - Added failed-batch sync receipt rows so v2 run summaries report processed and failed batch counts separately.
 - Added ECG compatibility handling and category-event timestamp fallbacks for generic quantity ingestion.
 - Added tests for idempotency persistence, readiness probes, failed receipt summaries, ECG compatibility, and category-event fallback timestamps.
 
 ### Changed
 
+- Changed `GET /ready` to follow the reference V1 state-only readiness contract.
+- Changed batch validation responses to use reference-style invalid JSON `400` and schema validation `422` bodies.
+- Changed retry conflict responses to use the reference `detail.error_code` shape.
 - Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
 - Changed `GET /api/v2/sync/runs/latest` to return a `200` empty-state response before any sync-run receipt exists, while keeping specific unknown run IDs as `404`.
-- Documented `/api/insights/*` as out of scope and kept status timestamps as ISO UTC strings for API compatibility.
+- Documented `/api/insights/*` as reference-shaped compatibility stubs and kept status timestamps as ISO UTC strings for API compatibility.
 
 ## 0.3.0
 

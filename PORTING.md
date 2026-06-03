@@ -69,9 +69,17 @@ Do not use the reference implementation as the runtime target. The new service s
 | --- | --- | --- |
 | `/health` | GET | Return `{"status":"ok"}` |
 | `/api/health` | GET | Return `{"status":"ok"}` |
-| `/ready` | GET | Return readiness for local state and MQTT dependencies |
+| `/ready` | GET | Return reference-compatible readiness for local state writability |
 | `/api/apple/batch` | POST | Receive and process one metric batch |
 | `/api/apple/status` | GET | Return flat status objects in reference-compatible shape |
+| `/metrics` | GET | Return Prometheus exposition with reference metric names |
+| `/api/insights/latest` | GET | Return latest insight response shape; MQTT bridge returns no-data stubs |
+| `/api/insights/daily` | GET | Return daily briefing shape; MQTT bridge returns an empty briefing |
+| `/api/insights/weekly` | GET | Return weekly summary shape; MQTT bridge returns an empty summary |
+| `/api/insights/anomalies` | GET | Return anomaly list shape with reference query validation |
+| `/api/insights/trends` | GET | Return trend list shape with reference query validation |
+| `/api/insights/trigger` | POST | Return trigger response shape; MQTT bridge returns skipped for supported jobs |
+| `/api/insights/runs` | GET | Return analysis run list shape; MQTT bridge returns an empty list |
 | `/api/v2/setup/diagnostics` | GET | Return unauthenticated setup diagnostics for API base URL checks |
 | `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt, or an empty success response before any sync-run receipt exists |
 | `/api/v2/sync/runs/{sync_run_id}` | GET | Return one run-specific delivery receipt summary |
@@ -89,6 +97,13 @@ This must apply to:
 
 - `POST /api/apple/batch`
 - `GET /api/apple/status`
+- `GET /api/insights/latest`
+- `GET /api/insights/daily`
+- `GET /api/insights/weekly`
+- `GET /api/insights/anomalies`
+- `GET /api/insights/trends`
+- `POST /api/insights/trigger`
+- `GET /api/insights/runs`
 - `GET /api/v2/sync/runs/latest`
 - `GET /api/v2/sync/runs/{sync_run_id}`
 - `GET /api/v2/sync/coverage`
@@ -128,12 +143,13 @@ This is intentional: the API compatibility notes accept ISO 8601 timestamps with
 a trailing `Z`, and keeping the same format in ledgers, MQTT payloads, and API
 responses avoids migration churn.
 
-### 4.4 Explicit Non-Goals
+### 4.4 Insight Compatibility
 
-`GET /api/insights/anomalies` and `GET /api/insights/trends` are Data Hub
-analysis surfaces, not part of the HealthSave sync replacement contract. They
-remain out of scope until this MQTT-first port has a local analysis engine that
-can produce those findings honestly.
+`/api/insights/*` routes are part of the frozen reference V1 route inventory.
+The MQTT bridge serves the reference response shapes and query validation, but
+does not claim to run the Data Hub analysis engine. Insight reads return empty
+or no-data shapes, and supported trigger requests return a skipped no-op
+response.
 
 ## 5) Batch API Contract
 
@@ -174,7 +190,39 @@ If `samples` is empty or absent:
   "status": "empty",
   "metric": "heart_rate",
   "batch": 0,
-  "records": 0
+  "total_batches": 1,
+  "records": 0,
+  "receipt_id": "runless:heart_rate:0",
+  "sync_run_id": null,
+  "batch_id": null,
+  "idempotency_key": null,
+  "batch_index": 0,
+  "records_received": 0,
+  "records_accepted": 0,
+  "records_rejected": 0,
+  "records_inserted_new": null,
+  "records_deduped_existing": null,
+  "records_deduped_in_batch": null,
+  "storage_result_level": "accepted_only",
+  "sample_window": {
+    "min_sample_time": null,
+    "max_sample_time": null
+  },
+  "verification_level": "delivery_receipt",
+  "per_metric": {
+    "heart_rate": {
+      "received": 0,
+      "accepted": 0,
+      "rejected": 0,
+      "inserted_new": null,
+      "deduped_existing": null,
+      "deduped_in_batch": null,
+      "sample_window": {
+        "min_sample_time": null,
+        "max_sample_time": null
+      }
+    }
+  }
 }
 ```
 
@@ -188,13 +236,44 @@ After successful processing:
   "metric": "heart_rate",
   "batch": 0,
   "total_batches": 1,
-  "records": 12
+  "records": 12,
+  "receipt_id": "runless:heart_rate:0",
+  "records_received": 12,
+  "records_accepted": 12,
+  "records_rejected": 0,
+  "records_deduped_in_batch": 0,
+  "storage_result_level": "accepted_only",
+  "sample_window": {
+    "min_sample_time": "2026-04-10T12:00:00Z",
+    "max_sample_time": "2026-04-10T12:05:00Z"
+  },
+  "verification_level": "delivery_receipt"
 }
 ```
 
 `records` should count valid deduplicated logical records after metric-specific
 filtering and routing. Non-empty batches with no valid logical records still
 return `"status": "processed"` with `"records": 0`.
+
+The response keeps the legacy fields and adds the reference delivery receipt
+fields. `records_inserted_new` and `records_deduped_existing` are `null`
+because this MQTT-first bridge does not know Timescale insert-vs-existing
+upsert outcomes.
+
+### 5.4 Receipt Headers, Idempotency, and Sample Windows
+
+HealthSave receipt headers are captured when present. The idempotency key is
+resolved in reference order: explicit `Idempotency-Key`, then
+`X-HealthSave-Batch-ID`, then `X-HealthSave-Sync-Run-ID` combined with metric
+and batch index. Matching retries replay the first successful response without
+publishing MQTT messages or updating status again. A reused key with a different
+non-empty `X-HealthSave-Payload-Hash` returns `409` with
+`detail.error_code: "idempotency_key_payload_mismatch"`.
+
+`sample_window` is taken from `X-HealthSave-Sample-Min-Time` and
+`X-HealthSave-Sample-Max-Time` when either header is present. Malformed header
+timestamps become `null`. When headers are absent, the service derives the
+window from sample start/end fields using the reference key precedence.
 
 ## 6) Metric Routing and Mapping
 
@@ -401,8 +480,9 @@ This structure can change if implementation reveals a simpler local pattern.
 4. Ingest router selects the metric mapper.
 5. Mapper parses timestamps/dates and normalizes fields.
 6. Non-empty valid raw batches are optionally archived to local NDJSON storage.
-7. Dedicated idempotency index replays already accepted matching
-   `Idempotency-Key` requests and rejects conflicting payload hashes.
+7. Dedicated idempotency index replays already accepted matching retry keys
+   derived from `Idempotency-Key`, `X-HealthSave-Batch-ID`, or sync-run
+   fallback metadata, and rejects conflicting payload hashes.
 8. MQTT publisher emits raw, normalized, and current events using the active client context.
 9. State store updates logical counters.
 10. Sync receipt store records run metadata and accepted/rejected/deduped counts
@@ -521,10 +601,10 @@ raw health samples.
 
 Idempotency entries are stored separately under
 `<DATA_PATH>/idempotency/<context>/keys.ndjson` for every successful batch with
-`Idempotency-Key`, including batches without `X-HealthSave-Sync-Run-ID`.
-Matching `Idempotency-Key` plus payload hash requests replay the original
-response without repeating raw storage, MQTT publication, or status updates.
-Reusing the same key with a different payload hash returns `409`.
+a reference-derived retry key. Matching retry key plus payload hash requests
+replay the original response without repeating raw storage, MQTT publication, or
+status updates. Reusing the same key with a different payload hash returns
+`409`.
 `STATE_BACKEND=memory` remains available for disposable local runs and tests.
 
 ### 10.4 Raw Batch Storage
@@ -675,11 +755,12 @@ Create realistic replay fixtures with:
 
 - Add file-backed local status state. Status: deduplicated NDJSON observation ledger complete.
 - Track logical counters. Status: flat `count` / `oldest` / `newest` status objects complete.
-- Add HealthSave `Idempotency-Key` idempotency. Status: complete for all successful
-  batches with `Idempotency-Key`, independent of v2 sync receipt headers.
+- Add HealthSave retry idempotency. Status: complete for all successful batches
+  with explicit `Idempotency-Key`, `X-HealthSave-Batch-ID`, or sync-run fallback
+  metadata, independent of v2 sync receipt summaries.
 - Add broader deterministic record-key idempotency and retention. Status: planned.
 - Add optional raw batch archive. Status: initial NDJSON archive complete for non-empty valid batches.
-- Add duplicate replay tests. Status: `Idempotency-Key` replay/conflict tests complete.
+- Add duplicate replay tests. Status: explicit and fallback retry replay/conflict tests complete.
 
 ### Phase E: Reference Validation
 

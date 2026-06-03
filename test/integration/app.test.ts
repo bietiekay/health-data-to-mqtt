@@ -159,6 +159,70 @@ function metricStatus(
   };
 }
 
+function expectDeliveryReceipt(
+  body: unknown,
+  expected: {
+    status: "processed" | "empty";
+    metric: string;
+    batch: number;
+    total_batches: number;
+    records: number;
+    records_received: number;
+    records_rejected?: number;
+    records_deduped_in_batch?: number | null;
+    receipt_id?: string;
+    sync_run_id?: string | null;
+    batch_id?: string | null;
+    idempotency_key?: string | null;
+    sample_window?: {
+      min_sample_time: string | null;
+      max_sample_time: string | null;
+    };
+  },
+) {
+  const recordsDedupedInBatch =
+    "records_deduped_in_batch" in expected
+      ? expected.records_deduped_in_batch
+      : 0;
+  const sampleWindow = expected.sample_window ?? {
+    min_sample_time: null,
+    max_sample_time: null,
+  };
+  expect(body).toMatchObject({
+    status: expected.status,
+    metric: expected.metric,
+    batch: expected.batch,
+    total_batches: expected.total_batches,
+    records: expected.records,
+    receipt_id:
+      expected.receipt_id ?? `runless:${expected.metric}:${expected.batch}`,
+    sync_run_id: expected.sync_run_id ?? null,
+    batch_id: expected.batch_id ?? null,
+    idempotency_key: expected.idempotency_key ?? null,
+    batch_index: expected.batch,
+    records_received: expected.records_received,
+    records_accepted: expected.records,
+    records_rejected: expected.records_rejected ?? 0,
+    records_inserted_new: null,
+    records_deduped_existing: null,
+    records_deduped_in_batch: recordsDedupedInBatch,
+    storage_result_level: "accepted_only",
+    sample_window: sampleWindow,
+    verification_level: "delivery_receipt",
+    per_metric: {
+      [expected.metric]: {
+        received: expected.records_received,
+        accepted: expected.records,
+        rejected: expected.records_rejected ?? 0,
+        inserted_new: null,
+        deduped_existing: null,
+        deduped_in_batch: recordsDedupedInBatch,
+        sample_window: sampleWindow,
+      },
+    },
+  });
+}
+
 afterEach(async () => {
   await app?.close();
   app = undefined;
@@ -217,12 +281,12 @@ describe("compatibility endpoints", () => {
 
     expect(response.statusCode).toBe(503);
     expect(response.json()).toEqual({
-      status: "error",
+      detail: "database unavailable",
       database: "unavailable",
     });
   });
 
-  it("returns readiness failure when MQTT is enabled but unavailable", async () => {
+  it("keeps V1 readiness independent from MQTT availability", async () => {
     const mqttPublisher = createRecordingMqttPublisher();
     mqttPublisher.isReady = () => false;
     app = await buildApp({
@@ -242,11 +306,10 @@ describe("compatibility endpoints", () => {
       url: "/ready",
     });
 
-    expect(response.statusCode).toBe(503);
+    expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      status: "error",
+      status: "ok",
       database: "ok",
-      mqtt: "unavailable",
     });
   });
 
@@ -274,6 +337,145 @@ describe("compatibility endpoints", () => {
     });
   });
 
+  it("serves the frozen reference V1 route inventory", async () => {
+    const server = await createApp();
+    const cases = [
+      { method: "GET", url: "/health" },
+      { method: "GET", url: "/api/health" },
+      { method: "GET", url: "/ready" },
+      { method: "GET", url: "/metrics" },
+      { method: "POST", url: "/api/apple/batch", payload: {} },
+      { method: "GET", url: "/api/apple/status" },
+      { method: "GET", url: "/api/insights/latest" },
+      { method: "GET", url: "/api/insights/daily" },
+      { method: "GET", url: "/api/insights/weekly" },
+      { method: "GET", url: "/api/insights/anomalies" },
+      { method: "GET", url: "/api/insights/trends" },
+      { method: "POST", url: "/api/insights/trigger", payload: {} },
+      { method: "GET", url: "/api/insights/runs" },
+    ] as const;
+
+    for (const testCase of cases) {
+      const response = await server.inject(testCase);
+      expect(response.statusCode, `${testCase.method} ${testCase.url}`).toBe(200);
+    }
+  });
+
+  it("returns reference-shaped no-data insight and metrics responses", async () => {
+    const server = await createApp();
+
+    await expect(
+      server.inject({ method: "GET", url: "/api/insights/latest" }),
+    ).resolves.toMatchObject({
+      statusCode: 200,
+      body: JSON.stringify({
+        daily_briefing: null,
+        weekly_summary: null,
+        recent_findings: [],
+      }),
+    });
+
+    expect(
+      (await server.inject({ method: "GET", url: "/api/insights/daily" })).json(),
+    ).toEqual({
+      id: null,
+      date: null,
+      narrative: null,
+      findings: [],
+      created_at: null,
+    });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/insights/weekly" })).json(),
+    ).toEqual({
+      id: null,
+      week_start: null,
+      week_end: null,
+      narrative: null,
+      findings: [],
+      created_at: null,
+    });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/insights/anomalies" })).json(),
+    ).toEqual({ anomalies: [], count: 0 });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/insights/trends" })).json(),
+    ).toEqual({ trends: [], count: 0 });
+    expect(
+      (await server.inject({ method: "POST", url: "/api/insights/trigger" })).json(),
+    ).toEqual({
+      status: "skipped",
+      run_type: "daily_briefing",
+      message: "Analysis engine is not available in the MQTT bridge.",
+      run_id: null,
+    });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/insights/runs" })).json(),
+    ).toEqual({ runs: [], count: 0 });
+
+    const metrics = await server.inject({ method: "GET", url: "/metrics" });
+    expect(metrics.headers["content-type"]).toContain(
+      "text/plain; version=0.0.4",
+    );
+    expect(metrics.body).toContain("hdh_ingest_batches");
+    expect(metrics.body).toContain("hdh_status_query_failures");
+  });
+
+  it("validates insight query parameters like the reference surface", async () => {
+    const server = await createApp();
+
+    const invalidSince = await server.inject({
+      method: "GET",
+      url: "/api/insights/anomalies?since=not-a-date",
+    });
+    expect(invalidSince.statusCode).toBe(422);
+    expect(invalidSince.json()).toEqual({ detail: "Invalid since timestamp" });
+
+    const invalidSeverity = await server.inject({
+      method: "GET",
+      url: "/api/insights/anomalies?severity=panic",
+    });
+    expect(invalidSeverity.statusCode).toBe(422);
+    expect(invalidSeverity.json()).toEqual({
+      detail: "Invalid severity: panic. Allowed: alert, info, watch",
+    });
+
+    const invalidPeriod = await server.inject({
+      method: "GET",
+      url: "/api/insights/trends?period=zero",
+    });
+    expect(invalidPeriod.statusCode).toBe(422);
+    expect(invalidPeriod.json()).toEqual({
+      detail: "Invalid period; expected format like 30d",
+    });
+  });
+
+  it("returns reference-style batch body validation errors", async () => {
+    const server = await createApp();
+
+    const invalidJson = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      headers: { "content-type": "application/json" },
+      payload: "{",
+    });
+    expect(invalidJson.statusCode).toBe(400);
+    expect(invalidJson.json()).toEqual({ detail: "invalid JSON body" });
+
+    const invalidPayload = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: { samples: "not-json" },
+    });
+    expect(invalidPayload.statusCode).toBe(422);
+    expect(invalidPayload.json()).toMatchObject({
+      detail: [
+        {
+          loc: ["body", "samples"],
+        },
+      ],
+    });
+  });
+
   it("accepts batches without an API key when auth is disabled", async () => {
     const server = await createApp();
     const response = await server.inject({
@@ -288,12 +490,17 @@ describe("compatibility endpoints", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expectDeliveryReceipt(response.json(), {
       status: "processed",
       metric: "heart_rate",
       batch: 0,
       total_batches: 1,
       records: 1,
+      records_received: 1,
+      sample_window: {
+        min_sample_time: "2026-04-10T12:00:00Z",
+        max_sample_time: "2026-04-10T12:00:00Z",
+      },
     });
   });
 
@@ -322,12 +529,17 @@ describe("compatibility endpoints", () => {
 
     expect(Buffer.byteLength(payload)).toBeGreaterThan(1024 * 1024);
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expectDeliveryReceipt(response.json(), {
       status: "processed",
       metric: "heart_rate",
       batch: 0,
       total_batches: 1,
       records: 1,
+      records_received: 1,
+      sample_window: {
+        min_sample_time: "2026-04-10T12:00:00Z",
+        max_sample_time: "2026-04-10T12:00:00Z",
+      },
     });
   });
 
@@ -345,11 +557,118 @@ describe("compatibility endpoints", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expectDeliveryReceipt(response.json(), {
       status: "empty",
       metric: "heart_rate",
       batch: 0,
+      total_batches: 1,
       records: 0,
+      records_received: 0,
+      records_deduped_in_batch: null,
+    });
+  });
+
+  it("echoes HealthSave sample-window headers in delivery receipts", async () => {
+    const server = await createApp();
+    const response = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      headers: {
+        "x-healthsave-sample-min-time": "2026-04-10T12:00:00.000Z",
+        "x-healthsave-sample-max-time": "2026-04-10T12:05:00.000Z",
+      },
+      payload: {
+        metric: "heart_rate",
+        batch_index: 2,
+        total_batches: 3,
+        samples: [{ date: "2026-04-10T12:02:00Z", qty: 72 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expectDeliveryReceipt(response.json(), {
+      status: "processed",
+      metric: "heart_rate",
+      batch: 2,
+      total_batches: 3,
+      records: 1,
+      records_received: 1,
+      receipt_id: "runless:heart_rate:2",
+      sample_window: {
+        min_sample_time: "2026-04-10T12:00:00Z",
+        max_sample_time: "2026-04-10T12:05:00Z",
+      },
+    });
+  });
+
+  it("derives sample windows from payload bounds when headers are absent", async () => {
+    const server = await createApp();
+    const response = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "workouts",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            start: "2026-04-10T06:10:00.000Z",
+            end: "2026-04-10T06:55:00.000Z",
+            name: "Running",
+            duration: 2700,
+          },
+          {
+            start: "2026-04-10T07:20:00.000Z",
+            end: "2026-04-10T08:05:00.000Z",
+            name: "Cycling",
+            duration: 2700,
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expectDeliveryReceipt(response.json(), {
+      status: "processed",
+      metric: "workouts",
+      batch: 0,
+      total_batches: 1,
+      records: 2,
+      records_received: 2,
+      sample_window: {
+        min_sample_time: "2026-04-10T06:10:00.000Z",
+        max_sample_time: "2026-04-10T08:05:00.000Z",
+      },
+    });
+  });
+
+  it("returns null sample windows for malformed HealthSave window headers", async () => {
+    const server = await createApp();
+    const response = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      headers: {
+        "x-healthsave-sample-min-time": "garbage",
+        "x-healthsave-sample-max-time": "also-garbage",
+      },
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expectDeliveryReceipt(response.json(), {
+      status: "processed",
+      metric: "heart_rate",
+      batch: 0,
+      total_batches: 1,
+      records: 1,
+      records_received: 1,
+      sample_window: {
+        min_sample_time: null,
+        max_sample_time: null,
+      },
     });
   });
 
@@ -565,10 +884,10 @@ describe("compatibility endpoints", () => {
       batches_failed: 0,
       metrics: ["heart_rate"],
       sample_window: {
-        min_sample_time: "2026-04-10T12:00:00.000Z",
-        max_sample_time: "2026-04-10T12:00:00.000Z",
+        min_sample_time: "2026-04-10T12:00:00Z",
+        max_sample_time: "2026-04-10T12:00:00Z",
       },
-      latest_sample_time: "2026-04-10T12:00:00.000Z",
+      latest_sample_time: "2026-04-10T12:00:00Z",
     });
     expect(run.json()).toMatchObject(latest.json());
     expect(coverage.statusCode).toBe(200);
@@ -583,7 +902,7 @@ describe("compatibility endpoints", () => {
           records_accepted: 1,
           records_rejected: 1,
           records_deduped_in_batch: 1,
-          latest_receipt_sample_time: "2026-04-10T12:00:00.000Z",
+          latest_receipt_sample_time: "2026-04-10T12:00:00Z",
           latest_destination_sample_time: "2026-04-10T12:00:00.000Z",
         },
       ],
@@ -1604,6 +1923,76 @@ describe("compatibility endpoints", () => {
     });
   });
 
+  it("uses X-HealthSave-Batch-ID as an idempotency fallback", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+    });
+    const request = {
+      method: "POST" as const,
+      url: "/api/apple/batch",
+      headers: {
+        "x-healthsave-batch-id": "batch-fallback-1",
+        "x-healthsave-payload-hash": "hash-batch-fallback",
+      },
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
+      },
+    };
+
+    const first = await app.inject(request);
+    const second = await app.inject(request);
+
+    expect(second.json()).toEqual(first.json());
+    expect(second.json()).toMatchObject({
+      receipt_id: "batch-fallback-1",
+      batch_id: "batch-fallback-1",
+      idempotency_key: "batch-fallback-1",
+    });
+    expect(mqttPublisher.batches).toHaveLength(1);
+  });
+
+  it("uses sync-run metric and batch index as an idempotency fallback", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+    });
+    const request = {
+      method: "POST" as const,
+      url: "/api/apple/batch",
+      headers: {
+        "x-healthsave-sync-run-id": "run-fallback-1",
+        "x-healthsave-payload-hash": "hash-run-fallback",
+      },
+      payload: {
+        metric: "heart_rate",
+        batch_index: 3,
+        total_batches: 4,
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
+      },
+    };
+
+    const first = await app.inject(request);
+    const second = await app.inject(request);
+
+    expect(second.json()).toEqual(first.json());
+    expect(second.json()).toMatchObject({
+      receipt_id: "run-fallback-1:heart_rate:3",
+      sync_run_id: "run-fallback-1",
+      idempotency_key: "run-fallback-1:heart_rate:3",
+    });
+    expect(mqttPublisher.batches).toHaveLength(1);
+  });
+
   it("rejects idempotency hash conflicts without sync run ids before side effects", async () => {
     const mqttPublisher = createRecordingMqttPublisher();
     app = await buildApp({
@@ -1777,8 +2166,12 @@ describe("compatibility endpoints", () => {
 
     expect(conflict.statusCode).toBe(409);
     expect(conflict.json()).toEqual({
-      status: "error",
-      error: "Idempotency key was already used with a different payload hash",
+      detail: {
+        status: "rejected",
+        error_code: "idempotency_key_payload_mismatch",
+        message:
+          "This idempotency key was already received with a different payload hash.",
+      },
     });
     expect(mqttPublisher.batches).toHaveLength(1);
 

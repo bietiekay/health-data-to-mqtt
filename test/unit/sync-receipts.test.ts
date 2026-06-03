@@ -7,6 +7,7 @@ import {
   FileSyncReceiptStore,
   createMemorySyncReceiptStore,
   parseSyncReceiptHeaders,
+  type BatchResponseBody,
 } from "../../src/state/sync-receipts.js";
 
 let tempDirectory: string | undefined;
@@ -14,6 +15,54 @@ let tempDirectory: string | undefined;
 function createTempReceiptsPath(): string {
   tempDirectory = mkdtempSync(join(tmpdir(), "health-sync-receipts-"));
   return join(tempDirectory, "receipts");
+}
+
+function batchResponse(
+  overrides: Partial<BatchResponseBody> = {},
+): BatchResponseBody {
+  const metric = overrides.metric ?? "heart_rate";
+  const batch = overrides.batch ?? 0;
+  const records = overrides.records ?? 1;
+  const sampleWindow = overrides.sample_window ?? {
+    min_sample_time: null,
+    max_sample_time: null,
+  };
+  const dedupedInBatch = overrides.records_deduped_in_batch ?? 0;
+
+  return {
+    status: overrides.status ?? "processed",
+    metric,
+    batch,
+    total_batches: overrides.total_batches ?? 1,
+    records,
+    receipt_id: overrides.receipt_id ?? `runless:${metric}:${batch}`,
+    sync_run_id: overrides.sync_run_id ?? null,
+    batch_id: overrides.batch_id ?? null,
+    idempotency_key: overrides.idempotency_key ?? null,
+    batch_index: overrides.batch_index ?? batch,
+    records_received: overrides.records_received ?? records,
+    records_accepted: overrides.records_accepted ?? records,
+    records_rejected: overrides.records_rejected ?? 0,
+    records_inserted_new: null,
+    records_deduped_existing: null,
+    records_deduped_in_batch: dedupedInBatch,
+    storage_result_level: "accepted_only",
+    sample_window: sampleWindow,
+    verification_level: "delivery_receipt",
+    per_metric:
+      overrides.per_metric ??
+      {
+        [metric]: {
+          received: overrides.records_received ?? records,
+          accepted: overrides.records_accepted ?? records,
+          rejected: overrides.records_rejected ?? 0,
+          inserted_new: null,
+          deduped_existing: null,
+          deduped_in_batch: dedupedInBatch,
+          sample_window: sampleWindow,
+        },
+      },
+  };
 }
 
 afterEach(() => {
@@ -76,13 +125,7 @@ describe("SyncReceiptStore", () => {
         recordsAccepted: 1,
         recordsRejected: 0,
         recordsDedupedInBatch: 0,
-        response: {
-          status: "processed",
-          metric: "heart_rate",
-          batch: 0,
-          total_batches: 1,
-          records: 1,
-        },
+        response: batchResponse(),
       }),
     ).resolves.toBeUndefined();
     await expect(store.getLatestRun("default")).resolves.toBeUndefined();
@@ -109,13 +152,17 @@ describe("SyncReceiptStore", () => {
       recordsRejected: 0,
       recordsDedupedInBatch: 1,
       latestDestinationSampleTime: "2026-04-10T12:05:00.000Z",
-      response: {
-        status: "processed",
-        metric: "heart_rate",
-        batch: 0,
+      response: batchResponse({
         total_batches: 2,
         records: 2,
-      },
+        records_received: 3,
+        records_accepted: 2,
+        records_deduped_in_batch: 1,
+        receipt_id: "key-1",
+        sync_run_id: "run-1",
+        batch_id: "batch-1",
+        idempotency_key: "key-1",
+      }),
     });
     await store.recordBatch({
       contextName: "default",
@@ -133,25 +180,30 @@ describe("SyncReceiptStore", () => {
       recordsAccepted: 0,
       recordsRejected: 1,
       recordsDedupedInBatch: 0,
-      response: {
-        status: "processed",
+      response: batchResponse({
         metric: "walking_speed",
         batch: 1,
         total_batches: 2,
         records: 0,
-      },
+        records_received: 1,
+        records_accepted: 0,
+        records_rejected: 1,
+        receipt_id: "batch-2",
+        sync_run_id: "run-1",
+        batch_id: "batch-2",
+      }),
     });
 
     await expect(store.getIdempotencyReceipt("default", "key-1")).resolves.toEqual({
       idempotency_key: "key-1",
       payload_hash: "hash-1",
-      response: {
+      response: expect.objectContaining({
         status: "processed",
         metric: "heart_rate",
         batch: 0,
         total_batches: 2,
         records: 2,
-      },
+      }),
     });
     await expect(store.getRun("default", "run-1")).resolves.toMatchObject({
       status: "ok",
@@ -219,13 +271,13 @@ describe("SyncReceiptStore", () => {
       recordsAccepted: 1,
       recordsRejected: 0,
       recordsDedupedInBatch: 0,
-      response: {
-        status: "processed",
-        metric: "heart_rate",
+      response: batchResponse({
         batch: 1,
         total_batches: 2,
-        records: 1,
-      },
+        receipt_id: "batch-2",
+        sync_run_id: "run-1",
+        batch_id: "batch-2",
+      }),
     });
 
     await expect(store.getRun("default", "run-1")).resolves.toMatchObject({
@@ -257,13 +309,11 @@ describe("SyncReceiptStore", () => {
       recordsAccepted: 1,
       recordsRejected: 0,
       recordsDedupedInBatch: 0,
-      response: {
-        status: "processed",
-        metric: "heart_rate",
-        batch: 0,
-        total_batches: 1,
-        records: 1,
-      },
+      response: batchResponse({
+        receipt_id: "key-1",
+        sync_run_id: "run-1",
+        idempotency_key: "key-1",
+      }),
     });
 
     const ledgerPath = join(receiptsPath, "daniel", "receipts.ndjson");

@@ -4,25 +4,23 @@ import type { AppConfig } from "./config.js";
 import type { HealthMqttPublisher } from "./mqtt/publisher.js";
 
 export interface ReadyResponse {
-  status: "ok" | "error";
+  status?: "ok";
+  detail?: "database unavailable";
   database: "ok" | "unavailable";
-  mqtt?: "ok" | "unavailable";
 }
 
 export async function checkReadiness(
   config: AppConfig,
-  mqttPublisher: Pick<HealthMqttPublisher, "isReady">,
+  _mqttPublisher: Pick<HealthMqttPublisher, "isReady">,
 ): Promise<{ statusCode: 200 | 503; body: ReadyResponse }> {
   const databaseReady = await isStateReady(config);
-  const mqttReady = !config.mqtt.enabled || mqttPublisher.isReady();
 
-  if (databaseReady && mqttReady) {
+  if (databaseReady) {
     return {
       statusCode: 200,
       body: {
         status: "ok",
         database: "ok",
-        ...(config.mqtt.enabled ? { mqtt: "ok" as const } : {}),
       },
     };
   }
@@ -30,11 +28,8 @@ export async function checkReadiness(
   return {
     statusCode: 503,
     body: {
-      status: "error",
-      database: databaseReady ? "ok" : "unavailable",
-      ...(config.mqtt.enabled
-        ? { mqtt: mqttReady ? "ok" as const : "unavailable" as const }
-        : {}),
+      detail: "database unavailable",
+      database: "unavailable",
     },
   };
 }

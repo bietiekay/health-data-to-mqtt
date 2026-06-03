@@ -16,12 +16,17 @@ const samplesSchema = z.preprocess(
 
 export const batchRequestSchema = z.preprocess(
   deserializeBatchPayload,
-  z.object({
-    metric: z.string().default("unknown"),
-    batch_index: z.number().int().nonnegative().default(0),
-    total_batches: z.number().int().positive().default(1),
-    samples: samplesSchema,
-  }),
+  z
+    .object({
+      metric: z.string().default("unknown"),
+      batch_index: z.number().int().default(0),
+      total_batches: z.number().int().default(1),
+      samples: samplesSchema,
+    })
+    .transform((batch) => ({
+      ...batch,
+      metric: batch.metric.trim() || "unknown",
+    })),
 );
 
 export type BatchRequest = z.infer<typeof batchRequestSchema>;

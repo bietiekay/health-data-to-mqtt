@@ -2,7 +2,7 @@
 
 Health Data to MQTT is a drop-in server for the [HealthSave iOS app](https://apps.apple.com/app/id6759843047). It accepts HealthKit-derived sync batches through the same HTTP API as the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
 
-The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, a durable idempotency index, HealthSave sync receipt endpoints, optional raw batch storage, Docker support, and tests. Replay fixtures and broader deterministic record idempotency are still planned implementation phases.
+The repository currently contains a Node.js + TypeScript Fastify server with the frozen Health Data Hub V1 compatibility surface, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, a durable idempotency index, HealthSave sync receipt endpoints, optional raw batch storage, Docker support, and tests. Replay fixtures and broader deterministic record idempotency are still planned implementation phases.
 
 ![Health Data to MQTT screenshot](./screenshot.png)
 
@@ -18,7 +18,7 @@ The repository currently contains a Node.js + TypeScript Fastify server with com
 
 ## Current Status
 
-This repository contains the compatibility server, a durable status ledger, a durable `Idempotency-Key` index, HealthSave sync receipts, and the initial raw plus normalized MQTT pipeline. Replay fixtures and broader deterministic record idempotency remain planned.
+This repository contains the compatibility server, a durable status ledger, a durable idempotency index, HealthSave sync receipts, and the initial raw plus normalized MQTT pipeline. Replay fixtures and broader deterministic record idempotency remain planned.
 
 Available now:
 
@@ -123,15 +123,23 @@ Supported client-facing endpoints:
 | --- | --- | --- |
 | `/health` | GET | Basic service health check |
 | `/api/health` | GET | App-compatible health check. HealthSave 1.5 checks this first and falls back to `/health` if needed. |
-| `/ready` | GET | Unauthenticated readiness check for local state writability and MQTT availability when enabled |
+| `/ready` | GET | Unauthenticated reference-compatible readiness check for local state writability |
 | `/api/apple/batch` | POST | Receive one metric batch |
 | `/api/apple/status` | GET | Return flat sync/status objects with `count`, `oldest`, and `newest` |
+| `/metrics` | GET | Prometheus text endpoint with reference metric names |
+| `/api/insights/latest` | GET | Reference-shaped no-data insight response |
+| `/api/insights/daily` | GET | Reference-shaped empty daily briefing |
+| `/api/insights/weekly` | GET | Reference-shaped empty weekly summary |
+| `/api/insights/anomalies` | GET | Reference-shaped empty anomaly list with query validation |
+| `/api/insights/trends` | GET | Reference-shaped empty trend list with query validation |
+| `/api/insights/trigger` | POST | Reference-shaped no-op analysis trigger response |
+| `/api/insights/runs` | GET | Reference-shaped empty analysis run list |
 | `/api/v2/setup/diagnostics` | GET | Unauthenticated setup diagnostics for confirming the API base URL |
 | `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt, or an empty success response before any sync-run receipt exists |
 | `/api/v2/sync/runs/{sync_run_id}` | GET | Delivery receipt summary for one HealthSave sync run |
 | `/api/v2/sync/coverage` | GET | Metric-level receipt coverage summary |
 
-`/health` and `/api/health` are lightweight liveness checks. `/ready` is stricter and returns `503` when file-backed state cannot be written or when MQTT is enabled but disconnected. Docker keeps using `/health` for container liveness by default; operators can point load balancers or orchestrators at `/ready` when dependency-gated readiness is desired.
+`/health` and `/api/health` are lightweight liveness checks. `/ready` follows the reference V1 contract and returns `503` only when file-backed local state cannot be written. Docker keeps using `/health` for container liveness by default.
 
 ## Multiple Client Contexts
 
@@ -255,7 +263,9 @@ Exact normalized payload fields may still change while the porting plan is final
 
 `GET /api/apple/status` returns a flat JSON object whose top-level keys are the HealthSave status metrics. Each value has the shape `{ "count": number, "oldest": string | null, "newest": string | null }`. The file-backed implementation stores a deduplicated observation ledger when `STATE_BACKEND=file`, so retries do not inflate counts and `oldest` / `newest` survive restarts.
 
-When HealthSave sends `Idempotency-Key`, the service records a lightweight idempotency entry for every successful batch so matching retries replay the original response without publishing or counting the same batch again. Reusing an idempotency key with a different `X-HealthSave-Payload-Hash` returns `409 Conflict`.
+Batch responses include the legacy `status`, `metric`, `batch`, `total_batches`, and `records` fields plus additive delivery receipt fields such as `receipt_id`, `records_received`, `records_accepted`, `records_rejected`, `records_deduped_in_batch`, `sample_window`, `verification_level`, and `per_metric`.
+
+When HealthSave sends retry metadata, the service records a lightweight idempotency entry for every successful batch so matching retries replay the original response without publishing or counting the same batch again. The idempotency key is resolved like the reference implementation: explicit `Idempotency-Key`, then `X-HealthSave-Batch-ID`, then `X-HealthSave-Sync-Run-ID` plus metric and batch index. Reusing an idempotency key with a different `X-HealthSave-Payload-Hash` returns `409 Conflict`.
 
 When HealthSave also sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, the service records delivery receipts. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and can show both processed and failed batch attempts for a sync run.
 
