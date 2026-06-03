@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Version headers must match the `version` field in `package.json`.
 
+## 0.4.1
+
+### Changed
+
+- Updated npm dependencies to resolve audit advisories in Fastify, Vitest, and transitive URI, IP address, and WebSocket packages.
+
 ## 0.4.0
 
 ### Added
