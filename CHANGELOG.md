@@ -9,6 +9,14 @@ Version headers must match the `version` field in `package.json`.
 ### Changed
 
 - Updated npm dependencies to resolve audit advisories in Fastify, Vitest, and transitive URI, IP address, and WebSocket packages.
+- Changed the file-backed `/api/apple/status` store from per-context NDJSON ledgers to a SQLite database at `<DATA_PATH>/status/status.sqlite`.
+- Changed the test script to ignore compiled `dist/**` output so source tests remain reliable after a build.
+
+### Added
+
+- Added automatic one-time migration from legacy `<DATA_PATH>/status/<context>/observations.ndjson` status ledgers into SQLite while leaving legacy files untouched.
+- Added startup and migration logs for the selected state backend, SQLite schema initialization, per-context migration counts, skipped malformed legacy rows, and final migration summaries.
+- Added tests for SQLite status persistence, exact dedupe, legacy migration, migration marker skipping, close readiness, and startup failure when SQLite cannot open.
 
 ## 0.4.0
 

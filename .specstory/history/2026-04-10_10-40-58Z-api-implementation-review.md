@@ -1798,7 +1798,20 @@ _**Agent (composer-2.5)**_
 
 <details><summary>Tool use: **edit_file_v2** • Edit file: /Users/bietiekay/code/health-data-to-mqtt/.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md</summary>
 
-Status: **loading**
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2.5)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/bietiekay/code/health-data-to-mqtt/.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md</summary>
 
 </details>
 
@@ -1808,3 +1821,111 @@ Status: **loading**
 <summary>Tool use: **edit_file_v2**</summary>
 
 </details></tool-use>
+
+_**Agent (composer-2.5)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/bietiekay/code/health-data-to-mqtt/.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2.5)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/bietiekay/code/health-data-to-mqtt/.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2.5)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/bietiekay/code/health-data-to-mqtt/.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2.5)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/bietiekay/code/health-data-to-mqtt/.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2.5)**_
+
+<think><details><summary>Thought Process</summary>
+I will update the Context section to include "/ready" as a gap and correct the numbering in section 4 for "Record failed batches." I need to verify that the file maintains consistent numbering throughout.</details></think>
+
+_**Agent (composer-2.5)**_
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2">
+
+<details><summary>Tool use: **edit_file_v2** • Edit file: /Users/bietiekay/code/health-data-to-mqtt/.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md</summary>
+
+</details>
+
+</tool-use>
+
+<tool-use data-tool-type="write" data-tool-name="edit_file_v2"><details>
+<summary>Tool use: **edit_file_v2**</summary>
+
+</details></tool-use>
+
+_**Agent (composer-2.5)**_
+
+Updated the plan. **`GET /ready` is now in scope** as a new **§3** (execution step 2), with its own todo `ready-endpoint`.
+
+### What changed
+
+**Added — `GET /ready` implementation**
+- **Why:** API.md defines `/ready` as a readiness probe (not just liveness). It lets operators/Docker know the service can actually persist work and publish to MQTT, not merely respond on `/health`.
+- **What:** Return `{ "status": "ok", "database": "ok" }` on success (keep `database` key for API parity).
+- **Probes:**
+  - **State backend** → maps to `database: "ok"` (`DATA_PATH` writable for file backend)
+  - **MQTT** (when enabled) → fail readiness if broker is disconnected
+- **Failure:** `503` when probes fail; endpoint stays unauthenticated.
+- **Tests + docs:** integration tests, `TEST_MATRIX.md`, `PORTING.md`, `README.md`; optional Dockerfile `HEALTHCHECK` switch to `/ready`.
+
+**Removed from non-goals**
+- `/ready` is no longer listed under “out of scope” or ECG section.
+
+**Renumbered**
+- Failed-batch receipts → §4  
+- ECG + insights non-goals → §5 (insights only)  
+- Category events → §6  
+- Auth polish → §7  
+
+Full plan: [`.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md`](.cursor/plans/api_alignment_improvements_0e2ae48f.plan.md)
+
+Say when you want to execute the plan.

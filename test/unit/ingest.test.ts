@@ -581,7 +581,7 @@ describe("createStatusObservations", () => {
     expect(createStatusObservations(records)).toEqual([
       {
         statusMetric: "heart_rate",
-        identityKey: "Watch:2026-04-10T12:00:00.000Z",
+        deviceId: "Watch",
         observedAt: "2026-04-10T12:00:00.000Z",
       },
     ]);
@@ -611,12 +611,14 @@ describe("createStatusObservations", () => {
     expect(createStatusObservations(records)).toEqual([
       {
         statusMetric: "quantity_samples",
-        identityKey: "Monitor:blood_pressure_systolic:2026-04-10T09:00:00.000Z",
+        deviceId: "Monitor",
+        secondaryKey: "blood_pressure_systolic",
         observedAt: "2026-04-10T09:00:00.000Z",
       },
       {
         statusMetric: "quantity_samples",
-        identityKey: "Monitor:blood_pressure_diastolic:2026-04-10T09:00:00.000Z",
+        deviceId: "Monitor",
+        secondaryKey: "blood_pressure_diastolic",
         observedAt: "2026-04-10T09:00:00.000Z",
       },
     ]);

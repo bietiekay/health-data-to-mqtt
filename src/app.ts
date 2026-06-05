@@ -37,16 +37,6 @@ export async function buildApp(
   options: BuildAppOptions = {},
 ): Promise<FastifyInstance> {
   const config = options.config ?? loadConfig();
-  const stateStore = options.stateStore ?? createStateStore(config);
-  const mqttPublisher =
-    options.mqttPublisher ?? (await createMqttPublisher(config));
-  const rawBatchStorage =
-    options.rawBatchStorage ?? createRawBatchStorage(config);
-  const syncReceiptStore =
-    options.syncReceiptStore ?? createSyncReceiptStore(config);
-  const idempotencyStore =
-    options.idempotencyStore ?? createIdempotencyStore(config);
-
   const app = Fastify({
     bodyLimit: config.httpBodyLimitBytes,
     logger: config.logEnabled
@@ -56,6 +46,15 @@ export async function buildApp(
         }
       : false,
   });
+  const stateStore = options.stateStore ?? createStateStore(config, app.log);
+  const mqttPublisher =
+    options.mqttPublisher ?? (await createMqttPublisher(config));
+  const rawBatchStorage =
+    options.rawBatchStorage ?? createRawBatchStorage(config);
+  const syncReceiptStore =
+    options.syncReceiptStore ?? createSyncReceiptStore(config);
+  const idempotencyStore =
+    options.idempotencyStore ?? createIdempotencyStore(config);
 
   app.setErrorHandler((error, _request, reply) => {
     const errorCode =
@@ -70,7 +69,7 @@ export async function buildApp(
   });
 
   app.addHook("onClose", async () => {
-    await mqttPublisher.close();
+    await Promise.all([mqttPublisher.close(), stateStore.close()]);
   });
 
   for (const context of config.contexts) {
@@ -79,6 +78,7 @@ export async function buildApp(
         await registerHealthRoutes(contextApp, {
           config,
           mqttPublisher,
+          stateStore,
         });
         await registerMetricsRoutes(contextApp);
         await registerInsightRoutes(contextApp, { config });
@@ -101,5 +101,6 @@ export async function buildApp(
     );
   }
 
+  app.log.info("app ready");
   return app;
 }

@@ -589,10 +589,20 @@ contexts:
 | `DATA_PATH` | `/data` |
 | `STATE_BACKEND` | `file` |
 
-The current durable state backend stores a deduplicated `/api/apple/status`
-ledger under `<DATA_PATH>/status/<context>/observations.ndjson`. The ledger is
-rebuilt on startup so HealthSave clients can read `count`, `oldest`, and
-`newest` after restarts without double-counting retries.
+The current durable state backend stores deduplicated `/api/apple/status`
+observations in SQLite under `<DATA_PATH>/status/status.sqlite`. The database
+keeps exact dedupe rows plus aggregate `count`, `oldest`, and `newest` values so
+HealthSave clients can read status after restarts without loading all historical
+identities into memory.
+
+On first startup after upgrading from the legacy status ledger, existing
+`<DATA_PATH>/status/<context>/observations.ndjson` files are migrated into
+SQLite and left untouched. Startup logs report the selected state backend,
+SQLite database path, schema initialization, whether migration ran or was
+skipped, per-context migration counts, skipped malformed rows, and a final
+migration summary. SQLite may create `status.sqlite-wal` and `status.sqlite-shm`
+beside the main database file; all `status.sqlite*` files are part of the
+durable status state.
 
 The same backend also stores lightweight sync delivery receipts under
 `<DATA_PATH>/receipts/<context>/receipts.ndjson` when clients send
@@ -679,7 +689,7 @@ Cover:
 - date parsing,
 - metric mappers,
 - topic rendering,
-- file-backed status state persistence,
+- SQLite-backed status state persistence and legacy NDJSON migration,
 - sync receipt header parsing and idempotency replay metadata,
 - auth behavior,
 - config parsing.
@@ -753,7 +763,7 @@ Create realistic replay fixtures with:
 
 ### Phase D: State and Idempotency
 
-- Add file-backed local status state. Status: deduplicated NDJSON observation ledger complete.
+- Add file-backed local status state. Status: SQLite-backed status store with legacy NDJSON migration complete.
 - Track logical counters. Status: flat `count` / `oldest` / `newest` status objects complete.
 - Add HealthSave retry idempotency. Status: complete for all successful batches
   with explicit `Idempotency-Key`, `X-HealthSave-Batch-ID`, or sync-run fallback

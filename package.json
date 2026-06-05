@@ -12,7 +12,7 @@
     "dev": "tsx watch src/server.ts",
     "start": "node dist/src/server.js",
     "start:local": "node dist/src/server.js --config config/app.config.local.yaml",
-    "test": "vitest run",
+    "test": "vitest run --exclude dist/**",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {

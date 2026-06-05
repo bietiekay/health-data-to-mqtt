@@ -1,5 +1,5 @@
 import { mkdtempSync, rmSync } from "node:fs";
-import { readFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -261,8 +261,8 @@ describe("compatibility endpoints", () => {
     });
   });
 
-  it("returns readiness failure when file-backed state is unavailable", async () => {
-    app = await buildApp({
+  it("fails startup when file-backed state is unavailable", async () => {
+    await expect(buildApp({
       config: loadConfig({
         HOST: "127.0.0.1",
         PORT: "0",
@@ -272,18 +272,7 @@ describe("compatibility endpoints", () => {
         STATE_BACKEND: "file",
         DATA_PATH: "/dev/null",
       }),
-    });
-
-    const response = await app.inject({
-      method: "GET",
-      url: "/ready",
-    });
-
-    expect(response.statusCode).toBe(503);
-    expect(response.json()).toEqual({
-      detail: "database unavailable",
-      database: "unavailable",
-    });
+    })).rejects.toThrow();
   });
 
   it("keeps V1 readiness independent from MQTT availability", async () => {
@@ -1066,6 +1055,24 @@ describe("compatibility endpoints", () => {
     expect(response.json()).toMatchObject({
       heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
     });
+  });
+
+  it("fails startup instead of exposing partial status when sqlite cannot open", async () => {
+    tempDirectory = mkdtempSync(join(tmpdir(), "health-api-state-fail-"));
+    await mkdir(join(tempDirectory, "status", "status.sqlite"), {
+      recursive: true,
+    });
+    const config = loadConfig({
+      HOST: "127.0.0.1",
+      PORT: "0",
+      LOG_ENABLED: "false",
+      API_KEY: "",
+      MQTT_ENABLED: "false",
+      STATE_BACKEND: "file",
+      DATA_PATH: tempDirectory,
+    });
+
+    await expect(buildApp({ config })).rejects.toThrow();
   });
 
   it("publishes daily quantity datapoints to MQTT before accepting batches", async () => {

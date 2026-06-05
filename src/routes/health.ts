@@ -2,10 +2,12 @@ import type { FastifyInstance } from "fastify";
 import type { AppConfig } from "../config.js";
 import type { HealthMqttPublisher } from "../mqtt/publisher.js";
 import { checkReadiness } from "../readiness.js";
+import type { StateStore } from "../state/store.js";
 
 interface HealthRouteOptions {
   config: AppConfig;
   mqttPublisher: HealthMqttPublisher;
+  stateStore: StateStore;
 }
 
 export async function registerHealthRoutes(
@@ -18,6 +20,7 @@ export async function registerHealthRoutes(
     const readiness = await checkReadiness(
       options.config,
       options.mqttPublisher,
+      options.stateStore,
     );
     return reply.code(readiness.statusCode).send(readiness.body);
   });

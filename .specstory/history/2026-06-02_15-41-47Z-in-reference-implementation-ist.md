@@ -9709,28 +9709,7647 @@ _**Agent (gpt-5.5 2026-06-02 18:20:06Z)**_
 
 <tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
 <summary>Tool use: **exec_command** `sed -n '260,640p' src/state/sync-receipts.ts`</summary>
+```
+Chunk ID: bc6bb7
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 2960
+Output:
+    }
+  }
 
-**Input:**
+  private contextRecords(contextName: string): SyncReceiptRecord[] {
+    const existingRecords = this.contexts.get(contextName);
+    if (existingRecords) {
+      return existingRecords;
+    }
 
-- cmd: `sed -n '260,640p' src/state/sync-receipts.ts`
-- command: `sed -n '260,640p' src/state/sync-receipts.ts`
-- max_output_tokens: `26000`
-- workdir: `/Users/bietiekay/code/health-data-to-mqtt`
-- yield_time_ms: `10000`
+    const nextRecords: SyncReceiptRecord[] = [];
+    this.contexts.set(contextName, nextRecords);
+    return nextRecords;
+  }
 
+  private async appendRecord(record: SyncReceiptRecord): Promise<void> {
+    const directory = join(this.basePath, encodeContextName(record.context));
+    await mkdir(directory, { recursive: true });
+    await appendFile(
+      receiptsFilePath(this.basePath, record.context),
+      `${JSON.stringify(record)}\n`,
+      "utf8",
+    );
+  }
+
+  private async enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const nextOperation = this.operationQueue.then(operation, operation);
+    this.operationQueue = nextOperation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return nextOperation;
+  }
+}
+
+export function parseSyncReceiptHeaders(
+  headers: IncomingHttpHeaders,
+): SyncReceiptHeaders {
+  return {
+    idempotencyKey: headerString(headers["idempotency-key"]),
+    syncRunId: headerString(headers["x-healthsave-sync-run-id"]),
+    batchId: headerString(headers["x-healthsave-batch-id"]),
+    payloadHash: headerString(headers["x-healthsave-payload-hash"]),
+    metric: headerString(headers["x-healthsave-metric"]),
+    batchIndex: headerString(headers["x-healthsave-batch-index"]),
+    totalBatches: headerString(headers["x-healthsave-total-batches"]),
+    syncMode: headerString(headers["x-healthsave-sync-mode"]),
+    anchorPresent: headerString(headers["x-healthsave-anchor-present"]),
+    lowerBoundReason: headerString(headers["x-healthsave-lower-bound-reason"]),
+    fullExport: headerString(headers["x-healthsave-full-export"]),
+    queryLowerBound: headerString(headers["x-healthsave-query-lower-bound"]),
+    sampleMinTime: parseOptionalTimestamp(
+      headerString(headers["x-healthsave-sample-min-time"]),
+    ),
+    sampleMaxTime: parseOptionalTimestamp(
+      headerString(headers["x-healthsave-sample-max-time"]),
+    ),
+  };
+}
+
+function createReceiptRecord(
+  input: RecordSyncReceiptInput,
+): SyncReceiptRecord | undefined {
+  const syncRunId = input.headers.syncRunId?.trim();
+  if (!syncRunId) {
+    return undefined;
+  }
+
+  const receivedAt = new Date().toISOString();
+  const recordsRejected = Math.max(0, input.recordsRejected);
+  return {
+    received_at: receivedAt,
+    context: normalizeContextName(input.contextName),
+    sync_run_id: syncRunId,
+    receipt_id: syncRunId,
+    ...optionalField("idempotency_key", input.headers.idempotencyKey),
+    ...optionalField("batch_id", input.headers.batchId),
+    ...optionalField("payload_hash", input.headers.payloadHash),
+    metric: input.headers.metric ?? input.metric,
+    batch_index: parseInteger(input.headers.batchIndex) ?? input.batchIndex,
+    total_batches: parseInteger(input.headers.totalBatches) ?? input.totalBatches,
+    ...optionalField("sync_mode", input.headers.syncMode),
+    ...optionalField("anchor_present", input.headers.anchorPresent),
+    ...optionalField("lower_bound_reason", input.headers.lowerBoundReason),
+    ...optionalField("full_export", input.headers.fullExport),
+    ...optionalField("query_lower_bound", input.headers.queryLowerBound),
+    ...optionalField("sample_min_time", input.headers.sampleMinTime),
+    ...optionalField("sample_max_time", input.headers.sampleMaxTime),
+    ...optionalField(
+      "latest_destination_sample_time",
+      input.latestDestinationSampleTime,
+    ),
+    records_received: input.recordsReceived,
+    records_accepted: input.recordsAccepted,
+    records_skipped: recordsRejected,
+    records_rejected: recordsRejected,
+    records_deduped_in_batch: input.recordsDedupedInBatch,
+    response: input.response,
+  };
+}
+
+function findIdempotencyReceipt(
+  records: SyncReceiptRecord[],
+  idempotencyKey: string,
+): IdempotencyReceipt | undefined {
+  const key = idempotencyKey.trim();
+  if (!key) {
+    return undefined;
+  }
+
+  const record = [...records]
+    .reverse()
+    .find((candidate) => candidate.idempotency_key === key);
+  if (!record) {
+    return undefined;
+  }
+
+  return {
+    idempotency_key: key,
+    payload_hash: record.payload_hash,
+    response: record.response,
+  };
+}
+
+function latestRunSummary(
+  records: SyncReceiptRecord[],
+): SyncRunSummary | undefined {
+  const latestRecord = records.reduce<SyncReceiptRecord | undefined>(
+    (latest, record) =>
+      !latest || record.received_at > latest.received_at ? record : latest,
+    undefined,
+  );
+  return latestRecord
+    ? runSummary(records, latestRecord.sync_run_id)
+    : undefined;
+}
+
+function runSummary(
+  records: SyncReceiptRecord[],
+  syncRunId: string,
+): SyncRunSummary | undefined {
+  const runRecords = records.filter((record) => record.sync_run_id === syncRunId);
+  if (runRecords.length === 0) {
+    return und
+... (truncated)
+```
 </details></tool-use>
 
 _**Agent (gpt-5.5 2026-06-02 18:20:06Z)**_
 
 <tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
 <summary>Tool use: **exec_command** `sed -n '1,180p' src/app.ts`</summary>
+```
+Chunk ID: 6844cb
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 552
+Output:
+import Fastify, { type FastifyInstance } from "fastify";
+import type { AppConfig } from "./config.js";
+import { loadConfig } from "./config.js";
+import {
+  createMqttPublisher,
+  type HealthMqttPublisher,
+} from "./mqtt/publisher.js";
+import { registerAppleRoutes } from "./routes/apple.js";
+import { registerHealthRoutes } from "./routes/health.js";
+import { registerV2Routes } from "./routes/v2.js";
+import {
+  createSyncReceiptStore,
+  type SyncReceiptStore,
+} from "./state/sync-receipts.js";
+import { createStateStore, type StateStore } from "./state/store.js";
+import {
+  createRawBatchStorage,
+  type RawBatchStorage,
+} from "./storage/raw-batch-storage.js";
 
-**Input:**
+interface BuildAppOptions {
+  config?: AppConfig;
+  stateStore?: StateStore;
+  mqttPublisher?: HealthMqttPublisher;
+  rawBatchStorage?: RawBatchStorage;
+  syncReceiptStore?: SyncReceiptStore;
+}
 
-- cmd: `sed -n '1,180p' src/app.ts`
-- command: `sed -n '1,180p' src/app.ts`
-- max_output_tokens: `12000`
-- workdir: `/Users/bietiekay/code/health-data-to-mqtt`
-- yield_time_ms: `10000`
+export async function buildApp(
+  options: BuildAppOptions = {},
+): Promise<FastifyInstance> {
+  const config = options.config ?? loadConfig();
+  const stateStore = options.stateStore ?? createStateStore(config);
+  const mqttPublisher =
+    options.mqttPublisher ?? (await createMqttPublisher(config));
+  const rawBatchStorage =
+    options.rawBatchStorage ?? createRawBatchStorage(config);
+  const syncReceiptStore =
+    options.syncReceiptStore ?? createSyncReceiptStore(config);
 
+  const app = Fastify({
+    bodyLimit: config.httpBodyLimitBytes,
+    logger: config.logEnabled
+      ? {
+          level: config.logLevel,
+          redact: ["req.headers.x-api-key"],
+        }
+      : false,
+  });
+
+  app.addHook("onClose", async () => {
+    await mqttPublisher.close();
+  });
+
+  for (const context of config.contexts) {
+    await app.register(
+      async (contextApp) => {
+        await registerHealthRoutes(contextApp);
+        await registerAppleRoutes(contextApp, {
+          config,
+          context,
+          stateStore,
+          mqttPublisher,
+          rawBatchStorage,
+          syncReceiptStore,
+        });
+        await registerV2Routes(contextApp, {
+          config,
+          context,
+          syncReceiptStore,
+        });
+      },
+      { prefix: context.prefix === "/" ? "" : context.prefix },
+    );
+  }
+
+  return app;
+}
+```
 </details></tool-use>
+
+---
+
+_**User (2026-06-02 18:21:51Z)**_
+
+i have upped the version to 0.4.0
+
+
+---
+
+_**Agent (gpt-5.5 2026-06-02 18:21:59Z)**_
+
+Got it. I already cross-checked `package.json` and the adopted plan accounts for `0.4.0`.
+
+Implementation should leave `package.json` alone and add a new top `CHANGELOG.md` section for `0.4.0` before recording the API-alignment changes.
+
+---
+
+_**User (2026-06-02 18:22:22Z)**_
+
+PLEASE IMPLEMENT THIS PLAN:
+# Adopted Plan: API Alignment Improvements
+
+## Summary
+
+Adopt the Cursor plan as a follow-up to the current v2 receipt implementation, with two corrections from cross-checking the repo and `reference-implementation/API.md`:
+
+- Keep the dedicated idempotency-index, `/ready`, failed-receipt, ECG, and category-event work.
+- Do **not** implement status timestamp reformatting now; current ISO UTC timestamps match the API compatibility note that ISO timestamps with trailing `Z` are accepted. Document this instead of changing response shape.
+- Keep Docker `HEALTHCHECK` on `/health` by default; add `/ready` for stricter operator/orchestrator checks without making broker readiness restart the container unexpectedly.
+
+## Key Changes
+
+- Add a dedicated idempotency index decoupled from sync receipts:
+  - Memory backend for `STATE_BACKEND=memory`.
+  - File backend at `<DATA_PATH>/idempotency/<context>/keys.ndjson`.
+  - Store `{ idempotency_key, payload_hash?, response, recorded_at }` for every successful batch with `Idempotency-Key`, including batches without `X-HealthSave-Sync-Run-ID`.
+  - Early replay still happens before raw storage, MQTT, or status updates.
+  - Same key plus different payload hash returns `409`.
+  - Keep sync receipts run-scoped only; v2 proof still requires `X-HealthSave-Sync-Run-ID`.
+
+- Add `GET /ready`:
+  - Success response stays reference-compatible: `{ "status": "ok", "database": "ok" }`.
+  - Unauthenticated, like `/health`.
+  - For file state, probe writable local persistence under `DATA_PATH`; include receipt/idempotency paths and `RAW_STORAGE_PATH` when configured.
+  - For memory state, treat persistence as ready.
+  - When MQTT is enabled, fail readiness if the real publisher reports disconnected/reconnecting.
+  - Failure returns `503`, e.g. `{ "status": "error", "database": "ok", "mqtt": "unavailable" }`.
+  - Add a publisher readiness method; no-op MQTT and test publishers report ready unless a test explicitly marks them unavailable.
+
+- Record failed sync-run batches:
+  - Extend receipt rows with `outcome: "processed" | "failed"` and optional failure metadata.
+  - Record failed receipts for validated batches with sync-run IDs when raw storage returns `500` or MQTT returns `502`.
+  - Do not write idempotency success entries for failed batches.
+  - Update run summaries so `batches_processed` counts successful rows, `batches_failed` counts failed rows, and `batches_seen` counts unique batches across both.
+  - Keep accepted/inserted counts at zero for failed rows.
+
+- Add ingest compatibility fixes:
+  - Special-case `ecg` as accepted compatibility payloads with zero normalized records and zero rejections.
+  - For generic quantity/category events, resolve time from `date`, then `startDate`/`start`, then `endDate`/`end`.
+  - Preserve existing MQTT timestamp formats and normalized payload shapes.
+
+## Docs And Versioning
+
+- Because `package.json` is currently `0.4.0`, add a top `CHANGELOG.md` section for `0.4.0` before recording these changes.
+- Update `README.md` with `/ready`, idempotency index behavior, and the distinction between delivery receipts and idempotency.
+- Update `PORTING.md`:
+  - Mark idempotency as complete for all successful batches with `Idempotency-Key`.
+  - Keep v2 delivery receipts scoped to sync-run IDs.
+  - Document `/api/insights/*` as intentional non-goals.
+  - Document that status endpoint timestamps remain ISO-compatible by design.
+- Update `TEST_STRATEGY.md` and `TEST_MATRIX.md` for the new idempotency, readiness, failed receipt, ECG, and category-event tests.
+- Do not modify anything under `reference-implementation/`.
+
+## Test Plan
+
+- Unit tests:
+  - Idempotency index memory/file persistence, replay lookup, and hash conflict detection.
+  - Backward-compatible idempotency fallback from old sync receipt rows if retained.
+  - `/ready` helper probes for writable file paths and MQTT readiness states.
+  - Receipt aggregation with mixed processed/failed rows.
+  - ECG zero-record/zero-rejection compatibility.
+  - Category event `endDate` fallback.
+  - Optional status timestamp compatibility test documenting current ISO output.
+
+- Integration tests:
+  - Idempotency replay without sync-run ID skips MQTT/status side effects.
+  - Idempotency conflict without sync-run ID returns `409` before side effects.
+  - Idempotency persists across app restart with file backend.
+  - `GET /ready` returns `200` and reference success shape when dependencies are ready.
+  - `GET /ready` returns `503` for unwritable persistence and for MQTT unavailable when MQTT is enabled.
+  - `GET /ready` remains unauthenticated with `API_KEY` set.
+  - Sync-run batch with forced raw-storage or MQTT failure appears in run summary as `batches_failed: 1`.
+  - Retry after a failed receipt can still succeed and then appears as processed.
+  - Existing v1/v2 status, receipt, MQTT, and context-isolation tests continue passing.
+
+- Verification:
+  - Run `npm test`.
+  - Run `npm run typecheck`.
+  - Run `npm run build`.
+
+## Assumptions
+
+- `/api/insights/*` remains out of scope.
+- Broad deterministic record-key idempotency beyond `Idempotency-Key` remains planned future work.
+- Docker container health remains liveness-based on `/health`; operators can configure `/ready` when they want dependency-gated readiness.
+- Status timestamps remain ISO UTC strings unless a concrete HealthSave client regression proves the PostgreSQL-style example format is required.
+
+
+---
+
+_**Agent (gpt-5.5 2026-06-02 18:22:27Z)**_
+
+I’ll implement this as a follow-up on the current dirty tree, keeping the reference directory untouched. First I’ll ground in the exact current files after the 0.4.0 bump, then I’ll add the idempotency index, readiness checks, failed receipts, tests, and docs.
+
+_**Agent (gpt-5.5 2026-06-02 18:22:29Z)**_
+
+<tool-use data-tool-type="task" data-tool-name="update_plan"><details>
+<summary>Tool use: **update_plan**</summary>
+**Agent task list:**
+- [⚡] Inspect current implementation and verify version/changelog state
+- [ ] Add decoupled idempotency index and wire batch replay/conflict behavior
+- [ ] Add readiness probes and /ready endpoint without changing Docker healthcheck
+- [ ] Extend sync receipts for failed batches and summary accounting
+- [ ] Add ECG/category ingest compatibility and tests
+- [ ] Update docs/changelog/test inventory and run verification
+
+```
+Plan updated
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:22:37Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Chunk ID: 8464dc
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 396
+Output:
+ M .specstory/history/2026-04-18_00-49-33Z-bump-version-to-0.md
+ M .specstory/statistics.json
+ M CHANGELOG.md
+ M PORTING.md
+ M README.md
+ M TEST_MATRIX.md
+ M TEST_STRATEGY.md
+ M package.json
+ M reference-implementation/API.md
+ D reference-implementation/Dockerfile
+ D reference-implementation/LICENSE
+ M reference-implementation/README.md
+ D reference-implementation/docker-compose.yml
+ D reference-implementation/grafana/dashboards/activity.json
+ D reference-implementation/grafana/dashboards/healthsave-overview.json
+ D reference-implementation/grafana/dashboards/workouts.json
+ D reference-implementation/grafana/provisioning/dashboards/default.yaml
+ D reference-implementation/grafana/provisioning/datasources/healthsave.yaml
+ D reference-implementation/home-assistant/healthsave-package.yaml
+ D reference-implementation/home-assistant/secrets.example.yaml
+ D reference-implementation/migrations/001_audit_hardening.sql
+ D reference-implementation/pyproject.toml
+ D reference-implementation/requirements.txt
+ D reference-implementation/schema.sql
+ D reference-implementation/server.py
+ D reference-implementation/tests/test_api_contract.py
+ M src/app.ts
+ M src/auth.ts
+ M src/ingest.ts
+ M src/routes/apple.ts
+ M test/integration/app.test.ts
+ M test/unit/ingest.test.ts
+?? .cursor/
+?? .cursorindexingignore
+?? .specstory/history/2026-04-10_10-40-58Z-api-implementation-review.md
+?? .specstory/history/2026-06-02_15-41-47Z-in-reference-implementation-ist.md
+?? reference-implementation/BRIDGE.md
+?? src/routes/v2.ts
+?? src/state/sync-receipts.ts
+?? test/unit/sync-receipts.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:22:37Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `cat package.json`</summary>
+```
+Chunk ID: 731dc9
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 194
+Output:
+{
+  "name": "health-data-to-mqtt",
+  "version": "0.4.0",
+  "description": "HealthSave-compatible Node.js server that publishes health data to MQTT.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/src/server.js",
+    "start:local": "node dist/src/server.js --config config/app.config.local.yaml",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "fastify": "^5.4.0",
+    "mqtt": "^5.10.4",
+    "yaml": "^2.8.3",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  }
+}
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:22:37Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,120p' CHANGELOG.md`</summary>
+```
+Chunk ID: bb8b63
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1294
+Output:
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+Version headers must match the `version` field in `package.json`.
+
+## 0.3.0
+
+### Changed
+
+- Bumped the app version to 0.3.0.
+- Changed ingest normalization to expose accepted, rejected, and in-batch deduped record counts for sync receipt accounting.
+
+### Added
+
+- Added unauthenticated `GET /api/v2/setup/diagnostics` for HealthSave setup checks.
+- Added protected `GET /api/v2/sync/runs/latest`, `GET /api/v2/sync/runs/{sync_run_id}`, and `GET /api/v2/sync/coverage` delivery receipt endpoints.
+- Added memory and file-backed sync receipt storage under `<DATA_PATH>/receipts/<context>/receipts.ndjson`.
+- Added HealthSave receipt header capture plus idempotency replay/conflict handling for matching `Idempotency-Key` and payload hash values.
+- Added tests for v2 diagnostics, sync receipts, receipt coverage, prefixed receipt isolation, and idempotency replay/conflict behavior.
+
+## 0.2.0
+
+### Changed
+
+- Bumped the app version to 0.2.0.
+- Changed `GET /api/apple/status` to return flat per-metric status objects with `count`, `oldest`, and `newest`.
+- Changed batch `records` reporting to count valid deduplicated logical records and return `0` for non-empty batches whose samples are all invalid.
+- Changed daily quantity routing so `step_count`, `distance_walking_running`, `flights_climbed`, `active_energy_burned`, `basal_energy_burned`, and `apple_exercise_time` normalize into `daily_activity`.
+- Changed device identity extraction to honor the broader HealthSave source and device field aliases with a `HealthSave` fallback.
+- Changed MQTT quantity-sample topic routing to use the normalized per-sample `metric_name` so correlated metrics publish to distinct topics.
+- Changed current MQTT publication to fan out multi-field records like `daily_activity`, `sleep_sessions`, and `workouts` into field-specific subtopics while keeping legacy top-level sleep and workout topics.
+
+### Added
+
+- Added a deduplicated file-backed status ledger under `<DATA_PATH>/status/<context>/observations.ndjson`.
+- Added coverage for flat status responses, duplicate-retry deduplication, blood-pressure subtype counting, body-temperature status exclusion, and daily-activity quantity routing.
+- Added regression coverage for complete daily-activity mapping matrices, wrapped raw batch archive preservation, and end-to-end MQTT topic exports for wrapped step and blood-pressure payloads.
+- Added documentation for the new status response shape, persistence layout, and upgrade expectation from the old counter-only state file.
+
+## 0.1.0
+
+### Added
+
+- Added the initial Node.js + TypeScript Fastify server scaffold.
+- Added HealthSave-compatible health, batch, and status endpoints.
+- Added reference-compatible optional API-key behavior.
+- Added in-memory status counters for the initial compatibility scaffold.
+- Added Dockerfile and Docker Compose self-hosting setup with Mosquitto.
+- Added commented default environment templates.
+- Added a commented local YAML configuration file template for plain `npm start` runs.
+- Added local config file loading with environment variable override behavior.
+- Added `npm run start:local` for local development config files.
+- Fixed npm start scripts to use the built server entrypoint.
+- Expanded README guidance for local development configuration.
+- Removed manual SpecStory requirements from agent commit instructions.
+- Documented that external tooling manages `.specstory/` and generated changes may be committed.
+- Added initial MQTT topic rendering helper.
+- Added raw MQTT publishing for non-empty HealthSave batch samples.
+- Added reference-compatible datapoint extraction for dedicated metrics, generic quantities, activity summaries, sleep sessions, and workouts.
+- Added blood oxygen normalization aliases for HealthKit-style saturation fields.
+- Added workout active-energy normalization and current values using `activeEnergy`, `activeEnergyBurned`, or `calories`.
+- Added sleep awake-state current values from the latest sleep stage.
+- Added normalized MQTT publishing for accepted datapoints.
+- Added scalar current MQTT topics for datapoints with one primary value.
+- Added multi-client contexts with configurable URL prefixes, per-context MQTT topics, and isolated status counters.
+- Added JSON wrapper deserialization for encoded batch and sample data.
+- Added batch-level debug logging for incoming body keys, metrics, sample keys, counter routing, and MQTT publish counts.
+- Added `502` handling for MQTT publish failures so failed batches are not counted as accepted.
+- Added accepted-sample status counting for non-empty batches that do not produce normalized records.
+- Added optional raw batch NDJSON storage with per-context monthly files for replay/readout use cases.
+- Added file-backed local status counter state under the configured data path.
+- Add
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:22:37Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,260p' src/state/sync-receipts.ts`</summary>
+```
+Chunk ID: 26a66e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1920
+Output:
+import { appendFile, mkdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import type { IncomingHttpHeaders } from "node:http";
+import type { AppConfig } from "../config.js";
+import { parseTimestamp } from "../ingest.js";
+import { encodeContextName } from "../storage/raw-batch-storage.js";
+
+export interface SyncReceiptHeaders {
+  idempotencyKey?: string;
+  syncRunId?: string;
+  batchId?: string;
+  payloadHash?: string;
+  metric?: string;
+  batchIndex?: string;
+  totalBatches?: string;
+  syncMode?: string;
+  anchorPresent?: string;
+  lowerBoundReason?: string;
+  fullExport?: string;
+  queryLowerBound?: string;
+  sampleMinTime?: string;
+  sampleMaxTime?: string;
+}
+
+export interface BatchResponseBody {
+  status: "processed" | "empty";
+  metric: string;
+  batch: number;
+  total_batches?: number;
+  records: number;
+}
+
+export interface IdempotencyReceipt {
+  idempotency_key: string;
+  payload_hash?: string;
+  response: BatchResponseBody;
+}
+
+export interface SyncReceiptRecord {
+  received_at: string;
+  context: string;
+  sync_run_id: string;
+  receipt_id: string;
+  idempotency_key?: string;
+  batch_id?: string;
+  payload_hash?: string;
+  metric: string;
+  batch_index: number;
+  total_batches: number;
+  sync_mode?: string;
+  anchor_present?: string;
+  lower_bound_reason?: string;
+  full_export?: string;
+  query_lower_bound?: string;
+  sample_min_time?: string;
+  sample_max_time?: string;
+  latest_destination_sample_time?: string;
+  records_received: number;
+  records_accepted: number;
+  records_skipped: number;
+  records_rejected: number;
+  records_deduped_in_batch: number;
+  response: BatchResponseBody;
+}
+
+export interface SyncRunSummary {
+  status: "ok";
+  sync_run_id: string;
+  receipt_id: string;
+  verification_level: "delivery_receipt";
+  records_received: number;
+  records_accepted: number;
+  records_inserted_new: null;
+  records_deduped_existing: null;
+  storage_result_level: "accepted_only";
+  records_skipped: number;
+  records_rejected: number;
+  records_deduped_in_batch: number;
+  sample_window: {
+    min_sample_time: string | null;
+    max_sample_time: string | null;
+  };
+  latest_sample_time: string | null;
+  batches_seen: number;
+  batches_processed: number;
+  batches_failed: number;
+  metrics: string[];
+  oldest_received_at: string;
+  newest_receipt_at: string;
+}
+
+export interface SyncCoverageMetric {
+  metric: string;
+  records_received: number;
+  records_accepted: number;
+  records_inserted_new: null;
+  records_deduped_existing: null;
+  storage_result_level: "accepted_only";
+  records_skipped: number;
+  records_rejected: number;
+  records_deduped_in_batch: number;
+  batches_seen: number;
+  newest_receipt_at: string;
+  latest_receipt_sample_time: string | null;
+  latest_destination_sample_time: string | null;
+}
+
+export interface SyncCoverageSummary {
+  status: "ok";
+  storage_result_level: "accepted_only";
+  count: number;
+  metrics: SyncCoverageMetric[];
+}
+
+export interface RecordSyncReceiptInput {
+  contextName: string;
+  headers: SyncReceiptHeaders;
+  metric: string;
+  batchIndex: number;
+  totalBatches: number;
+  recordsReceived: number;
+  recordsAccepted: number;
+  recordsRejected: number;
+  recordsDedupedInBatch: number;
+  latestDestinationSampleTime?: string;
+  response: BatchResponseBody;
+}
+
+export interface SyncReceiptStore {
+  getIdempotencyReceipt(
+    contextName: string,
+    idempotencyKey: string,
+  ): Promise<IdempotencyReceipt | undefined>;
+  recordBatch(input: RecordSyncReceiptInput): Promise<SyncReceiptRecord | undefined>;
+  getLatestRun(contextName: string): Promise<SyncRunSummary | undefined>;
+  getRun(
+    contextName: string,
+    syncRunId: string,
+  ): Promise<SyncRunSummary | undefined>;
+  getCoverage(contextName: string): Promise<SyncCoverageSummary>;
+}
+
+export function createSyncReceiptStore(config: AppConfig): SyncReceiptStore {
+  if (config.stateBackend === "memory") {
+    return createMemorySyncReceiptStore();
+  }
+
+  return new FileSyncReceiptStore(join(config.dataPath, "receipts"));
+}
+
+export function createMemorySyncReceiptStore(
+  initialRecords: SyncReceiptRecord[] = [],
+): SyncReceiptStore {
+  const recordsByContext = new Map<string, SyncReceiptRecord[]>();
+  for (const record of initialRecords) {
+    contextRecords(recordsByContext, record.context).push(record);
+  }
+
+  return {
+    async getIdempotencyReceipt(contextName, idempotencyKey) {
+      return findIdempotencyReceipt(contextRecords(recordsByContext, contextName), idempotencyKey);
+    },
+    async recordBatch(input) {
+      const record = createReceiptRecord(input);
+      if (!record) {
+        return undefined;
+      }
+
+      contextRecords(recordsByContext, record.context).push(record);
+      return record;
+    },
+    async getLatestRun(contextName) {
+      return latestRunSummary(contextRecords(recordsByContext, contextName));
+    },
+    async getRun(contextName, syncRunId) {
+   
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:22:52Z)**_
+
+The current state matches the follow-up: version is `0.4.0`, changelog still needs a top 0.4.0 section, and idempotency is still stored only through sync receipt rows. I’m going to add a sibling idempotency store rather than overloading the receipt ledger further; that keeps delivery proof and retry safety cleanly separated.
+
+_**Agent (gpt-5.5 2026-06-02 18:22:52Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "HealthMqttPublisher|createRecordingMqttPublisher|createNoopMqttPublisher|publishRawBatch|close\(\)" test src`</summary>
+```
+Chunk ID: 7fdc25
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 716
+Output:
+test/integration/app.test.ts:12:  HealthMqttPublisher,
+test/integration/app.test.ts:55:function createRecordingMqttPublisher(): HealthMqttPublisher & {
+test/integration/app.test.ts:74:    async publishRawBatch(context, batch): Promise<RawPublishResult> {
+test/integration/app.test.ts:103:    async close() {
+test/integration/app.test.ts:159:  await app?.close();
+test/integration/app.test.ts:348:    const mqttPublisher = createRecordingMqttPublisher();
+test/integration/app.test.ts:661:    await app.close();
+test/integration/app.test.ts:673:    const mqttPublisher = createRecordingMqttPublisher();
+test/integration/app.test.ts:743:    const mqttPublisher = createRecordingMqttPublisher();
+test/integration/app.test.ts:812:    const mqttPublisher = createRecordingMqttPublisher();
+test/integration/app.test.ts:879:    const mqttPublisher = createRecordingMqttPublisher();
+test/integration/app.test.ts:1010:      mqttPublisher: createRecordingMqttPublisher(),
+test/integration/app.test.ts:1083:    const mqttPublisher = createRecordingMqttPublisher();
+test/integration/app.test.ts:1121:    const mqttPublisher = createRecordingMqttPublisher();
+test/integration/app.test.ts:1191:      mqttPublisher: createRecordingMqttPublisher(),
+test/integration/app.test.ts:1259:      mqttPublisher: createRecordingMqttPublisher(),
+test/integration/app.test.ts:1290:        async publishRawBatch() {
+test/integration/app.test.ts:1305:        async close() {
+test/integration/app.test.ts:1377:    const mqttPublisher = createRecordingMqttPublisher();
+test/integration/app.test.ts:1427:    const mqttPublisher = createRecordingMqttPublisher();
+src/routes/apple.ts:9:import type { HealthMqttPublisher } from "../mqtt/publisher.js";
+src/routes/apple.ts:22:  mqttPublisher: HealthMqttPublisher;
+src/routes/apple.ts:154:      const rawPublishResult = await options.mqttPublisher.publishRawBatch(
+test/unit/mqtt-publisher.test.ts:44:    const result = await publisher.publishRawBatch(config.contexts[0]!, {
+src/mqtt/publisher.ts:39:export interface HealthMqttPublisher {
+src/mqtt/publisher.ts:40:  publishRawBatch(
+src/mqtt/publisher.ts:53:  close(): Promise<void>;
+src/mqtt/publisher.ts:81:export function createNoopMqttPublisher(): HealthMqttPublisher {
+src/mqtt/publisher.ts:83:    async publishRawBatch(context, batch) {
+src/mqtt/publisher.ts:101:    async close() {
+src/mqtt/publisher.ts:109:): Promise<HealthMqttPublisher> {
+src/mqtt/publisher.ts:111:    return createNoopMqttPublisher();
+src/mqtt/publisher.ts:132:): HealthMqttPublisher {
+src/mqtt/publisher.ts:136:class MqttHealthPublisher implements HealthMqttPublisher {
+src/mqtt/publisher.ts:142:  async publishRawBatch(
+src/mqtt/publisher.ts:256:  async close(): Promise<void> {
+src/app.ts:6:  type HealthMqttPublisher,
+src/app.ts:24:  mqttPublisher?: HealthMqttPublisher;
+src/app.ts:52:    await mqttPublisher.close();
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:22:52Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,260p' test/unit/mqtt-publisher.test.ts`</summary>
+```
+Chunk ID: 5a54d3
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1844
+Output:
+import { describe, expect, it } from "vitest";
+import { loadConfig } from "../../src/config.js";
+import {
+  createMqttPublisherFromClient,
+  type MqttPublishClient,
+} from "../../src/mqtt/publisher.js";
+
+interface PublishCall {
+  topic: string;
+  message: string | Buffer;
+  options?: { qos?: 0 | 1 | 2; retain?: boolean };
+}
+
+function createRecordingClient(): MqttPublishClient & {
+  publishCalls: PublishCall[];
+  closed: boolean;
+} {
+  return {
+    publishCalls: [],
+    closed: false,
+    async publishAsync(topic, message, options) {
+      this.publishCalls.push({ topic, message, options });
+      return undefined;
+    },
+    async endAsync() {
+      this.closed = true;
+    },
+  };
+}
+
+describe("MQTT publisher", () => {
+  it("publishes one raw event per sample", async () => {
+    const client = createRecordingClient();
+    const config = loadConfig({
+      HOST: "127.0.0.1",
+      PORT: "0",
+      LOG_ENABLED: "false",
+      MQTT_URL: "mqtt://localhost:1883",
+      MQTT_QOS: "1",
+      MQTT_RETAIN: "false",
+    });
+    const publisher = createMqttPublisherFromClient(client, config);
+
+    const result = await publisher.publishRawBatch(config.contexts[0]!, {
+      metric: "step_count",
+      batch_index: 2,
+      total_batches: 4,
+      samples: [
+        { qty: 120, source: "Watch", date: "2026-04-10T12:00:00Z" },
+        { qty: 121, source: "Watch", date: "2026-04-10T12:01:00Z" },
+      ],
+    });
+
+    expect(result).toEqual({
+      topic: "healthsave/raw/step_count",
+      records: 2,
+    });
+    expect(client.publishCalls).toHaveLength(2);
+    expect(client.publishCalls[0]?.topic).toBe("healthsave/raw/step_count");
+    expect(client.publishCalls[0]?.options).toEqual({ qos: 1, retain: false });
+
+    const firstPayload = JSON.parse(
+      client.publishCalls[0]?.message.toString() ?? "{}",
+    ) as Record<string, unknown>;
+    expect(firstPayload).toMatchObject({
+      metric: "step_count",
+      event_type: "raw_sample",
+      batch_index: 2,
+      total_batches: 4,
+      device_id: "Watch",
+      sample_index: 0,
+      sample: { qty: 120, source: "Watch", date: "2026-04-10T12:00:00Z" },
+    });
+    expect(firstPayload.ingested_at).toEqual(expect.any(String));
+    expect(firstPayload.idempotency_key).toEqual(
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+    );
+  });
+
+  it("publishes normalized datapoints to logical topics", async () => {
+    const client = createRecordingClient();
+    const config = loadConfig({
+      HOST: "127.0.0.1",
+      PORT: "0",
+      LOG_ENABLED: "false",
+      MQTT_URL: "mqtt://localhost:1883",
+      MQTT_TOPIC_NORMALIZED: "healthsave/normalized/{metric}",
+    });
+    const publisher = createMqttPublisherFromClient(client, config);
+
+    const result = await publisher.publishNormalizedBatch(
+      config.contexts[0]!,
+      {
+        metric: "heart_rate_variability",
+        batch_index: 1,
+        total_batches: 2,
+        samples: [],
+      },
+      [
+        {
+          metric: "heart_rate_variability",
+          normalizedMetric: "hrv",
+          recordIndex: 0,
+          deviceId: "Watch",
+          normalizedSample: {
+            time: "2026-04-10T12:00:00.000Z",
+            value_ms: 44,
+            algorithm: "sdnn",
+          },
+        },
+      ],
+    );
+
+    expect(result).toEqual({
+      records: 1,
+      topics: ["healthsave/normalized/hrv"],
+    });
+    expect(client.publishCalls[0]?.topic).toBe("healthsave/normalized/hrv");
+
+    const payload = JSON.parse(
+      client.publishCalls[0]?.message.toString() ?? "{}",
+    ) as Record<string, unknown>;
+    expect(payload).toMatchObject({
+      metric: "heart_rate_variability",
+      normalized_metric: "hrv",
+      event_type: "normalized_sample",
+      batch_index: 1,
+      total_batches: 2,
+      device_id: "Watch",
+      record_index: 0,
+      normalized_sample: {
+        time: "2026-04-10T12:00:00.000Z",
+        value_ms: 44,
+        algorithm: "sdnn",
+      },
+    });
+    expect(payload.idempotency_key).toEqual(
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+    );
+  });
+
+  it("uses sample-level metric names for quantity sample topics", async () => {
+    const client = createRecordingClient();
+    const config = loadConfig({
+      HOST: "127.0.0.1",
+      PORT: "0",
+      LOG_ENABLED: "false",
+      MQTT_URL: "mqtt://localhost:1883",
+      MQTT_TOPIC_NORMALIZED: "healthsave/normalized/{metric}",
+      MQTT_TOPIC_CURRENT: "healthsave/current/{metric}",
+    });
+    const publisher = createMqttPublisherFromClient(client, config);
+
+    const normalizedResult = await publisher.publishNormalizedBatch(
+      config.contexts[0]!,
+      {
+        metric: "blood_pressure",
+        batch_index: 1,
+        total_batches: 1,
+        samples: [],
+      },
+      [
+        {
+          metric: "blood_pressure",
+          normalizedMetric: "quantity_samples",
+          recordIndex: 0,
+          deviceId: "Monitor",
+          normali
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:22:52Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,220p' test/integration/app.test.ts`</summary>
+```
+Chunk ID: a36233
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1448
+Output:
+import { mkdtempSync, rmSync } from "node:fs";
+import { readFile, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import type { FastifyInstance } from "fastify";
+import { buildApp } from "../../src/app.js";
+import { loadConfig, type AppContextConfig } from "../../src/config.js";
+import type { BatchRequest, NormalizedRecord } from "../../src/ingest.js";
+import type {
+  CurrentPublishResult,
+  HealthMqttPublisher,
+  NormalizedPublishResult,
+  RawPublishResult,
+} from "../../src/mqtt/publisher.js";
+import {
+  createMqttPublisherFromClient,
+  type MqttPublishClient,
+} from "../../src/mqtt/publisher.js";
+import type { RawBatchStorage } from "../../src/storage/raw-batch-storage.js";
+
+const baseConfig = loadConfig({
+  HOST: "127.0.0.1",
+  PORT: "0",
+  LOG_ENABLED: "false",
+  API_KEY: "",
+  STATE_BACKEND: "memory",
+});
+
+let app: FastifyInstance | undefined;
+let tempDirectory: string | undefined;
+
+interface PublishCall {
+  topic: string;
+  message: string | Buffer;
+  options?: { qos?: 0 | 1 | 2; retain?: boolean };
+}
+
+async function createApp(apiKey = "") {
+  app = await buildApp({
+    config: {
+      ...baseConfig,
+      apiKey,
+      logEnabled: false,
+      mqtt: {
+        ...baseConfig.mqtt,
+        enabled: false,
+      },
+    },
+  });
+
+  return app;
+}
+
+function createRecordingMqttPublisher(): HealthMqttPublisher & {
+  batches: Array<{
+    context: AppContextConfig;
+    batch: BatchRequest;
+  }>;
+  normalizedBatches: Array<{
+    context: AppContextConfig;
+    batch: BatchRequest;
+    records: NormalizedRecord[];
+  }>;
+  currentBatches: Array<{
+    context: AppContextConfig;
+    records: NormalizedRecord[];
+  }>;
+} {
+  return {
+    batches: [],
+    normalizedBatches: [],
+    currentBatches: [],
+    async publishRawBatch(context, batch): Promise<RawPublishResult> {
+      this.batches.push({ context, batch });
+      return {
+        topic: `${context.name}/raw/${batch.metric}`,
+        records: batch.samples.length,
+      };
+    },
+    async publishNormalizedBatch(
+      context,
+      batch,
+      records,
+    ): Promise<NormalizedPublishResult> {
+      this.normalizedBatches.push({ context, batch, records });
+      return {
+        records: records.length,
+        topics: records.map(
+          (record) => `${context.name}/normalized/${record.normalizedMetric}`,
+        ),
+      };
+    },
+    async publishCurrentBatch(context, records): Promise<CurrentPublishResult> {
+      this.currentBatches.push({ context, records });
+      return {
+        records: records.length,
+        topics: records.map(
+          (record) => `${context.name}/current/${record.normalizedMetric}`,
+        ),
+      };
+    },
+    async close() {
+      return undefined;
+    },
+  };
+}
+
+function createRecordingPublishClient(): MqttPublishClient & {
+  publishCalls: PublishCall[];
+  closed: boolean;
+} {
+  return {
+    publishCalls: [],
+    closed: false,
+    async publishAsync(topic, message, options) {
+      this.publishCalls.push({ topic, message, options });
+      return undefined;
+    },
+    async endAsync() {
+      this.closed = true;
+    },
+  };
+}
+
+function emptyMetricStatus() {
+  return {
+    count: 0,
+    oldest: null,
+    newest: null,
+  };
+}
+
+function emptyStatusResponse() {
+  return {
+    heart_rate: emptyMetricStatus(),
+    hrv: emptyMetricStatus(),
+    blood_oxygen: emptyMetricStatus(),
+    daily_activity: emptyMetricStatus(),
+    sleep_sessions: emptyMetricStatus(),
+    workouts: emptyMetricStatus(),
+    quantity_samples: emptyMetricStatus(),
+  };
+}
+
+function metricStatus(
+  count: number,
+  oldest: string,
+  newest = oldest,
+) {
+  return {
+    count,
+    oldest,
+    newest,
+  };
+}
+
+afterEach(async () => {
+  await app?.close();
+  app = undefined;
+  if (tempDirectory) {
+    rmSync(tempDirectory, { recursive: true, force: true });
+    tempDirectory = undefined;
+  }
+});
+
+describe("compatibility endpoints", () => {
+  it("returns health responses", async () => {
+    const server = await createApp();
+
+    await expect(server.inject({ method: "GET", url: "/health" })).resolves.toMatchObject({
+      statusCode: 200,
+      json: expect.any(Function),
+    });
+
+    const response = await server.inject({ method: "GET", url: "/api/health" });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: "ok" });
+  });
+
+  it("returns unauthenticated v2 setup diagnostics", async () => {
+    const server = await createApp("secret");
+    const response = await server.inject({
+      method: "GET",
+      url: "/api/v2/setup/diagnostics",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      service: "health-data-to-mqtt",
+      kind: "HealthSave MQTT API",
+      status: "ok",
+      auth_required: true,
+      health_endpoint: "/api/health",
+      status_endpoint: "/api/
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:22:52Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,200p' test/unit/sync-receipts.test.ts`</summary>
+```
+Chunk ID: bcd801
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1478
+Output:
+import { mkdtempSync, rmSync } from "node:fs";
+import { access, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  FileSyncReceiptStore,
+  createMemorySyncReceiptStore,
+  parseSyncReceiptHeaders,
+} from "../../src/state/sync-receipts.js";
+
+let tempDirectory: string | undefined;
+
+function createTempReceiptsPath(): string {
+  tempDirectory = mkdtempSync(join(tmpdir(), "health-sync-receipts-"));
+  return join(tempDirectory, "receipts");
+}
+
+afterEach(() => {
+  if (tempDirectory) {
+    rmSync(tempDirectory, { recursive: true, force: true });
+    tempDirectory = undefined;
+  }
+});
+
+describe("parseSyncReceiptHeaders", () => {
+  it("extracts HealthSave sync receipt headers", () => {
+    expect(
+      parseSyncReceiptHeaders({
+        "idempotency-key": " key-1 ",
+        "x-healthsave-sync-run-id": "run-1",
+        "x-healthsave-batch-id": "batch-1",
+        "x-healthsave-payload-hash": "hash-1",
+        "x-healthsave-metric": "heart_rate",
+        "x-healthsave-batch-index": "2",
+        "x-healthsave-total-batches": "5",
+        "x-healthsave-sync-mode": "incremental",
+        "x-healthsave-anchor-present": "true",
+        "x-healthsave-lower-bound-reason": "anchor",
+        "x-healthsave-full-export": "false",
+        "x-healthsave-query-lower-bound": "2026-04-01T00:00:00Z",
+        "x-healthsave-sample-min-time": "2026-04-10T12:00:00Z",
+        "x-healthsave-sample-max-time": "2026-04-10T12:05:00Z",
+      }),
+    ).toEqual({
+      idempotencyKey: "key-1",
+      syncRunId: "run-1",
+      batchId: "batch-1",
+      payloadHash: "hash-1",
+      metric: "heart_rate",
+      batchIndex: "2",
+      totalBatches: "5",
+      syncMode: "incremental",
+      anchorPresent: "true",
+      lowerBoundReason: "anchor",
+      fullExport: "false",
+      queryLowerBound: "2026-04-01T00:00:00Z",
+      sampleMinTime: "2026-04-10T12:00:00.000Z",
+      sampleMaxTime: "2026-04-10T12:05:00.000Z",
+    });
+  });
+});
+
+describe("SyncReceiptStore", () => {
+  it("does not record batches without a real sync run id", async () => {
+    const store = createMemorySyncReceiptStore();
+
+    await expect(
+      store.recordBatch({
+        contextName: "default",
+        headers: { idempotencyKey: "key-1", payloadHash: "hash-1" },
+        metric: "heart_rate",
+        batchIndex: 0,
+        totalBatches: 1,
+        recordsReceived: 1,
+        recordsAccepted: 1,
+        recordsRejected: 0,
+        recordsDedupedInBatch: 0,
+        response: {
+          status: "processed",
+          metric: "heart_rate",
+          batch: 0,
+          total_batches: 1,
+          records: 1,
+        },
+      }),
+    ).resolves.toBeUndefined();
+    await expect(store.getLatestRun("default")).resolves.toBeUndefined();
+  });
+
+  it("summarizes runs, coverage, and idempotency receipts", async () => {
+    const store = createMemorySyncReceiptStore();
+
+    await store.recordBatch({
+      contextName: "default",
+      headers: {
+        idempotencyKey: "key-1",
+        syncRunId: "run-1",
+        batchId: "batch-1",
+        payloadHash: "hash-1",
+        sampleMinTime: "2026-04-10T12:00:00.000Z",
+        sampleMaxTime: "2026-04-10T12:05:00.000Z",
+      },
+      metric: "heart_rate",
+      batchIndex: 0,
+      totalBatches: 2,
+      recordsReceived: 3,
+      recordsAccepted: 2,
+      recordsRejected: 0,
+      recordsDedupedInBatch: 1,
+      latestDestinationSampleTime: "2026-04-10T12:05:00.000Z",
+      response: {
+        status: "processed",
+        metric: "heart_rate",
+        batch: 0,
+        total_batches: 2,
+        records: 2,
+      },
+    });
+    await store.recordBatch({
+      contextName: "default",
+      headers: {
+        syncRunId: "run-1",
+        batchId: "batch-2",
+        payloadHash: "hash-2",
+        sampleMinTime: "2026-04-10T13:00:00.000Z",
+        sampleMaxTime: "2026-04-10T13:00:00.000Z",
+      },
+      metric: "walking_speed",
+      batchIndex: 1,
+      totalBatches: 2,
+      recordsReceived: 1,
+      recordsAccepted: 0,
+      recordsRejected: 1,
+      recordsDedupedInBatch: 0,
+      response: {
+        status: "processed",
+        metric: "walking_speed",
+        batch: 1,
+        total_batches: 2,
+        records: 0,
+      },
+    });
+
+    await expect(store.getIdempotencyReceipt("default", "key-1")).resolves.toEqual({
+      idempotency_key: "key-1",
+      payload_hash: "hash-1",
+      response: {
+        status: "processed",
+        metric: "heart_rate",
+        batch: 0,
+        total_batches: 2,
+        records: 2,
+      },
+    });
+    await expect(store.getRun("default", "run-1")).resolves.toMatchObject({
+      status: "ok",
+      sync_run_id: "run-1",
+      records_received: 4,
+      records_accepted: 2,
+      records_rejected: 1,
+      records_deduped_in_batch: 1,
+      sample_window: {
+        min_sample_time: "2026-04-10T12:
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:23:05Z)**_
+
+I’ve got the shape now. One implementation choice I’m making: idempotency writes will happen after successful side effects and before returning the success response; if that write fails in file mode, the route will return `500` only for empty batches before side effects, but for processed batches it’s safer to log and return the accepted response rather than make the client retry already-published data. The file-backed tests will still prove normal persistence works.
+
+_**Agent (gpt-5.5 2026-06-02 18:23:08Z)**_
+
+I’m adding the idempotency index as its own state module now. It follows the same context-safe path encoding and NDJSON pattern already used for status and receipts.
+
+_**Agent (gpt-5.5 2026-06-02 18:23:45Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Add: `/Users/bietiekay/code/health-data-to-mqtt/src/state/idempotency-store.ts`**
+
+```diff
++import { appendFile, mkdir, readFile } from "node:fs/promises";
++import { join } from "node:path";
++import type { AppConfig } from "../config.js";
++import { encodeContextName } from "../storage/raw-batch-storage.js";
++import type { BatchResponseBody } from "./sync-receipts.js";
++
++export interface IdempotencyEntry {
++  idempotency_key: string;
++  payload_hash?: string;
++  response: BatchResponseBody;
++  recorded_at: string;
++}
++
++export interface RecordIdempotencyInput {
++  contextName: string;
++  idempotencyKey: string;
++  payloadHash?: string;
++  response: BatchResponseBody;
++}
++
++export interface IdempotencyStore {
++  getEntry(
++    contextName: string,
++    idempotencyKey: string,
++  ): Promise<IdempotencyEntry | undefined>;
++  recordSuccess(input: RecordIdempotencyInput): Promise<IdempotencyEntry>;
++}
++
++export function createIdempotencyStore(config: AppConfig): IdempotencyStore {
++  if (config.stateBackend === "memory") {
++    return createMemoryIdempotencyStore();
++  }
++
++  return new FileIdempotencyStore(join(config.dataPath, "idempotency"));
++}
++
++export function createMemoryIdempotencyStore(
++  initialEntries: Array<IdempotencyEntry & { context?: string }> = [],
++): IdempotencyStore {
++  const entriesByContext = new Map<string, IdempotencyEntry[]>();
++  for (const entry of initialEntries) {
++    contextEntries(entriesByContext, entry.context ?? "default").push(entry);
++  }
++
++  return {
++    async getEntry(contextName, idempotencyKey) {
++      return findEntry(contextEntries(entriesByContext, contextName), idempotencyKey);
++    },
++    async recordSuccess(input) {
++      const entry = createEntry(input);
++      const entries = contextEntries(entriesByContext, input.contextName);
++      const existingEntry = findEntry(entries, entry.idempotency_key);
++      if (existingEntry) {
++        return existingEntry;
++      }
++
++      entries.push(entry);
++      return entry;
++    },
++  };
++}
++
++export class FileIdempotencyStore implements IdempotencyStore {
++  private readonly contexts = new Map<string, IdempotencyEntry[]>();
++  private readonly loadedContexts = new Set<string>();
++  private operationQueue: Promise<void> = Promise.resolve();
++
++  constructor(private readonly basePath: string) {}
++
++  async getEntry(
++    contextName: string,
++    idempotencyKey: string,
++  ): Promise<IdempotencyEntry | undefined> {
++    const normalizedContextName = normalizeContextName(contextName);
++    await this.ensureLoaded(normalizedContextName);
++    return findEntry(
++      this.contextEntries(normalizedContextName),
++      idempotencyKey,
++    );
++  }
++
++  async recordSuccess(input: RecordIdempotencyInput): Promise<IdempotencyEntry> {
++    const contextName = normalizeContextName(input.contextName);
++    return this.enqueue(async () => {
++      await this.ensureLoaded(contextName);
++      const entries = this.contextEntries(contextName);
++      const existingEntry = findEntry(entries, input.idempotencyKey);
++      if (existingEntry) {
++        return existingEntry;
++      }
++
++      const entry = createEntry({ ...input, contextName });
++      entries.push(entry);
++      await this.appendEntry(contextName, entry);
++      return entry;
++    });
++  }
++
++  private async ensureLoaded(contextName: string): Promise<void> {
++    if (this.loadedContexts.has(contextName)) {
++      return;
++    }
++
++    await this.load(contextName);
++    this.loadedContexts.add(contextName);
++  }
++
++  private async load(contextName: string): Promise<void> {
++    const filePath = indexFilePath(this.basePath, contextName);
++    try {
++      const content = await readFile(filePath, "utf8");
++      this.contexts.set(contextName, parseEntryLines(content));
++    } catch (error) {
++      if (isNodeError(error) && error.code === "ENOENT") {
++        return;
++      }
++
++      throw error;
++    }
++  }
++
++  private contextEntries(contextName: string): IdempotencyEntry[] {
++    const existingEntries = this.contexts.get(contextName);
++    if (existingEntries) {
++      return existingEntries;
++    }
++
++    const nextEntries: IdempotencyEntry[] = [];
++    this.contexts.set(contextName, nextEntries);
++    return nextEntries;
++  }
++
++  private async appendEntry(
++    contextName: string,
++    entry: IdempotencyEntry,
++  ): Promise<void> {
++    const directory = join(this.basePath, encodeContextName(contextName));
++    await mkdir(directory, { recursive: true });
++    await appendFile(
++      indexFilePath(this.basePath, contextName),
++      `${JSON.stringify(entry)}\n`,
++      "utf8",
++    );
++  }
++
++  private async enqueue<T>(operation: () => Promise<T>): Promise<T> {
++    const nextOperation = this.operationQueue.then(operation, operation);
++    this.operationQueue = nextOperation.then(
++      () => undefined,
++      () => undefined,
++    );
++    return nextOperation;
++  }
++}
++
++function createEntry(input: RecordIdempotencyInput): IdempotencyEntry {
++  return {
++    idempotency_key: input.idempotencyKey.trim(),
++    ...optionalField("payload_hash", input.payloadHash),
++    response: input.response,
++    recorded_at: new Date().toISOString(),
++  };
++}
++
++function contextEntries(
++  entriesByContext: Map<string, IdempotencyEntry[]>,
++  contextName: string,
++): IdempotencyEntry[] {
++  const normalizedContextName = normalizeContextName(contextName);
++  const existingEntries = entriesByContext.get(normalizedContextName);
++  if (existingEntries) {
++    return existingEntries;
++  }
++
++  const nextEntries: IdempotencyEntry[] = [];
++  entriesByContext.set(normalizedContextName, nextEntries);
++  return nextEntries;
++}
++
++function findEntry(
++  entries: IdempotencyEntry[],
++  idempotencyKey: string,
++): IdempotencyEntry | undefined {
++  const key = idempotencyKey.trim();
++  if (!key) {
++    return undefined;
++  }
++
++  return [...entries]
++    .reverse()
++    .find((entry) => entry.idempotency_key === key);
++}
++
++function parseEntryLines(content: string): IdempotencyEntry[] {
++  const entries: IdempotencyEntry[] = [];
++  for (const line of content.split("\n")) {
++    const trimmed = line.trim();
++    if (trimmed.length === 0) {
++      continue;
++    }
++
++    const parsed = JSON.parse(trimmed) as Partial<IdempotencyEntry>;
++    if (
++      typeof parsed.idempotency_key === "string" &&
++      parsed.idempotency_key.length > 0 &&
++      typeof parsed.recorded_at === "string" &&
++      isBatchResponseBody(parsed.response)
++    ) {
++      entries.push({
++        idempotency_key: parsed.idempotency_key,
++        ...optionalField("payload_hash", parsed.payload_hash),
++        response: parsed.response,
++        recorded_at: parsed.recorded_at,
++      });
++    }
++  }
++
++  return entries;
++}
++
++function isBatchResponseBody(value: unknown): value is BatchResponseBody {
++  return (
++    value !== null &&
++    typeof value === "object" &&
++    ((value as Partial<BatchResponseBody>).status === "processed" ||
++      (value as Partial<BatchResponseBody>).status === "empty") &&
++    typeof (value as Partial<BatchResponseBody>).metric === "string" &&
++    typeof (value as Partial<BatchResponseBody>).batch === "number" &&
++    typeof (value as Partial<BatchResponseBody>).records === "number"
++  );
++}
++
++function indexFilePath(basePath: string, contextName: string): string {
++  return join(basePath, encodeContextName(contextName), "keys.ndjson");
++}
++
++function normalizeContextName(contextName?: string): string {
++  return contextName?.trim() || "default";
++}
++
++function optionalField<Key extends string>(
++  key: Key,
++  value: string | undefined,
++): Record<Key, string> | Record<string, never> {
++  return value === undefined ? {} : ({ [key]: value } as Record<Key, string>);
++}
++
++function isNodeError(error: unknown): error is NodeJS.ErrnoException {
++  return error instanceof Error && "code" in error;
++}
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+A /Users/bietiekay/code/health-data-to-mqtt/src/state/idempotency-store.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:23:48Z)**_
+
+The idempotency store is added. Next I’m wiring it into app construction and Apple batch handling, while keeping sync receipts as v2 run proof only.
+
+_**Agent (gpt-5.5 2026-06-02 18:23:52Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/app.ts`**
+
+```diff
+@@
+ import { registerHealthRoutes } from "./routes/health.js";
+ import { registerV2Routes } from "./routes/v2.js";
++import {
++  createIdempotencyStore,
++  type IdempotencyStore,
++} from "./state/idempotency-store.js";
+ import {
+   createSyncReceiptStore,
+   type SyncReceiptStore,
+@@
+   mqttPublisher?: HealthMqttPublisher;
+   rawBatchStorage?: RawBatchStorage;
+   syncReceiptStore?: SyncReceiptStore;
++  idempotencyStore?: IdempotencyStore;
+ }
+@@
+   const syncReceiptStore =
+     options.syncReceiptStore ?? createSyncReceiptStore(config);
++  const idempotencyStore =
++    options.idempotencyStore ?? createIdempotencyStore(config);
+@@
+         await registerAppleRoutes(contextApp, {
+           config,
+           context,
+           stateStore,
+           mqttPublisher,
+           rawBatchStorage,
+           syncReceiptStore,
++          idempotencyStore,
+         });
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/app.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:23:55Z)**_
+
+I’m updating `apple.ts` carefully because this is the highest-impact flow: idempotency replay must happen before side effects, but successful writes happen only after a batch is accepted.
+
+_**Agent (gpt-5.5 2026-06-02 18:24:11Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/routes/apple.ts`**
+
+```diff
+@@
+ import {
+   batchRequestSchema,
+   createStatusObservations,
+   normalizeBatchWithStats,
+ } from "../ingest.js";
+ import type { HealthMqttPublisher } from "../mqtt/publisher.js";
++import type { IdempotencyStore } from "../state/idempotency-store.js";
+ import {
+   parseSyncReceiptHeaders,
+   type BatchResponseBody,
+   type SyncReceiptStore,
+@@
+   mqttPublisher: HealthMqttPublisher;
+   rawBatchStorage: RawBatchStorage;
+   syncReceiptStore: SyncReceiptStore;
++  idempotencyStore: IdempotencyStore;
+ }
+@@
+     const batch = parsed.data;
+     const receiptHeaders = parseSyncReceiptHeaders(request.headers);
+     if (receiptHeaders.idempotencyKey) {
+-      const existingReceipt =
+-        await options.syncReceiptStore.getIdempotencyReceipt(
++      const existingReceipt =
++        (await options.idempotencyStore.getEntry(
++          options.context.name,
++          receiptHeaders.idempotencyKey,
++        )) ??
++        (await options.syncReceiptStore.getIdempotencyReceipt(
+           options.context.name,
+           receiptHeaders.idempotencyKey,
+-        );
++        ));
+       if (existingReceipt) {
+         if (existingReceipt.payload_hash !== receiptHeaders.payloadHash) {
+           return reply.code(409).send({
+             status: "error",
+@@
+       await options.syncReceiptStore.recordBatch({
+         contextName: options.context.name,
+         headers: receiptHeaders,
+@@
+         response,
+       });
++      await recordIdempotencySuccess(request, options, receiptHeaders, response);
+ 
+       return response;
+     }
+@@
+       );
+ 
++      await options.syncReceiptStore.recordFailedBatch({
++        contextName: options.context.name,
++        headers: receiptHeaders,
++        metric: batch.metric,
++        batchIndex: batch.batch_index,
++        totalBatches: batch.total_batches,
++        recordsReceived: rawRecords,
++        failureStatusCode: 500,
++        failureReason: "Failed to store raw batch",
++      });
++
+       return reply.code(500).send({
+         status: "error",
+         error: "Failed to store raw batch",
+@@
+       );
+ 
++      await options.syncReceiptStore.recordFailedBatch({
++        contextName: options.context.name,
++        headers: receiptHeaders,
++        metric: batch.metric,
++        batchIndex: batch.batch_index,
++        totalBatches: batch.total_batches,
++        recordsReceived: normalizationResult.stats.recordsReceived,
++        failureStatusCode: 502,
++        failureReason: "Failed to publish batch to MQTT",
++      });
++
+       return reply.code(502).send({
+         status: "error",
+         error: "Failed to publish batch to MQTT",
+@@
+       latestDestinationSampleTime:
+         latestDestinationSampleTime(statusObservations),
+       response,
+     });
++    await recordIdempotencySuccess(request, options, receiptHeaders, response);
+ 
+     return response;
+   });
+@@
+ }
++
++async function recordIdempotencySuccess(
++  request: FastifyRequest,
++  options: AppleRouteOptions,
++  receiptHeaders: { idempotencyKey?: string; payloadHash?: string },
++  response: BatchResponseBody,
++): Promise<void> {
++  if (!receiptHeaders.idempotencyKey) {
++    return;
++  }
++
++  try {
++    await options.idempotencyStore.recordSuccess({
++      contextName: options.context.name,
++      idempotencyKey: receiptHeaders.idempotencyKey,
++      payloadHash: receiptHeaders.payloadHash,
++      response,
++    });
++  } catch (error) {
++    request.log.error(
++      {
++        err: error,
++        context: options.context.name,
++        metric: response.metric,
++        batch: response.batch,
++      },
++      "failed to record apple health idempotency key after batch acceptance",
++    );
++  }
++}
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/routes/apple.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:24:21Z)**_
+
+Now I’m extending the receipt ledger for failed batch attempts. The important bit is summary math: processed and failed rows both count as “seen,” but only processed rows count as processed and accepted.
+
+_**Agent (gpt-5.5 2026-06-02 18:24:43Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/state/sync-receipts.ts`**
+
+```diff
+@@
+ export interface SyncReceiptRecord {
+   received_at: string;
+   context: string;
+   sync_run_id: string;
+   receipt_id: string;
++  outcome: "processed" | "failed";
+   idempotency_key?: string;
+   batch_id?: string;
+   payload_hash?: string;
+@@
+   records_rejected: number;
+   records_deduped_in_batch: number;
+-  response: BatchResponseBody;
++  response?: BatchResponseBody;
++  failure_status_code?: number;
++  failure_reason?: string;
+ }
+@@
+ export interface RecordSyncReceiptInput {
+@@
+   response: BatchResponseBody;
+ }
++
++export interface RecordFailedSyncReceiptInput {
++  contextName: string;
++  headers: SyncReceiptHeaders;
++  metric: string;
++  batchIndex: number;
++  totalBatches: number;
++  recordsReceived: number;
++  failureStatusCode: number;
++  failureReason: string;
++}
+@@
+   ): Promise<IdempotencyReceipt | undefined>;
+   recordBatch(input: RecordSyncReceiptInput): Promise<SyncReceiptRecord | undefined>;
++  recordFailedBatch(
++    input: RecordFailedSyncReceiptInput,
++  ): Promise<SyncReceiptRecord | undefined>;
+   getLatestRun(contextName: string): Promise<SyncRunSummary | undefined>;
+@@
+       contextRecords(recordsByContext, record.context).push(record);
+       return record;
+     },
++    async recordFailedBatch(input) {
++      const record = createFailedReceiptRecord(input);
++      if (!record) {
++        return undefined;
++      }
++
++      contextRecords(recordsByContext, record.context).push(record);
++      return record;
++    },
+@@
+   async recordBatch(
+     input: RecordSyncReceiptInput,
+   ): Promise<SyncReceiptRecord | undefined> {
+@@
+     });
+   }
++
++  async recordFailedBatch(
++    input: RecordFailedSyncReceiptInput,
++  ): Promise<SyncReceiptRecord | undefined> {
++    const record = createFailedReceiptRecord(input);
++    if (!record) {
++      return undefined;
++    }
++
++    return this.enqueue(async () => {
++      await this.ensureLoaded(record.context);
++      this.contextRecords(record.context).push(record);
++      await this.appendRecord(record);
++      return record;
++    });
++  }
+@@
+     received_at: receivedAt,
+     context: normalizeContextName(input.contextName),
+     sync_run_id: syncRunId,
+     receipt_id: syncRunId,
++    outcome: "processed",
+@@
+     response: input.response,
+   };
+ }
++
++function createFailedReceiptRecord(
++  input: RecordFailedSyncReceiptInput,
++): SyncReceiptRecord | undefined {
++  const syncRunId = input.headers.syncRunId?.trim();
++  if (!syncRunId) {
++    return undefined;
++  }
++
++  const receivedAt = new Date().toISOString();
++  return {
++    received_at: receivedAt,
++    context: normalizeContextName(input.contextName),
++    sync_run_id: syncRunId,
++    receipt_id: syncRunId,
++    outcome: "failed",
++    ...optionalField("idempotency_key", input.headers.idempotencyKey),
++    ...optionalField("batch_id", input.headers.batchId),
++    ...optionalField("payload_hash", input.headers.payloadHash),
++    metric: input.headers.metric ?? input.metric,
++    batch_index: parseInteger(input.headers.batchIndex) ?? input.batchIndex,
++    total_batches: parseInteger(input.headers.totalBatches) ?? input.totalBatches,
++    ...optionalField("sync_mode", input.headers.syncMode),
++    ...optionalField("anchor_present", input.headers.anchorPresent),
++    ...optionalField("lower_bound_reason", input.headers.lowerBoundReason),
++    ...optionalField("full_export", input.headers.fullExport),
++    ...optionalField("query_lower_bound", input.headers.queryLowerBound),
++    ...optionalField("sample_min_time", input.headers.sampleMinTime),
++    ...optionalField("sample_max_time", input.headers.sampleMaxTime),
++    records_received: input.recordsReceived,
++    records_accepted: 0,
++    records_skipped: 0,
++    records_rejected: 0,
++    records_deduped_in_batch: 0,
++    failure_status_code: input.failureStatusCode,
++    failure_reason: input.failureReason,
++  };
++}
+@@
+   const newestReceiptAt = maxString(runRecords.map((record) => record.received_at));
++  const processedRecords = runRecords.filter(
++    (record) => record.outcome !== "failed",
++  );
++  const failedRecords = runRecords.filter((record) => record.outcome === "failed");
+ 
+   return {
+@@
+     },
+     latest_sample_time: maxString(sampleMaxTimes),
+     batches_seen: uniqueBatchCount(runRecords),
+-    batches_processed: runRecords.length,
+-    batches_failed: 0,
++    batches_processed: processedRecords.length,
++    batches_failed: failedRecords.length,
+     metrics: [...new Set(runRecords.map((record) => record.metric))].sort(),
+@@
+-      parsed.context === contextName &&
++      parsed.context === contextName &&
+       typeof parsed.sync_run_id === "string" &&
+       typeof parsed.received_at === "string" &&
+       typeof parsed.metric === "string" &&
+@@
+-      typeof parsed.records_skipped === "number" &&
+-      typeof parsed.records_deduped_in_batch === "number" &&
+-      isBatchResponseBody(parsed.response)
++      typeof parsed.records_skipped === "number" &&
++      typeof parsed.records_deduped_in_batch === "number" &&
++      (parsed.outcome === "failed" ||
++        parsed.outcome === "processed" ||
++        parsed.outcome === undefined) &&
++      (parsed.outcome === "failed" || isBatchResponseBody(parsed.response))
+     ) {
+-      records.push(parsed as SyncReceiptRecord);
++      records.push({
++        ...(parsed as SyncReceiptRecord),
++        outcome: parsed.outcome ?? "processed",
++      });
+     }
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/state/sync-receipts.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:24:50Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/state/sync-receipts.ts`**
+
+```diff
+@@
+   const record = [...records]
+     .reverse()
+-    .find((candidate) => candidate.idempotency_key === key);
+-  if (!record) {
++    .find(
++      (candidate) =>
++        candidate.idempotency_key === key &&
++        candidate.outcome !== "failed" &&
++        candidate.response,
++    );
++  if (!record?.response) {
+     return undefined;
+   }
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/state/sync-receipts.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:25:01Z)**_
+
+The receipt model now has processed vs failed outcomes. I’m adding readiness next: it will probe file-backed local state with a tiny create/write/delete operation and ask the MQTT publisher whether it’s currently connected when MQTT is enabled.
+
+_**Agent (gpt-5.5 2026-06-02 18:25:04Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/mqtt/publisher.ts`**
+
+```diff
+@@
+ export interface MqttPublishClient {
++  connected?: boolean;
++  reconnecting?: boolean;
+   publishAsync(
+@@
+   publishCurrentBatch(
+     context: AppContextConfig,
+     records: NormalizedRecord[],
+   ): Promise<CurrentPublishResult>;
++  isReady(): boolean;
+   close(): Promise<void>;
+ }
+@@
+     async publishCurrentBatch() {
+       return {
+         records: 0,
+         topics: [],
+       };
+     },
++    isReady() {
++      return true;
++    },
+     async close() {
+       return undefined;
+     },
+@@
+   async close(): Promise<void> {
+     await this.client.endAsync(false);
+   }
++
++  isReady(): boolean {
++    if (!this.config.mqtt.enabled) {
++      return true;
++    }
++
++    if (this.client.connected === undefined) {
++      return true;
++    }
++
++    return this.client.connected && !this.client.reconnecting;
++  }
+ }
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/mqtt/publisher.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:25:08Z)**_
+
+I’ve exposed `isReady()` on the publisher without forcing every test client to model MQTT internals: real MQTT clients use their connection flags; lightweight test clients default ready unless marked otherwise.
+
+_**Agent (gpt-5.5 2026-06-02 18:25:19Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Add: `/Users/bietiekay/code/health-data-to-mqtt/src/readiness.ts`**
+
+```diff
++import { mkdir, unlink, writeFile } from "node:fs/promises";
++import { join } from "node:path";
++import type { AppConfig } from "./config.js";
++import type { HealthMqttPublisher } from "./mqtt/publisher.js";
++
++export interface ReadyResponse {
++  status: "ok" | "error";
++  database: "ok" | "unavailable";
++  mqtt?: "ok" | "unavailable";
++}
++
++export async function checkReadiness(
++  config: AppConfig,
++  mqttPublisher: Pick<HealthMqttPublisher, "isReady">,
++): Promise<{ statusCode: 200 | 503; body: ReadyResponse }> {
++  const databaseReady = await isStateReady(config);
++  const mqttReady = !config.mqtt.enabled || mqttPublisher.isReady();
++
++  if (databaseReady && mqttReady) {
++    return {
++      statusCode: 200,
++      body: {
++        status: "ok",
++        database: "ok",
++        ...(config.mqtt.enabled ? { mqtt: "ok" as const } : {}),
++      },
++    };
++  }
++
++  return {
++    statusCode: 503,
++    body: {
++      status: "error",
++      database: databaseReady ? "ok" : "unavailable",
++      ...(config.mqtt.enabled
++        ? { mqtt: mqttReady ? "ok" as const : "unavailable" as const }
++        : {}),
++    },
++  };
++}
++
++async function isStateReady(config: AppConfig): Promise<boolean> {
++  if (config.stateBackend === "memory") {
++    return true;
++  }
++
++  const probeDirectories = [
++    join(config.dataPath, "status"),
++    join(config.dataPath, "receipts"),
++    join(config.dataPath, "idempotency"),
++    ...(config.rawStoragePath ? [config.rawStoragePath] : []),
++  ];
++
++  try {
++    await Promise.all(probeDirectories.map(probeWritableDirectory));
++    return true;
++  } catch {
++    return false;
++  }
++}
++
++async function probeWritableDirectory(directory: string): Promise<void> {
++  await mkdir(directory, { recursive: true });
++  const probePath = join(
++    directory,
++    `.health-data-to-mqtt-ready-${process.pid}-${Date.now()}`,
++  );
++  await writeFile(probePath, "ok", { flag: "wx" });
++  await unlink(probePath);
++}
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+A /Users/bietiekay/code/health-data-to-mqtt/src/readiness.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:25:23Z)**_
+
+The readiness helper is in place. I’m registering `/ready` through the existing health routes so every configured context gets the same readiness behavior as health/liveness.
+
+_**Agent (gpt-5.5 2026-06-02 18:25:28Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/routes/health.ts`**
+
+```diff
+@@
+ import type { FastifyInstance } from "fastify";
++import type { AppConfig } from "../config.js";
++import type { HealthMqttPublisher } from "../mqtt/publisher.js";
++import { checkReadiness } from "../readiness.js";
+ 
+-export async function registerHealthRoutes(app: FastifyInstance): Promise<void> {
++interface HealthRouteOptions {
++  config: AppConfig;
++  mqttPublisher: HealthMqttPublisher;
++}
++
++export async function registerHealthRoutes(
++  app: FastifyInstance,
++  options: HealthRouteOptions,
++): Promise<void> {
+   app.get("/health", async () => ({ status: "ok" }));
+   app.get("/api/health", async () => ({ status: "ok" }));
++  app.get("/ready", async (_request, reply) => {
++    const readiness = await checkReadiness(
++      options.config,
++      options.mqttPublisher,
++    );
++    return reply.code(readiness.statusCode).send(readiness.body);
++  });
+ }
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/routes/health.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:25:32Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/app.ts`**
+
+```diff
+@@
+       async (contextApp) => {
+-        await registerHealthRoutes(contextApp);
++        await registerHealthRoutes(contextApp, {
++          config,
++          mqttPublisher,
++        });
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/app.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:25:37Z)**_
+
+I’m applying the ingest compatibility fixes now: ECG stays accepted-but-unpersisted, and generic category-like samples can use `startDate` or `endDate` when `date` is absent.
+
+_**Agent (gpt-5.5 2026-06-02 18:25:41Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/ingest.ts`**
+
+```diff
+@@
+   if (batch.metric === "workouts") {
+     const workoutResult = normalizeWorkouts(batch);
+     return workoutResult.records.length > 0
+       ? workoutResult
+       : normalizeActiveEnergyQuantity(batch);
+   }
+ 
++  if (batch.metric === "ecg") {
++    return createNormalizationResult(batch, [], batch.samples.length, 0);
++  }
++
+   const dedicatedSpec = dedicatedMetricSpecs[batch.metric];
+   if (dedicatedSpec) {
+     return normalizeDedicated(batch, dedicatedSpec);
+@@
+ function normalizeGenericQuantity(batch: BatchRequest): NormalizationResult {
+   const records = batch.samples.flatMap((sample, sampleIndex) => {
+-    const time = parseTimestamp(sample.date);
++    const time = parseTimestamp(
++      firstPresent(sample, "date", "startDate", "start", "endDate", "end"),
++    );
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/ingest.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:25:47Z)**_
+
+The ingest fix is small but closes two useful compatibility gaps. I’m going to run a typecheck checkpoint now; after that I’ll add the targeted tests and adjust any mock interfaces the new readiness method requires.
+
+_**Agent (gpt-5.5 2026-06-02 18:25:47Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm run typecheck`</summary>
+```
+Chunk ID: 765518
+Wall time: 1.6665 seconds
+Process exited with code 2
+Original token count: 367
+Output:
+
+> health-data-to-mqtt@0.4.0 typecheck
+> tsc --noEmit -p tsconfig.json
+
+test/integration/app.test.ts(70,3): error TS2322: Type '{ batches: never[]; normalizedBatches: never[]; currentBatches: never[]; publishRawBatch(context: AppContextConfig, batch: { metric: string; batch_index: number; total_batches: number; samples: Record<...>[]; }): Promise<...>; publishNormalizedBatch(context: AppContextConfig, batch: { ...; }, records: NormalizedReco...' is not assignable to type 'HealthMqttPublisher & { batches: { context: AppContextConfig; batch: { metric: string; batch_index: number; total_batches: number; samples: Record<string, unknown>[]; }; }[]; normalizedBatches: { ...; }[]; currentBatches: { ...; }[]; }'.
+  Property 'isReady' is missing in type '{ batches: never[]; normalizedBatches: never[]; currentBatches: never[]; publishRawBatch(context: AppContextConfig, batch: { metric: string; batch_index: number; total_batches: number; samples: Record<...>[]; }): Promise<...>; publishNormalizedBatch(context: AppContextConfig, batch: { ...; }, records: NormalizedReco...' but required in type 'HealthMqttPublisher'.
+test/integration/app.test.ts(1289,7): error TS2741: Property 'isReady' is missing in type '{ publishRawBatch(): Promise<never>; publishNormalizedBatch(): Promise<{ records: number; topics: never[]; }>; publishCurrentBatch(): Promise<{ records: number; topics: never[]; }>; close(): Promise<...>; }' but required in type 'HealthMqttPublisher'.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:25:52Z)**_
+
+The checkpoint found exactly the expected mock updates: test publishers now need to expose `isReady()`. I’ll add that to the recording/failing publishers and continue.
+
+_**Agent (gpt-5.5 2026-06-02 18:25:55Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts`**
+
+```diff
+@@
+     async publishCurrentBatch(context, records): Promise<CurrentPublishResult> {
+       this.currentBatches.push({ context, records });
+       return {
+         records: records.length,
+         topics: records.map(
+@@
+         ),
+       };
+     },
++    isReady() {
++      return true;
++    },
+     async close() {
+       return undefined;
+     },
+   };
+ }
+@@
+         async publishCurrentBatch(): Promise<CurrentPublishResult> {
+           return {
+             records: 0,
+             topics: [],
+           };
+         },
++        isReady() {
++          return true;
++        },
+         async close() {
+           return undefined;
+         },
+       },
+```
+
+
+```
+apply_patch verification failed: Failed to find expected lines in /Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts:
+        async publishCurrentBatch(): Promise<CurrentPublishResult> {
+          return {
+            records: 0,
+            topics: [],
+          };
+        },
+        async close() {
+          return undefined;
+        },
+      },
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:25:59Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '70,115p' test/integration/app.test.ts && sed -n '1275,1315p' test/integration/app.test.ts`</summary>
+```
+Chunk ID: 3d3b5d
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 536
+Output:
+  return {
+    batches: [],
+    normalizedBatches: [],
+    currentBatches: [],
+    async publishRawBatch(context, batch): Promise<RawPublishResult> {
+      this.batches.push({ context, batch });
+      return {
+        topic: `${context.name}/raw/${batch.metric}`,
+        records: batch.samples.length,
+      };
+    },
+    async publishNormalizedBatch(
+      context,
+      batch,
+      records,
+    ): Promise<NormalizedPublishResult> {
+      this.normalizedBatches.push({ context, batch, records });
+      return {
+        records: records.length,
+        topics: records.map(
+          (record) => `${context.name}/normalized/${record.normalizedMetric}`,
+        ),
+      };
+    },
+    async publishCurrentBatch(context, records): Promise<CurrentPublishResult> {
+      this.currentBatches.push({ context, records });
+      return {
+        records: records.length,
+        topics: records.map(
+          (record) => `${context.name}/current/${record.normalizedMetric}`,
+        ),
+      };
+    },
+    async close() {
+      return undefined;
+    },
+  };
+}
+
+function createRecordingPublishClient(): MqttPublishClient & {
+  publishCalls: PublishCall[];
+  closed: boolean;
+} {
+  return {
+    publishCalls: [],
+    closed: false,
+    );
+
+    expect(JSON.parse(archiveContent.trim())).toMatchObject({
+      context: "daniel",
+      metric: "heart_rate",
+    });
+  });
+
+  it("rejects non-empty batches when MQTT publication fails", async () => {
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher: {
+        async publishRawBatch() {
+          throw new Error("broker unavailable");
+        },
+        async publishNormalizedBatch() {
+          return {
+            records: 0,
+            topics: [],
+          };
+        },
+        async publishCurrentBatch() {
+          return {
+            records: 0,
+            topics: [],
+          };
+        },
+        async close() {
+          return undefined;
+        },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "heart_rate",
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:26:02Z)**_
+
+The mock blocks were slightly different than the patch expected. I’ve got the exact spots now and I’m adding `isReady()` directly there.
+
+_**Agent (gpt-5.5 2026-06-02 18:26:06Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts`**
+
+```diff
+@@
+     async publishCurrentBatch(context, records): Promise<CurrentPublishResult> {
+       this.currentBatches.push({ context, records });
+       return {
+         records: records.length,
+         topics: records.map(
+           (record) => `${context.name}/current/${record.normalizedMetric}`,
+         ),
+       };
+     },
++    isReady() {
++      return true;
++    },
+     async close() {
+       return undefined;
+     },
+@@
+         async publishCurrentBatch() {
+           return {
+             records: 0,
+             topics: [],
+           };
+         },
++        isReady() {
++          return true;
++        },
+         async close() {
+           return undefined;
+         },
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:26:09Z)**_
+
+Mocks are updated; I’ll typecheck again before expanding tests so we don’t stack errors.
+
+_**Agent (gpt-5.5 2026-06-02 18:26:10Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm run typecheck`</summary>
+```
+Chunk ID: 90c415
+Wall time: 1.4110 seconds
+Process exited with code 0
+Original token count: 18
+Output:
+
+> health-data-to-mqtt@0.4.0 typecheck
+> tsc --noEmit -p tsconfig.json
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:26:24Z)**_
+
+With the core compiling, I’m adding tests in layers: first the dedicated idempotency store unit tests, then integration tests for no-run-ID replay, `/ready`, and failed sync-run receipts.
+
+_**Agent (gpt-5.5 2026-06-02 18:26:43Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Add: `/Users/bietiekay/code/health-data-to-mqtt/test/unit/idempotency-store.test.ts`**
+
+```diff
++import { mkdtempSync, rmSync } from "node:fs";
++import { access, readFile } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { afterEach, describe, expect, it } from "vitest";
++import {
++  FileIdempotencyStore,
++  createMemoryIdempotencyStore,
++} from "../../src/state/idempotency-store.js";
++
++let tempDirectory: string | undefined;
++
++function createTempIndexPath(): string {
++  tempDirectory = mkdtempSync(join(tmpdir(), "health-idempotency-"));
++  return join(tempDirectory, "idempotency");
++}
++
++afterEach(() => {
++  if (tempDirectory) {
++    rmSync(tempDirectory, { recursive: true, force: true });
++    tempDirectory = undefined;
++  }
++});
++
++describe("IdempotencyStore", () => {
++  it("records and replays memory-backed idempotency entries", async () => {
++    const store = createMemoryIdempotencyStore();
++
++    await store.recordSuccess({
++      contextName: "default",
++      idempotencyKey: "key-1",
++      payloadHash: "hash-1",
++      response: {
++        status: "processed",
++        metric: "heart_rate",
++        batch: 0,
++        total_batches: 1,
++        records: 1,
++      },
++    });
++
++    await expect(store.getEntry("default", "key-1")).resolves.toMatchObject({
++      idempotency_key: "key-1",
++      payload_hash: "hash-1",
++      response: {
++        status: "processed",
++        metric: "heart_rate",
++        batch: 0,
++        total_batches: 1,
++        records: 1,
++      },
++      recorded_at: expect.any(String),
++    });
++    await expect(store.getEntry("daniel", "key-1")).resolves.toBeUndefined();
++  });
++
++  it("does not overwrite an existing idempotency key", async () => {
++    const store = createMemoryIdempotencyStore();
++
++    const first = await store.recordSuccess({
++      contextName: "default",
++      idempotencyKey: "key-1",
++      payloadHash: "hash-1",
++      response: {
++        status: "processed",
++        metric: "heart_rate",
++        batch: 0,
++        total_batches: 1,
++        records: 1,
++      },
++    });
++    const second = await store.recordSuccess({
++      contextName: "default",
++      idempotencyKey: "key-1",
++      payloadHash: "hash-2",
++      response: {
++        status: "processed",
++        metric: "heart_rate",
++        batch: 0,
++        total_batches: 1,
++        records: 2,
++      },
++    });
++
++    expect(second).toEqual(first);
++    await expect(store.getEntry("default", "key-1")).resolves.toMatchObject({
++      payload_hash: "hash-1",
++      response: {
++        records: 1,
++      },
++    });
++  });
++
++  it("persists file-backed idempotency entries by context", async () => {
++    const indexPath = createTempIndexPath();
++    const store = new FileIdempotencyStore(indexPath);
++
++    await store.recordSuccess({
++      contextName: "daniel",
++      idempotencyKey: "key-1",
++      payloadHash: "hash-1",
++      response: {
++        status: "empty",
++        metric: "heart_rate",
++        batch: 0,
++        records: 0,
++      },
++    });
++
++    const indexFile = join(indexPath, "daniel", "keys.ndjson");
++    await expect(access(indexFile)).resolves.toBeUndefined();
++    await expect(readFile(indexFile, "utf8")).resolves.toContain(
++      '"idempotency_key":"key-1"',
++    );
++
++    const reloadedStore = new FileIdempotencyStore(indexPath);
++    await expect(reloadedStore.getEntry("daniel", "key-1")).resolves.toMatchObject({
++      idempotency_key: "key-1",
++      payload_hash: "hash-1",
++      response: {
++        status: "empty",
++        records: 0,
++      },
++    });
++    await expect(reloadedStore.getEntry("default", "key-1")).resolves.toBeUndefined();
++  });
++});
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+A /Users/bietiekay/code/health-data-to-mqtt/test/unit/idempotency-store.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:26:57Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/unit/sync-receipts.test.ts`**
+
+```diff
+@@
+   it("summarizes runs, coverage, and idempotency receipts", async () => {
+@@
+     });
+   });
++
++  it("summarizes processed and failed receipt rows separately", async () => {
++    const store = createMemorySyncReceiptStore();
++
++    await store.recordFailedBatch({
++      contextName: "default",
++      headers: {
++        syncRunId: "run-1",
++        batchId: "batch-1",
++        payloadHash: "hash-1",
++      },
++      metric: "heart_rate",
++      batchIndex: 0,
++      totalBatches: 2,
++      recordsReceived: 3,
++      failureStatusCode: 502,
++      failureReason: "Failed to publish batch to MQTT",
++    });
++    await store.recordBatch({
++      contextName: "default",
++      headers: {
++        syncRunId: "run-1",
++        batchId: "batch-2",
++        payloadHash: "hash-2",
++      },
++      metric: "heart_rate",
++      batchIndex: 1,
++      totalBatches: 2,
++      recordsReceived: 1,
++      recordsAccepted: 1,
++      recordsRejected: 0,
++      recordsDedupedInBatch: 0,
++      response: {
++        status: "processed",
++        metric: "heart_rate",
++        batch: 1,
++        total_batches: 2,
++        records: 1,
++      },
++    });
++
++    await expect(store.getRun("default", "run-1")).resolves.toMatchObject({
++      sync_run_id: "run-1",
++      records_received: 4,
++      records_accepted: 1,
++      batches_seen: 2,
++      batches_processed: 1,
++      batches_failed: 1,
++      metrics: ["heart_rate"],
++    });
++  });
+ 
+   it("persists file-backed receipts by context", async () => {
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/unit/sync-receipts.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:27:14Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Add: `/Users/bietiekay/code/health-data-to-mqtt/test/unit/readiness.test.ts`**
+
+```diff
++import { mkdtempSync, rmSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { afterEach, describe, expect, it } from "vitest";
++import { loadConfig } from "../../src/config.js";
++import { checkReadiness } from "../../src/readiness.js";
++
++let tempDirectory: string | undefined;
++
++function createTempDataPath(): string {
++  tempDirectory = mkdtempSync(join(tmpdir(), "health-readiness-"));
++  return tempDirectory;
++}
++
++afterEach(() => {
++  if (tempDirectory) {
++    rmSync(tempDirectory, { recursive: true, force: true });
++    tempDirectory = undefined;
++  }
++});
++
++describe("checkReadiness", () => {
++  it("returns reference-compatible success for memory state without MQTT", async () => {
++    const config = loadConfig({
++      STATE_BACKEND: "memory",
++      MQTT_ENABLED: "false",
++      LOG_ENABLED: "false",
++    });
++
++    await expect(checkReadiness(config, { isReady: () => false })).resolves.toEqual({
++      statusCode: 200,
++      body: {
++        status: "ok",
++        database: "ok",
++      },
++    });
++  });
++
++  it("probes file-backed state directories", async () => {
++    const dataPath = createTempDataPath();
++    const config = loadConfig({
++      STATE_BACKEND: "file",
++      DATA_PATH: dataPath,
++      RAW_STORAGE_PATH: join(dataPath, "raw"),
++      MQTT_ENABLED: "false",
++      LOG_ENABLED: "false",
++    });
++
++    await expect(checkReadiness(config, { isReady: () => true })).resolves.toEqual({
++      statusCode: 200,
++      body: {
++        status: "ok",
++        database: "ok",
++      },
++    });
++  });
++
++  it("returns unavailable when file-backed state cannot be probed", async () => {
++    const config = loadConfig({
++      STATE_BACKEND: "file",
++      DATA_PATH: "/dev/null",
++      MQTT_ENABLED: "false",
++      LOG_ENABLED: "false",
++    });
++
++    await expect(checkReadiness(config, { isReady: () => true })).resolves.toEqual({
++      statusCode: 503,
++      body: {
++        status: "error",
++        database: "unavailable",
++      },
++    });
++  });
++
++  it("returns unavailable when MQTT is enabled but not ready", async () => {
++    const config = loadConfig({
++      STATE_BACKEND: "memory",
++      MQTT_ENABLED: "true",
++      LOG_ENABLED: "false",
++    });
++
++    await expect(checkReadiness(config, { isReady: () => false })).resolves.toEqual({
++      statusCode: 503,
++      body: {
++        status: "error",
++        database: "ok",
++        mqtt: "unavailable",
++      },
++    });
++  });
++});
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+A /Users/bietiekay/code/health-data-to-mqtt/test/unit/readiness.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:27:18Z)**_
+
+Unit coverage is growing around the new state and readiness helpers. I’m adding the ingest compatibility tests now, then I’ll wire integration coverage around the HTTP routes and batch failure paths.
+
+_**Agent (gpt-5.5 2026-06-02 18:27:27Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/unit/ingest.test.ts`**
+
+```diff
+@@
+   it("maps unknown quantities into quantity samples", () => {
+@@
+     });
+   });
++
++  it("uses category event fallback timestamps for generic quantities", () => {
++    expect(
++      normalizeBatch({
++        metric: "mindful_session",
++        batch_index: 0,
++        total_batches: 1,
++        samples: [
++          {
++            endDate: "2024-03-15T08:15:00Z",
++            qty: 900,
++            rawValue: 0,
++            source: "Apple Watch",
++          },
++        ],
++      })[0]?.normalizedSample,
++    ).toEqual({
++      time: "2024-03-15T08:15:00.000Z",
++      metric_name: "mindful_session",
++      value: 900,
++      unit: "",
++      source_id: "Apple Watch",
++    });
++  });
++
++  it("accepts ECG compatibility payloads without rejected records", () => {
++    const result = normalizeBatchWithStats({
++      metric: "ecg",
++      batch_index: 0,
++      total_batches: 1,
++      samples: [
++        {
++          start: "2026-04-10T12:00:00Z",
++          end: "2026-04-10T12:00:30Z",
++          classification: "sinusRhythm",
++          numberOfVoltageMeasurements: 512,
++          samplingFrequency: 512,
++          averageHeartRate: 72,
++        },
++      ],
++    });
++
++    expect(result.records).toEqual([]);
++    expect(result.stats).toEqual({
++      recordsReceived: 1,
++      recordsAccepted: 0,
++      recordsRejected: 0,
++      recordsDedupedInBatch: 0,
++    });
++  });
+ 
+   it("routes daily quantity metrics into daily_activity", () => {
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/unit/ingest.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:27:39Z)**_
+
+For the HTTP-level tests I’m keeping things hermetic: no external broker, no reference implementation, and file persistence tested against temporary paths only. The failed-batch receipt test will reuse the same in-memory receipt store across a failed attempt and a retry.
+
+_**Agent (gpt-5.5 2026-06-02 18:27:42Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts`**
+
+```diff
+@@
+ import {
+   createMqttPublisherFromClient,
+   type MqttPublishClient,
+ } from "../../src/mqtt/publisher.js";
++import { createMemorySyncReceiptStore } from "../../src/state/sync-receipts.js";
+ import type { RawBatchStorage } from "../../src/storage/raw-batch-storage.js";
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:27:46Z)**_
+
+I’m adding `/ready` tests next to the existing liveness tests, which keeps the distinction between liveness and readiness obvious in the test file.
+
+_**Agent (gpt-5.5 2026-06-02 18:27:56Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts`**
+
+```diff
+@@
+   it("returns health responses", async () => {
+     const server = await createApp();
+@@
+     expect(response.statusCode).toBe(200);
+     expect(response.json()).toEqual({ status: "ok" });
+   });
+ 
++  it("returns readiness when dependencies are available", async () => {
++    const server = await createApp("secret");
++    const response = await server.inject({
++      method: "GET",
++      url: "/ready",
++      headers: { "x-api-key": "wrong" },
++    });
++
++    expect(response.statusCode).toBe(200);
++    expect(response.json()).toEqual({
++      status: "ok",
++      database: "ok",
++    });
++  });
++
++  it("returns readiness failure when file-backed state is unavailable", async () => {
++    app = await buildApp({
++      config: loadConfig({
++        HOST: "127.0.0.1",
++        PORT: "0",
++        LOG_ENABLED: "false",
++        API_KEY: "",
++        MQTT_ENABLED: "false",
++        STATE_BACKEND: "file",
++        DATA_PATH: "/dev/null",
++      }),
++    });
++
++    const response = await app.inject({
++      method: "GET",
++      url: "/ready",
++    });
++
++    expect(response.statusCode).toBe(503);
++    expect(response.json()).toEqual({
++      status: "error",
++      database: "unavailable",
++    });
++  });
++
++  it("returns readiness failure when MQTT is enabled but unavailable", async () => {
++    const mqttPublisher = createRecordingMqttPublisher();
++    mqttPublisher.isReady = () => false;
++    app = await buildApp({
++      config: {
++        ...baseConfig,
++        logEnabled: false,
++        mqtt: {
++          ...baseConfig.mqtt,
++          enabled: true,
++        },
++      },
++      mqttPublisher,
++    });
++
++    const response = await app.inject({
++      method: "GET",
++      url: "/ready",
++    });
++
++    expect(response.statusCode).toBe(503);
++    expect(response.json()).toEqual({
++      status: "error",
++      database: "ok",
++      mqtt: "unavailable",
++    });
++  });
++
+   it("returns unauthenticated v2 setup diagnostics", async () => {
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:28:00Z)**_
+
+Now I’m adding idempotency integration coverage for the key gap in the Cursor plan: replay and conflict handling when there is no sync-run ID at all.
+
+_**Agent (gpt-5.5 2026-06-02 18:28:23Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts`**
+
+```diff
+@@
+   it("requires the configured API key on protected v2 sync endpoints", async () => {
+@@
+     expect(diagnostics.statusCode).toBe(200);
+     expect(authorized.statusCode).toBe(404);
+   });
+ 
++  it("replays idempotency keys without sync run ids", async () => {
++    const mqttPublisher = createRecordingMqttPublisher();
++    app = await buildApp({
++      config: {
++        ...baseConfig,
++        logEnabled: false,
++      },
++      mqttPublisher,
++    });
++    const request = {
++      method: "POST" as const,
++      url: "/api/apple/batch",
++      headers: {
++        "idempotency-key": "key-no-run",
++        "x-healthsave-payload-hash": "hash-no-run",
++      },
++      payload: {
++        metric: "heart_rate",
++        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
++      },
++    };
++
++    const first = await app.inject(request);
++    const second = await app.inject(request);
++
++    expect(first.statusCode).toBe(200);
++    expect(second.statusCode).toBe(200);
++    expect(second.json()).toEqual(first.json());
++    expect(mqttPublisher.batches).toHaveLength(1);
++
++    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
++    const latest = await app.inject({
++      method: "GET",
++      url: "/api/v2/sync/runs/latest",
++    });
++
++    expect(status.json()).toMatchObject({
++      heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
++    });
++    expect(latest.statusCode).toBe(404);
++  });
++
++  it("rejects idempotency hash conflicts without sync run ids before side effects", async () => {
++    const mqttPublisher = createRecordingMqttPublisher();
++    app = await buildApp({
++      config: {
++        ...baseConfig,
++        logEnabled: false,
++      },
++      mqttPublisher,
++    });
++
++    await app.inject({
++      method: "POST",
++      url: "/api/apple/batch",
++      headers: {
++        "idempotency-key": "key-no-run",
++        "x-healthsave-payload-hash": "hash-1",
++      },
++      payload: {
++        metric: "heart_rate",
++        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
++      },
++    });
++    const conflict = await app.inject({
++      method: "POST",
++      url: "/api/apple/batch",
++      headers: {
++        "idempotency-key": "key-no-run",
++        "x-healthsave-payload-hash": "hash-2",
++      },
++      payload: {
++        metric: "heart_rate",
++        samples: [{ date: "2026-04-11T12:00:00Z", qty: 75, source: "Watch" }],
++      },
++    });
++
++    expect(conflict.statusCode).toBe(409);
++    expect(mqttPublisher.batches).toHaveLength(1);
++
++    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
++    expect(status.json()).toMatchObject({
++      heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
++    });
++  });
++
++  it("persists idempotency keys across file-backed app restarts", async () => {
++    tempDirectory = mkdtempSync(join(tmpdir(), "health-idempotency-api-"));
++    const config = loadConfig({
++      HOST: "127.0.0.1",
++      PORT: "0",
++      LOG_ENABLED: "false",
++      API_KEY: "",
++      MQTT_ENABLED: "false",
++      STATE_BACKEND: "file",
++      DATA_PATH: tempDirectory,
++    });
++    const request = {
++      method: "POST" as const,
++      url: "/api/apple/batch",
++      headers: {
++        "idempotency-key": "key-persisted",
++        "x-healthsave-payload-hash": "hash-persisted",
++      },
++      payload: {
++        metric: "heart_rate",
++        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
++      },
++    };
++
++    app = await buildApp({ config });
++    const first = await app.inject(request);
++    await app.close();
++
++    app = await buildApp({ config });
++    const second = await app.inject(request);
++    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
++
++    expect(first.statusCode).toBe(200);
++    expect(second.statusCode).toBe(200);
++    expect(second.json()).toEqual(first.json());
++    expect(status.json()).toMatchObject({
++      heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
++    });
++  });
++
+   it("replays matching idempotency keys without repeating ingest side effects", async () => {
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:28:30Z)**_
+
+The no-sync-run idempotency cases are covered. I’m adding the failed sync-run receipt integration now, including a retry that succeeds afterward to prove failures don’t poison idempotency.
+
+_**Agent (gpt-5.5 2026-06-02 18:28:45Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts`**
+
+```diff
+@@
+   it("rejects non-empty batches when MQTT publication fails", async () => {
+@@
+ 
+     const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+     expect(status.json()).toEqual(emptyStatusResponse());
+   });
++
++  it("records failed sync-run receipts and allows a later retry to succeed", async () => {
++    const syncReceiptStore = createMemorySyncReceiptStore();
++    const request = {
++      method: "POST" as const,
++      url: "/api/apple/batch",
++      headers: {
++        "idempotency-key": "key-failed-then-ok",
++        "x-healthsave-sync-run-id": "run-failed-then-ok",
++        "x-healthsave-batch-id": "batch-1",
++        "x-healthsave-payload-hash": "hash-failed-then-ok",
++      },
++      payload: {
++        metric: "heart_rate",
++        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
++      },
++    };
++
++    app = await buildApp({
++      config: {
++        ...baseConfig,
++        logEnabled: false,
++      },
++      syncReceiptStore,
++      mqttPublisher: {
++        async publishRawBatch() {
++          throw new Error("broker unavailable");
++        },
++        async publishNormalizedBatch() {
++          return {
++            records: 0,
++            topics: [],
++          };
++        },
++        async publishCurrentBatch() {
++          return {
++            records: 0,
++            topics: [],
++          };
++        },
++        isReady() {
++          return true;
++        },
++        async close() {
++          return undefined;
++        },
++      },
++    });
++    const failed = await app.inject(request);
++    const failedRun = await app.inject({
++      method: "GET",
++      url: "/api/v2/sync/runs/run-failed-then-ok",
++    });
++    await app.close();
++
++    const mqttPublisher = createRecordingMqttPublisher();
++    app = await buildApp({
++      config: {
++        ...baseConfig,
++        logEnabled: false,
++      },
++      syncReceiptStore,
++      mqttPublisher,
++    });
++    const retried = await app.inject(request);
++    const retriedRun = await app.inject({
++      method: "GET",
++      url: "/api/v2/sync/runs/run-failed-then-ok",
++    });
++
++    expect(failed.statusCode).toBe(502);
++    expect(failedRun.statusCode).toBe(200);
++    expect(failedRun.json()).toMatchObject({
++      sync_run_id: "run-failed-then-ok",
++      records_received: 1,
++      records_accepted: 0,
++      batches_seen: 1,
++      batches_processed: 0,
++      batches_failed: 1,
++    });
++    expect(retried.statusCode).toBe(200);
++    expect(mqttPublisher.batches).toHaveLength(1);
++    expect(retriedRun.json()).toMatchObject({
++      sync_run_id: "run-failed-then-ok",
++      records_received: 2,
++      records_accepted: 1,
++      batches_seen: 1,
++      batches_processed: 1,
++      batches_failed: 1,
++    });
++  });
+ 
+   it("requires the configured API key on protected endpoints", async () => {
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:28:48Z)**_
+
+The failed receipt flow is now covered. I’m running typecheck and tests to catch behavioral regressions before touching docs.
+
+_**Agent (gpt-5.5 2026-06-02 18:28:49Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm run typecheck && npm test`</summary>
+```
+Chunk ID: b995a4
+Wall time: 3.4219 seconds
+Process exited with code 0
+Original token count: 216
+Output:
+
+> health-data-to-mqtt@0.4.0 typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+> health-data-to-mqtt@0.4.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/bietiekay/code/health-data-to-mqtt
+
+ ✓ test/unit/raw-batch-storage.test.ts (3 tests) 27ms
+ ✓ test/unit/state-store.test.ts (4 tests) 28ms
+ ✓ test/unit/sync-receipts.test.ts (5 tests) 30ms
+ ✓ test/unit/config.test.ts (7 tests) 26ms
+ ✓ test/unit/ingest.test.ts (25 tests) 20ms
+ ✓ test/unit/mqtt-publisher.test.ts (6 tests) 10ms
+ ✓ test/unit/idempotency-store.test.ts (3 tests) 19ms
+ ✓ test/unit/auth.test.ts (3 tests) 2ms
+ ✓ test/unit/readiness.test.ts (4 tests) 17ms
+ ✓ test/integration/app.test.ts (37 tests) 522ms
+
+ Test Files  10 passed (10)
+      Tests  97 passed (97)
+   Start at  20:28:51
+   Duration  1.36s (transform 454ms, setup 0ms, collect 1.53s, tests 701ms, environment 1ms, prepare 967ms)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:28:56Z)**_
+
+Code and tests are green at this midpoint: 97 tests pass. I’m updating docs/changelog now, including the required top-level `0.4.0` changelog section.
+
+_**Agent (gpt-5.5 2026-06-02 18:28:58Z)**_
+
+<tool-use data-tool-type="task" data-tool-name="update_plan"><details>
+<summary>Tool use: **update_plan**</summary>
+**Agent task list:**
+- [X] Inspect current implementation and verify version/changelog state
+- [X] Add decoupled idempotency index and wire batch replay/conflict behavior
+- [X] Add readiness probes and /ready endpoint without changing Docker healthcheck
+- [X] Extend sync receipts for failed batches and summary accounting
+- [X] Add ECG/category ingest compatibility and tests
+- [⚡] Update docs/changelog/test inventory and run verification
+
+```
+Plan updated
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:29:06Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,150p' README.md && sed -n '247,285p' README.md && sed -n '365,378p' README.md`</summary>
+```
+Chunk ID: b59385
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 2333
+Output:
+# Health Data to MQTT
+
+Health Data to MQTT is a drop-in server for the [HealthSave iOS app](https://apps.apple.com/app/id6759843047). It accepts HealthKit-derived sync batches through the same HTTP API as the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) server and is being ported toward an MQTT-first data pipeline instead of making TimescaleDB and Grafana the primary destination.
+
+The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, HealthSave sync receipt endpoints with receipt-key idempotency, optional raw batch storage, Docker support, and tests. Replay fixtures and broader deterministic record idempotency are still planned implementation phases.
+
+![Health Data to MQTT screenshot](./screenshot.png)
+
+## Why This Exists
+
+[HealthSave](https://apps.apple.com/app/id6759843047) can already send Apple Health data to a self-hosted server. The original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) project stores that data in TimescaleDB and visualizes it with Grafana. This project keeps the same client-facing sync contract but changes the integration model:
+
+- Health data becomes available through MQTT topics.
+- Home automation systems can subscribe in near real time.
+- Storage, dashboards, alerts, and automations can be chosen independently.
+- The existing iOS app can keep syncing without client changes.
+- A reference-compatible migration path remains possible during the port.
+
+## Current Status
+
+This repository contains the compatibility server, a durable status ledger, HealthSave sync receipts with receipt-key idempotency, and the initial raw plus normalized MQTT pipeline. Replay fixtures and broader deterministic record idempotency remain planned.
+
+Available now:
+
+- `README.md` - user-facing project documentation.
+- `PORTING.md` - living porting plan and implementation discussion document.
+- `AGENTS.md` - working instructions for coding agents and maintainers.
+- `TEST_STRATEGY.md` and `TEST_MATRIX.md` - test planning and test inventory.
+- `src/` - Fastify compatibility server, reference-compatible datapoint extraction, MQTT publishers, and optional raw batch storage.
+- `test/` - unit, API integration, and publisher behavior tests.
+- `Dockerfile` and `docker-compose.yml` - initial self-hosting setup.
+- `reference-implementation/` - read-only reference copy of the original FastAPI + TimescaleDB implementation.
+
+The `reference-implementation/` directory is included only to document existing behavior. Do not edit it as part of this port.
+
+## Upstream Reference and Required Client
+
+This project is a porting effort based on the original [Health Data Hub](https://github.com/umutkeltek/health-data-hub/tree/main) project.
+
+The required client app is [HealthSave](https://apps.apple.com/app/id6759843047) for iOS. HealthSave acts as the HealthKit bridge and sends sync batches to the configured server URL.
+
+## Intended Usage
+
+Run the development server:
+
+```bash
+npm install
+npm run dev
+```
+
+Run tests:
+
+```bash
+npm test
+```
+
+Build and start:
+
+```bash
+npm run build
+npm start
+```
+
+Run with Docker Compose:
+
+```bash
+cp .env.default .env
+docker compose up --build
+```
+
+Run locally with a configuration file:
+
+```bash
+cp config/app.config.example.yaml config/app.config.local.yaml
+npm run build
+npm run start:local
+```
+
+The configuration file path is only intended for plain local `npm start` runs. Docker and Docker Compose deployments should use environment variables through `.env` instead.
+
+Local development config quick guide:
+
+1. Copy `config/app.config.example.yaml` to `config/app.config.local.yaml`.
+2. Edit `config/app.config.local.yaml` for your machine, for example local port, API key, MQTT broker URL, or log level.
+3. Build the TypeScript output with `npm run build`.
+4. Start the server with `npm run start:local`.
+5. Point HealthSave at `http://your-machine-ip:8000` or the port configured in your local YAML file.
+
+`config/app.config.local.yaml` is ignored by Git, so it is safe to keep local secrets or machine-specific values there. Environment variables still override local YAML values when both are set.
+
+Use the service as the HealthSave server endpoint:
+
+```text
+http://your-server-ip:8000
+```
+
+HealthSave app flow:
+
+1. Open HealthSave on iOS.
+2. Go to Settings -> Server Sync.
+3. Set the server URL to your deployed Health Data to MQTT instance.
+4. Optionally enter the configured API key.
+5. Run "Sync New Data".
+
+The app appends the API paths itself, so users should configure only the base URL.
+
+## What It Will Receive
+
+The server is designed to receive the same HealthSave batch payloads as the reference implementation:
+
+- heart rate
+- heart rate variability
+- blood oxygen
+- body te
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:29:06Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '64,105p' PORTING.md && sed -n '488,510p' PORTING.md && sed -n '640,662p' PORTING.md`</summary>
+```
+Chunk ID: ffa862
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 992
+Output:
+## 4) Compatibility Contract
+
+### 4.1 Required Endpoints
+
+| Endpoint | Method | Required response/behavior |
+| --- | --- | --- |
+| `/health` | GET | Return `{"status":"ok"}` |
+| `/api/health` | GET | Return `{"status":"ok"}` |
+| `/api/apple/batch` | POST | Receive and process one metric batch |
+| `/api/apple/status` | GET | Return flat status objects in reference-compatible shape |
+| `/api/v2/setup/diagnostics` | GET | Return unauthenticated setup diagnostics for API base URL checks |
+| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
+| `/api/v2/sync/runs/{sync_run_id}` | GET | Return one run-specific delivery receipt summary |
+| `/api/v2/sync/coverage` | GET | Return metric-level sync receipt coverage |
+
+### 4.2 Authentication
+
+The reference behavior is intentionally simple:
+
+- If `API_KEY` is empty or unset, requests are accepted without `x-api-key`.
+- If `API_KEY` is set, requests must include the matching `x-api-key` header.
+- Invalid keys return HTTP `401`.
+
+This must apply to:
+
+- `POST /api/apple/batch`
+- `GET /api/apple/status`
+- `GET /api/v2/sync/runs/latest`
+- `GET /api/v2/sync/runs/{sync_run_id}`
+- `GET /api/v2/sync/coverage`
+
+Health and setup diagnostics endpoints remain unauthenticated. This satisfies
+HealthSave 1.5 liveness behavior, which checks `/api/health` first and accepts
+`/health` as a fallback.
+
+### 4.3 Status Response
+
+`GET /api/apple/status` must return a flat object whose top-level keys are the
+known HealthSave status metrics, even when they are empty:
+
+```json
+{
+| Variable | Default |
+| --- | --- |
+| `DATA_PATH` | `/data` |
+| `STATE_BACKEND` | `file` |
+
+The current durable state backend stores a deduplicated `/api/apple/status`
+ledger under `<DATA_PATH>/status/<context>/observations.ndjson`. The ledger is
+rebuilt on startup so HealthSave clients can read `count`, `oldest`, and
+`newest` after restarts without double-counting retries.
+
+The same backend also stores lightweight sync delivery receipts under
+`<DATA_PATH>/receipts/<context>/receipts.ndjson` when clients send
+`X-HealthSave-Sync-Run-ID`. These records contain sync metadata and counts, not
+raw health samples. Matching `Idempotency-Key` plus payload hash requests replay
+the original response without repeating raw storage, MQTT publication, or status
+updates. Reusing the same key with a different payload hash returns `409`.
+`STATE_BACKEND=memory` remains available for disposable local runs and tests.
+
+### 10.4 Raw Batch Storage
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `RAW_STORAGE_PATH` | empty | Optional raw NDJSON archive path. Empty disables raw storage. |
+- Publish raw events. Status: initial raw sample events complete.
+- Add MQTT tests. Status: initial publisher and API publish-path tests complete.
+
+### Phase C: Metric Normalization
+
+- Implement dedicated metric mappers. Status: initial reference-compatible extraction complete.
+- Implement activity, sleep, workout, and generic fallback mappers. Status: initial reference-compatible extraction complete.
+- Publish normalized events. Status: initial normalized MQTT events complete.
+- Add mapper and replay tests. Status: mapper tests and raw batch archive tests complete; replay fixtures still planned.
+
+### Phase D: State and Idempotency
+
+- Add file-backed local status state. Status: deduplicated NDJSON observation ledger complete.
+- Track logical counters. Status: flat `count` / `oldest` / `newest` status objects complete.
+- Add HealthSave receipt-key idempotency. Status: complete for matching
+  `Idempotency-Key` plus payload hash when `X-HealthSave-Sync-Run-ID` is present.
+- Add broader deterministic record-key idempotency and retention. Status: planned.
+- Add optional raw batch archive. Status: initial NDJSON archive complete for non-empty valid batches.
+- Add duplicate replay tests. Status: receipt-key replay/conflict tests complete.
+
+### Phase E: Reference Validation
+
+- Add optional Timescale connection.
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:29:06Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '20,55p' TEST_STRATEGY.md`</summary>
+```
+Chunk ID: 178804
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 302
+Output:
+
+- auth decisions,
+- batch request defaults,
+- metric-to-counter routing,
+- future metric mappers,
+- topic rendering,
+- raw MQTT payload construction,
+- raw batch archive path handling,
+- sync receipt idempotency replay metadata,
+- sync receipt header parsing and receipt store persistence,
+- ingest accounting for accepted, rejected, and in-batch deduped records.
+
+### API Integration Tests
+
+API integration tests cover the HealthSave-facing contract:
+
+- `GET /health`,
+- `GET /api/health`,
+- `POST /api/apple/batch`,
+- empty batch responses,
+- status counters,
+- optional API-key behavior.
+- prefixed context endpoints.
+- raw batch archive success, skip, and failure behavior.
+- v2 setup diagnostics.
+- v2 sync receipt authorization, summaries, coverage, and 404 behavior.
+- idempotency replay and conflict behavior before ingest side effects.
+
+### MQTT Tests
+
+MQTT tests cover implemented publisher behavior and planned broker-backed integration coverage:
+
+- raw event publication through a recording client,
+- normalized event publication through a recording client,
+- scalar current value publication through a recording client,
+- API route calls into the publisher before accepting non-empty batches,
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:29:06Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,105p' TEST_MATRIX.md`</summary>
+```
+Chunk ID: 30cb8b
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 3794
+Output:
+# Test Matrix
+
+This file is the current inventory of existing, planned, and blocked tests. Update it in the same change whenever tests are added, removed, or changed.
+
+| Area | Test | Status | Location | Notes |
+| --- | --- | --- | --- | --- |
+| Auth | No configured API key accepts missing header | Existing | `test/unit/auth.test.ts` | Reference-compatible auth disabled behavior |
+| Auth | Configured API key accepts matching header | Existing | `test/unit/auth.test.ts` | Unit-level auth helper coverage |
+| Auth | Configured API key rejects missing or wrong header | Existing | `test/unit/auth.test.ts` | Unit-level auth helper coverage |
+| Config | Local YAML configuration file loads successfully | Existing | `test/unit/config.test.ts` | Covers local-only `--config` file format including MQTT topic templates |
+| Config | Environment variables override YAML configuration | Existing | `test/unit/config.test.ts` | Preserves container-first env behavior |
+| Config | HTTP body limit loads from defaults, environment, and YAML | Existing | `test/unit/config.test.ts` | Covers the 500 MiB default and `HTTP_BODY_LIMIT_BYTES` override for large sync batches |
+| Config | Contexts load from environment JSON | Existing | `test/unit/config.test.ts` | Covers Docker-friendly multi-client context configuration |
+| Config | Data path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers `DATA_PATH`, YAML `storage.dataPath`, and env override |
+| Config | Raw storage path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers opt-in `RAW_STORAGE_PATH`, YAML `storage.rawDataPath`, env override, and empty-path disabled behavior |
+| Ingest | Unknown metrics map to `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Reference-compatible fallback for generic quantity metrics |
+| Ingest | Batch schema applies reference-compatible defaults | Existing | `test/unit/ingest.test.ts` | Covers missing metric, batch fields, and samples |
+| Ingest | JSON-encoded batch and sample wrappers deserialize | Existing | `test/unit/ingest.test.ts` | Covers wrapped `data` payloads and sample-level JSON strings |
+| Ingest | Dedicated metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers heart rate timestamp, value, and source extraction |
+| Ingest | Blood oxygen aliases normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers HealthKit-style `oxygenSaturation` values and fractional saturation conversion |
+| Ingest | Daily quantity metrics normalize into `daily_activity` | Existing | `test/unit/ingest.test.ts` | Covers `step_count` routing and date-level deduped records |
+| Ingest | Daily quantity mapping matrix stays complete | Existing | `test/unit/ingest.test.ts` | Covers every supported `daily_activity` quantity metric and field transform |
+| Ingest | Non-summary daily metrics remain in `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Covers `apple_stand_time` fallback behavior |
+| Ingest | Generic quantity metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers unknown metric fallback fields |
+| Ingest | Activity summaries normalize aliases | Existing | `test/unit/ingest.test.ts` | Covers reference activity field aliases |
+| Ingest | Activity summary alias matrix stays complete | Existing | `test/unit/ingest.test.ts` | Covers all supported activity summary source fields and aliases |
+| Ingest | Sleep stage samples aggregate into sessions | Existing | `test/unit/ingest.test.ts` | Covers reference stage bucket and duration behavior |
+| Ingest | Sleep sessions expose latest awake state | Existing | `test/unit/ingest.test.ts` | Covers normalized `awake` boolean from the latest sleep stage |
+| Ingest | Workouts normalize field variants | Existing | `test/unit/ingest.test.ts` | Covers start/end aliases and duration seconds conversion |
+| Ingest | Workout active energy normalizes from HealthSave aliases | Existing | `test/unit/ingest.test.ts` | Covers `workouts` calories from `activeEnergyBurned` plus sessionless active-energy fallback |
+| Ingest | Blood pressure correlations preserve inner metric names | Existing | `test/unit/ingest.test.ts` | Covers subtype-specific `quantity_samples` identities |
+| Ingest | Body temperature aliases normalize without public status entries | Existing | `test/unit/ingest.test.ts` | Covers `wrist_temperature` mapping to `body_temperature` |
+| Ingest | Device identity honors source aliases and `HealthSave` fallback | Existing | `test/unit/ingest.test.ts` | Covers `sourceName`, `deviceName`, and fallback handling |
+| Ingest | ISO timestamps normalize to UTC | Existing | `test/unit/ingest.test.ts` | Covers offset timestamp parsing |
+| Ingest | Normalization stats separate rejected and in-batch deduped records | Existing | `test/unit/ingest.test.ts` | Covers receipt accounting without deriving re
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:29:12Z)**_
+
+The tests are already proving the behavior, so the doc edits are mostly aligning the project narrative: `/ready`, idempotency index vs delivery receipts, ISO status timestamp policy, and 0.4.0 changelog.
+
+_**Agent (gpt-5.5 2026-06-02 18:29:17Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/CHANGELOG.md`**
+
+```diff
+@@
+ Version headers must match the `version` field in `package.json`.
+ 
++## 0.4.0
++
++### Added
++
++- Added a dedicated file and memory idempotency index for all successful batches with `Idempotency-Key`, including batches without sync-run receipt headers.
++- Added `GET /ready` readiness checks for local state writability and MQTT connection state.
++- Added failed-batch sync receipt rows so v2 run summaries report processed and failed batch counts separately.
++- Added ECG compatibility handling and category-event timestamp fallbacks for generic quantity ingestion.
++- Added tests for idempotency persistence, readiness probes, failed receipt summaries, ECG compatibility, and category-event fallback timestamps.
++
++### Changed
++
++- Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
++- Documented `/api/insights/*` as out of scope and kept status timestamps as ISO UTC strings for API compatibility.
++
+ ## 0.3.0
+ 
+ ### Changed
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/CHANGELOG.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:29:21Z)**_
+
+The changelog now has the required `0.4.0` section. I’m updating README next with endpoint and state-path details.
+
+_**Agent (gpt-5.5 2026-06-02 18:29:33Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/README.md`**
+
+```diff
+@@
+ | `/health` | GET | Basic service health check |
+ | `/api/health` | GET | App-compatible health check. HealthSave 1.5 checks this first and falls back to `/health` if needed. |
++| `/ready` | GET | Unauthenticated readiness check for local state writability and MQTT availability when enabled |
+ | `/api/apple/batch` | POST | Receive one metric batch |
+@@
+ | `/api/v2/sync/coverage` | GET | Metric-level receipt coverage summary |
++
++`/health` and `/api/health` are lightweight liveness checks. `/ready` is stricter and returns `503` when file-backed state cannot be written or when MQTT is enabled but disconnected. Docker keeps using `/health` for container liveness by default; operators can point load balancers or orchestrators at `/ready` when dependency-gated readiness is desired.
+@@
+-When HealthSave sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, `Idempotency-Key`, and `X-HealthSave-Payload-Hash`, the service also records a lightweight delivery receipt. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and allow matching `Idempotency-Key` retries to replay the original response without publishing or counting the same batch again. Reusing an idempotency key with a different payload hash returns `409 Conflict`.
++When HealthSave sends `Idempotency-Key`, the service records a lightweight idempotency entry for every successful batch so matching retries replay the original response without publishing or counting the same batch again. Reusing an idempotency key with a different `X-HealthSave-Payload-Hash` returns `409 Conflict`.
++
++When HealthSave also sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, the service records delivery receipts. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and can show both processed and failed batch attempts for a sync run.
+@@
+ The file-backed sync receipt ledger is written under:
+ 
+ ```text
+ <DATA_PATH>/receipts/<context>/receipts.ndjson
+ ```
++
++The file-backed idempotency index is written under:
++
++```text
++<DATA_PATH>/idempotency/<context>/keys.ndjson
++```
++
++Status endpoint timestamps are returned as ISO UTC strings. This keeps internal ledgers, MQTT payloads, and API responses aligned while remaining compatible with the HealthSave API note that ISO 8601 timestamps with trailing `Z` are accepted.
+@@
+-| `STATE_BACKEND` | `file` | Local status and sync receipt backend. Use `file` for durable observations/receipts or `memory` for disposable runs. |
++| `STATE_BACKEND` | `file` | Local status, sync receipt, and idempotency backend. Use `file` for durable observations/receipts/keys or `memory` for disposable runs. |
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/README.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:29:37Z)**_
+
+README is aligned. I’m updating PORTING now, including the API contract table, local state paths, status timestamp policy, and explicit insights non-goal.
+
+_**Agent (gpt-5.5 2026-06-02 18:29:50Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/PORTING.md`**
+
+```diff
+@@
+ | --- | --- | --- |
+ | `/health` | GET | Return `{"status":"ok"}` |
+ | `/api/health` | GET | Return `{"status":"ok"}` |
++| `/ready` | GET | Return readiness for local state and MQTT dependencies |
+ | `/api/apple/batch` | POST | Receive and process one metric batch |
+@@
+-Health and setup diagnostics endpoints remain unauthenticated. This satisfies
++Health, readiness, and setup diagnostics endpoints remain unauthenticated. This satisfies
+ HealthSave 1.5 liveness behavior, which checks `/api/health` first and accepts
+ `/health` as a fallback.
+@@
+ Status values should represent deduplicated logical records, not request
+ volume or retained MQTT messages.
++
++Status timestamps currently return ISO UTC strings, for example
++`2026-04-10T12:00:00.000Z`, while `daily_activity` returns date-only values.
++This is intentional: the API compatibility notes accept ISO 8601 timestamps with
++a trailing `Z`, and keeping the same format in ledgers, MQTT payloads, and API
++responses avoids migration churn.
+@@
+ The same backend also stores lightweight sync delivery receipts under
+ `<DATA_PATH>/receipts/<context>/receipts.ndjson` when clients send
+ `X-HealthSave-Sync-Run-ID`. These records contain sync metadata and counts, not
+-raw health samples. Matching `Idempotency-Key` plus payload hash requests replay
+-the original response without repeating raw storage, MQTT publication, or status
+-updates. Reusing the same key with a different payload hash returns `409`.
++raw health samples.
++
++Idempotency entries are stored separately under
++`<DATA_PATH>/idempotency/<context>/keys.ndjson` for every successful batch with
++`Idempotency-Key`, including batches without `X-HealthSave-Sync-Run-ID`.
++Matching `Idempotency-Key` plus payload hash requests replay the original
++response without repeating raw storage, MQTT publication, or status updates.
++Reusing the same key with a different payload hash returns `409`.
+ `STATE_BACKEND=memory` remains available for disposable local runs and tests.
+@@
+ - Add file-backed local status state. Status: deduplicated NDJSON observation ledger complete.
+ - Track logical counters. Status: flat `count` / `oldest` / `newest` status objects complete.
+-- Add HealthSave receipt-key idempotency. Status: complete for matching
+-  `Idempotency-Key` plus payload hash when `X-HealthSave-Sync-Run-ID` is present.
++- Add HealthSave receipt-key idempotency. Status: complete for all successful
++  batches with `Idempotency-Key`, independent of v2 sync receipt headers.
+ - Add broader deterministic record-key idempotency and retention. Status: planned.
+ - Add optional raw batch archive. Status: initial NDJSON archive complete for non-empty valid batches.
+ - Add duplicate replay tests. Status: receipt-key replay/conflict tests complete.
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/PORTING.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:29:53Z)**_
+
+I still need the explicit non-goal note for Insights. I’m adding that as a short compatibility subsection so future comparisons against Data Hub don’t turn into accidental scope creep.
+
+_**Agent (gpt-5.5 2026-06-02 18:29:57Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/PORTING.md`**
+
+```diff
+@@
+ Status timestamps currently return ISO UTC strings, for example
+ `2026-04-10T12:00:00.000Z`, while `daily_activity` returns date-only values.
+ This is intentional: the API compatibility notes accept ISO 8601 timestamps with
+ a trailing `Z`, and keeping the same format in ledgers, MQTT payloads, and API
+ responses avoids migration churn.
+ 
++### 4.4 Explicit Non-Goals
++
++`GET /api/insights/anomalies` and `GET /api/insights/trends` are Data Hub
++analysis surfaces, not part of the HealthSave sync replacement contract. They
++remain out of scope until this MQTT-first port has a local analysis engine that
++can produce those findings honestly.
++
+ ## 5) Batch API Contract
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/PORTING.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:30:01Z)**_
+
+PORTING is updated. I’m updating test strategy and matrix now; this is mostly bookkeeping, but the repo rules require it alongside test changes.
+
+_**Agent (gpt-5.5 2026-06-02 18:30:05Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/TEST_STRATEGY.md`**
+
+```diff
+@@
+ - raw MQTT payload construction,
+ - raw batch archive path handling,
++- idempotency index persistence and replay lookups,
+ - sync receipt idempotency replay metadata,
+ - sync receipt header parsing and receipt store persistence,
+-- ingest accounting for accepted, rejected, and in-batch deduped records.
++- readiness probe helpers,
++- ingest accounting for accepted, rejected, and in-batch deduped records,
++- ECG and category-event compatibility behavior.
+@@
+ - `GET /health`,
+ - `GET /api/health`,
++- `GET /ready`,
+ - `POST /api/apple/batch`,
+@@
+ - v2 setup diagnostics.
+ - v2 sync receipt authorization, summaries, coverage, and 404 behavior.
+ - idempotency replay and conflict behavior before ingest side effects.
++- failed sync-run receipt visibility.
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/TEST_STRATEGY.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:30:10Z)**_
+
+The strategy doc is done. I’m adding the new concrete rows to the matrix so the inventory matches the tests now present in the suite.
+
+_**Agent (gpt-5.5 2026-06-02 18:30:28Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/TEST_MATRIX.md`**
+
+```diff
+@@
+ | Ingest | ISO timestamps normalize to UTC | Existing | `test/unit/ingest.test.ts` | Covers offset timestamp parsing |
+ | Ingest | Normalization stats separate rejected and in-batch deduped records | Existing | `test/unit/ingest.test.ts` | Covers receipt accounting without deriving rejection counts from accepted-record differences |
+ | Ingest | Sleep aggregation is not counted as in-batch dedupe | Existing | `test/unit/ingest.test.ts` | Covers honest accounting for folded sleep-stage samples |
++| Ingest | ECG compatibility batches are accepted without rejected records | Existing | `test/unit/ingest.test.ts` | Verifies ECG payloads produce zero normalized records and zero validation rejections |
++| Ingest | Category events can use fallback timestamps | Existing | `test/unit/ingest.test.ts` | Verifies generic quantity/category payloads can use `endDate` when `date` is absent |
+@@
+ | State | File-backed state writes NDJSON observations under the configured path | Existing | `test/unit/state-store.test.ts` | Verifies the durable status ledger file is created |
++| State | Idempotency index records and replays memory entries | Existing | `test/unit/idempotency-store.test.ts` | Verifies successful batch responses can be looked up by idempotency key |
++| State | Idempotency index does not overwrite existing keys | Existing | `test/unit/idempotency-store.test.ts` | Verifies the first response remains authoritative for a reused key |
++| State | File-backed idempotency index persists by context | Existing | `test/unit/idempotency-store.test.ts` | Verifies `<DATA_PATH>/idempotency/<context>/keys.ndjson` reload behavior |
+ | State | Sync receipt header parsing | Existing | `test/unit/sync-receipts.test.ts` | Verifies HealthSave receipt headers are extracted and timestamp-normalized |
+ | State | Sync receipt store ignores batches without sync run IDs | Existing | `test/unit/sync-receipts.test.ts` | Verifies v2 receipt proof only appears for real HealthSave sync runs |
+ | State | Sync receipt run, coverage, and idempotency summaries | Existing | `test/unit/sync-receipts.test.ts` | Verifies accepted-only accounting, metric coverage, and stored response replay metadata |
++| State | Sync receipt summaries separate processed and failed rows | Existing | `test/unit/sync-receipts.test.ts` | Verifies `batches_processed` and `batches_failed` aggregation |
+ | State | File-backed sync receipt ledger persists by context | Existing | `test/unit/sync-receipts.test.ts` | Verifies `<DATA_PATH>/receipts/<context>/receipts.ndjson` reload behavior |
++| Readiness | Memory and file readiness probes | Existing | `test/unit/readiness.test.ts` | Verifies reference success shape and file-backed state probe behavior |
++| Readiness | Dependency readiness failures | Existing | `test/unit/readiness.test.ts` | Verifies unavailable local state and MQTT readiness failures |
+ | API | `GET /health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
+ | API | `GET /api/health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
++| API | `GET /ready` returns reference-compatible success when ready | Existing | `test/integration/app.test.ts` | Verifies unauthenticated readiness success shape |
++| API | `GET /ready` returns `503` when dependencies are unavailable | Existing | `test/integration/app.test.ts` | Verifies local state and MQTT readiness failures |
+@@
+ | State | Idempotency key replay avoids repeated ingest side effects | Existing | `test/integration/app.test.ts` | Verifies matching `Idempotency-Key` and payload hash replays the original response without MQTT/status duplication |
+ | State | Idempotency key conflict rejects before ingest side effects | Existing | `test/integration/app.test.ts` | Verifies reused keys with different payload hashes return `409` without MQTT/status duplication |
++| State | Idempotency key replay works without sync run IDs | Existing | `test/integration/app.test.ts` | Verifies idempotency is decoupled from v2 delivery receipts |
++| State | File-backed idempotency survives app restart | Existing | `test/integration/app.test.ts` | Verifies replay works after restarting with the same `DATA_PATH` |
++| State | Failed sync-run batches appear in receipt summaries | Existing | `test/integration/app.test.ts` | Verifies MQTT failure records `batches_failed` and retry can later succeed |
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/TEST_MATRIX.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:30:33Z)**_
+
+One small wording cleanup remains in README: the top summary should no longer imply idempotency is tied to receipts. I’m tightening that before final verification.
+
+_**Agent (gpt-5.5 2026-06-02 18:30:38Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/README.md`**
+
+```diff
+@@
+-The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, HealthSave sync receipt endpoints with receipt-key idempotency, optional raw batch storage, Docker support, and tests. Replay fixtures and broader deterministic record idempotency are still planned implementation phases.
++The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, a durable idempotency index, HealthSave sync receipt endpoints, optional raw batch storage, Docker support, and tests. Replay fixtures and broader deterministic record idempotency are still planned implementation phases.
+@@
+-This repository contains the compatibility server, a durable status ledger, HealthSave sync receipts with receipt-key idempotency, and the initial raw plus normalized MQTT pipeline. Replay fixtures and broader deterministic record idempotency remain planned.
++This repository contains the compatibility server, a durable status ledger, a durable `Idempotency-Key` index, HealthSave sync receipts, and the initial raw plus normalized MQTT pipeline. Replay fixtures and broader deterministic record idempotency remain planned.
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/README.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:30:42Z)**_
+
+I’m scanning for stale “sync receipt idempotency” language now; any remaining instances should distinguish the new idempotency index from delivery receipts.
+
+_**Agent (gpt-5.5 2026-06-02 18:30:44Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "receipt-key|sync receipt idempotency|idempotency|/ready|insights|ISO" README.md PORTING.md TEST_STRATEGY.md TEST_MATRIX.md CHANGELOG.md`</summary>
+```
+Chunk ID: 7edcdf
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1773
+Output:
+TEST_STRATEGY.md:28:- idempotency index persistence and replay lookups,
+TEST_STRATEGY.md:29:- sync receipt idempotency replay metadata,
+TEST_STRATEGY.md:41:- `GET /ready`,
+TEST_STRATEGY.md:50:- idempotency replay and conflict behavior before ingest side effects.
+TEST_MATRIX.md:34:| Ingest | ISO timestamps normalize to UTC | Existing | `test/unit/ingest.test.ts` | Covers offset timestamp parsing |
+TEST_MATRIX.md:40:| MQTT | Raw event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies one raw event per sample, topic, QoS, retain, metadata, and idempotency key shape |
+TEST_MATRIX.md:41:| MQTT | Normalized event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical topics, normalized metadata, payload shape, and idempotency key shape |
+TEST_MATRIX.md:53:| State | Idempotency index records and replays memory entries | Existing | `test/unit/idempotency-store.test.ts` | Verifies successful batch responses can be looked up by idempotency key |
+TEST_MATRIX.md:54:| State | Idempotency index does not overwrite existing keys | Existing | `test/unit/idempotency-store.test.ts` | Verifies the first response remains authoritative for a reused key |
+TEST_MATRIX.md:55:| State | File-backed idempotency index persists by context | Existing | `test/unit/idempotency-store.test.ts` | Verifies `<DATA_PATH>/idempotency/<context>/keys.ndjson` reload behavior |
+TEST_MATRIX.md:58:| State | Sync receipt run, coverage, and idempotency summaries | Existing | `test/unit/sync-receipts.test.ts` | Verifies accepted-only accounting, metric coverage, and stored response replay metadata |
+TEST_MATRIX.md:65:| API | `GET /ready` returns reference-compatible success when ready | Existing | `test/integration/app.test.ts` | Verifies unauthenticated readiness success shape |
+TEST_MATRIX.md:66:| API | `GET /ready` returns `503` when dependencies are unavailable | Existing | `test/integration/app.test.ts` | Verifies local state and MQTT readiness failures |
+TEST_MATRIX.md:98:| State | Idempotency key replay works without sync run IDs | Existing | `test/integration/app.test.ts` | Verifies idempotency is decoupled from v2 delivery receipts |
+TEST_MATRIX.md:99:| State | File-backed idempotency survives app restart | Existing | `test/integration/app.test.ts` | Verifies replay works after restarting with the same `DATA_PATH` |
+TEST_MATRIX.md:104:| State | Broader deterministic record idempotency | Planned | Not implemented | Receipt-key idempotency exists; deterministic record-key filtering beyond status counters remains future work |
+README.md:5:The repository currently contains a Node.js + TypeScript Fastify server with compatibility endpoints, optional API-key authentication, raw and normalized MQTT publishing, a durable local status ledger for `GET /api/apple/status`, a durable idempotency index, HealthSave sync receipt endpoints, optional raw batch storage, Docker support, and tests. Replay fixtures and broader deterministic record idempotency are still planned implementation phases.
+README.md:21:This repository contains the compatibility server, a durable status ledger, a durable `Idempotency-Key` index, HealthSave sync receipts, and the initial raw plus normalized MQTT pipeline. Replay fixtures and broader deterministic record idempotency remain planned.
+README.md:126:| `/ready` | GET | Unauthenticated readiness check for local state writability and MQTT availability when enabled |
+README.md:134:`/health` and `/api/health` are lightweight liveness checks. `/ready` is stricter and returns `503` when file-backed state cannot be written or when MQTT is enabled but disconnected. Docker keeps using `/health` for container liveness by default; operators can point load balancers or orchestrators at `/ready` when dependency-gated readiness is desired.
+README.md:203:  "idempotency_key": "..."
+README.md:230:  "idempotency_key": "..."
+README.md:234:Timestamp fields are parsed from ISO 8601 input and published as UTC ISO strings. Date-only activity summaries are published as `YYYY-MM-DD`.
+README.md:258:When HealthSave sends `Idempotency-Key`, the service records a lightweight idempotency entry for every successful batch so matching retries replay the original response without publishing or counting the same batch again. Reusing an idempotency key with a different `X-HealthSave-Payload-Hash` returns `409 Conflict`.
+README.md:281:The file-backed idempotency index is written under:
+README.md:284:<DATA_PATH>/idempotency/<context>/keys.ndjson
+README.md:287:Status endpoint timestamps are returned as ISO UTC strings. This keeps internal ledgers, MQTT payloads, and API responses aligned while remaining compatible with the HealthSave API note that ISO 8601 timestamps with trailing `Z` are accepted.
+README.md:384:| `STATE_BACKEND` | `file` | Local status, sync receipt, and idempotency backend. Use `file` for 
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:30:48Z)**_
+
+The scan found a few stale phrases. I’m correcting those so “idempotency” now consistently means the dedicated index, not sync receipts.
+
+_**Agent (gpt-5.5 2026-06-02 18:30:54Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/PORTING.md`**
+
+```diff
+@@
+-7. Sync receipt idempotency replays already accepted matching `Idempotency-Key`
+-   requests and rejects conflicting payload hashes.
++7. Dedicated idempotency index replays already accepted matching
++   `Idempotency-Key` requests and rejects conflicting payload hashes.
+@@
+-- Add HealthSave receipt-key idempotency. Status: complete for all successful
++- Add HealthSave `Idempotency-Key` idempotency. Status: complete for all successful
+   batches with `Idempotency-Key`, independent of v2 sync receipt headers.
+@@
+-- Add duplicate replay tests. Status: receipt-key replay/conflict tests complete.
++- Add duplicate replay tests. Status: `Idempotency-Key` replay/conflict tests complete.
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/PORTING.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:30:59Z)**_
+
+PORTING wording is cleaned up. I’m doing the same in the strategy and matrix.
+
+_**Agent (gpt-5.5 2026-06-02 18:31:01Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/TEST_STRATEGY.md`**
+
+```diff
+@@
+ - raw batch archive path handling,
+ - idempotency index persistence and replay lookups,
+-- sync receipt idempotency replay metadata,
+ - sync receipt header parsing and receipt store persistence,
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/TEST_STRATEGY.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:31:06Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/TEST_MATRIX.md`**
+
+```diff
+@@
+-| State | Broader deterministic record idempotency | Planned | Not implemented | Receipt-key idempotency exists; deterministic record-key filtering beyond status counters remains future work |
++| State | Broader deterministic record idempotency | Planned | Not implemented | `Idempotency-Key` replay exists; deterministic record-key filtering beyond status counters remains future work |
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/TEST_MATRIX.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:31:11Z)**_
+
+Docs are consistent now. I’ll run the full required verification set, including build, and then inspect the final working tree.
+
+_**Agent (gpt-5.5 2026-06-02 18:31:12Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm test && npm run typecheck && npm run build`</summary>
+```
+Chunk ID: 4e9e73
+Wall time: 5.2217 seconds
+Process exited with code 0
+Original token count: 231
+Output:
+
+> health-data-to-mqtt@0.4.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/bietiekay/code/health-data-to-mqtt
+
+ ✓ test/unit/raw-batch-storage.test.ts (3 tests) 13ms
+ ✓ test/unit/idempotency-store.test.ts (3 tests) 12ms
+ ✓ test/unit/state-store.test.ts (4 tests) 22ms
+ ✓ test/unit/ingest.test.ts (25 tests) 12ms
+ ✓ test/unit/sync-receipts.test.ts (5 tests) 69ms
+ ✓ test/unit/config.test.ts (7 tests) 58ms
+ ✓ test/unit/auth.test.ts (3 tests) 3ms
+ ✓ test/unit/readiness.test.ts (4 tests) 11ms
+ ✓ test/unit/mqtt-publisher.test.ts (6 tests) 14ms
+ ✓ test/integration/app.test.ts (37 tests) 242ms
+
+ Test Files  10 passed (10)
+      Tests  97 passed (97)
+   Start at  20:31:13
+   Duration  1.07s (transform 713ms, setup 0ms, collect 1.70s, tests 456ms, environment 2ms, prepare 952ms)
+
+
+> health-data-to-mqtt@0.4.0 typecheck
+> tsc --noEmit -p tsconfig.json
+
+
+> health-data-to-mqtt@0.4.0 build
+> tsc -p tsconfig.json
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:31:25Z)**_
+
+Verification is green: 97 tests, typecheck, and build all passed. I’m doing one final status/diff review so the handoff is precise and we don’t accidentally claim anything about the pre-existing reference-directory changes.
+
+_**Agent (gpt-5.5 2026-06-02 18:31:25Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Chunk ID: 64527a
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 439
+Output:
+ M .specstory/history/2026-04-18_00-49-33Z-bump-version-to-0.md
+ M .specstory/statistics.json
+ M CHANGELOG.md
+ M PORTING.md
+ M README.md
+ M TEST_MATRIX.md
+ M TEST_STRATEGY.md
+ M package.json
+ M reference-implementation/API.md
+ D reference-implementation/Dockerfile
+ D reference-implementation/LICENSE
+ M reference-implementation/README.md
+ D reference-implementation/docker-compose.yml
+ D reference-implementation/grafana/dashboards/activity.json
+ D reference-implementation/grafana/dashboards/healthsave-overview.json
+ D reference-implementation/grafana/dashboards/workouts.json
+ D reference-implementation/grafana/provisioning/dashboards/default.yaml
+ D reference-implementation/grafana/provisioning/datasources/healthsave.yaml
+ D reference-implementation/home-assistant/healthsave-package.yaml
+ D reference-implementation/home-assistant/secrets.example.yaml
+ D reference-implementation/migrations/001_audit_hardening.sql
+ D reference-implementation/pyproject.toml
+ D reference-implementation/requirements.txt
+ D reference-implementation/schema.sql
+ D reference-implementation/server.py
+ D reference-implementation/tests/test_api_contract.py
+ M src/app.ts
+ M src/auth.ts
+ M src/ingest.ts
+ M src/mqtt/publisher.ts
+ M src/routes/apple.ts
+ M src/routes/health.ts
+ M test/integration/app.test.ts
+ M test/unit/ingest.test.ts
+?? .cursor/
+?? .cursorindexingignore
+?? .specstory/history/2026-04-10_10-40-58Z-api-implementation-review.md
+?? .specstory/history/2026-06-02_15-41-47Z-in-reference-implementation-ist.md
+?? reference-implementation/BRIDGE.md
+?? src/readiness.ts
+?? src/routes/v2.ts
+?? src/state/idempotency-store.ts
+?? src/state/sync-receipts.ts
+?? test/unit/idempotency-store.test.ts
+?? test/unit/readiness.test.ts
+?? test/unit/sync-receipts.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:31:25Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git diff --name-only -- src test README.md PORTING.md TEST_STRATEGY.md TEST_MATRIX.md CHANGELOG.md package.json Dockerfile`</summary>
+```
+Chunk ID: 43d37a
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 59
+Output:
+CHANGELOG.md
+PORTING.md
+README.md
+TEST_MATRIX.md
+TEST_STRATEGY.md
+package.json
+src/app.ts
+src/auth.ts
+src/ingest.ts
+src/mqtt/publisher.ts
+src/routes/apple.ts
+src/routes/health.ts
+test/integration/app.test.ts
+test/unit/ingest.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:31:25Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git diff --stat -- src test README.md PORTING.md TEST_STRATEGY.md TEST_MATRIX.md CHANGELOG.md package.json Dockerfile`</summary>
+```
+Chunk ID: 4ae333
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 166
+Output:
+ CHANGELOG.md                 |  24 ++
+ PORTING.md                   |  61 +++-
+ README.md                    |  35 ++-
+ TEST_MATRIX.md               |  29 +-
+ TEST_STRATEGY.md             |  11 +-
+ package.json                 |   2 +-
+ src/app.ts                   |  27 +-
+ src/auth.ts                  |  14 +
+ src/ingest.ts                |  87 ++++--
+ src/mqtt/publisher.ts        |  18 ++
+ src/routes/apple.ts          | 158 +++++++++--
+ src/routes/health.ts         |  20 +-
+ test/integration/app.test.ts | 652 +++++++++++++++++++++++++++++++++++++++++++
+ test/unit/ingest.test.ts     | 100 +++++++
+ 14 files changed, 1180 insertions(+), 58 deletions(-)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:31:30Z)**_
+
+The final status still includes the pre-existing dirty reference and SpecStory files plus your `package.json` version bump. My implementation touched the app/docs/tests and added new source/test files outside `reference-implementation/`; I did not modify the reference directory.
+
+_**Agent (gpt-5.5 2026-06-02 18:31:32Z)**_
+
+<tool-use data-tool-type="task" data-tool-name="update_plan"><details>
+<summary>Tool use: **update_plan**</summary>
+**Agent task list:**
+- [X] Inspect current implementation and verify version/changelog state
+- [X] Add decoupled idempotency index and wire batch replay/conflict behavior
+- [X] Add readiness probes and /ready endpoint without changing Docker healthcheck
+- [X] Extend sync receipts for failed batches and summary accounting
+- [X] Add ECG/category ingest compatibility and tests
+- [X] Update docs/changelog/test inventory and run verification
+
+```
+Plan updated
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:31:38Z)**_
+
+Implemented the API alignment plan.
+
+Highlights:
+- Added a dedicated idempotency index at `<DATA_PATH>/idempotency/<context>/keys.ndjson`, decoupled from v2 sync receipts.
+- Added `/ready` with local state and MQTT readiness checks while keeping Docker healthcheck on `/health`.
+- Extended sync receipts with processed/failed outcomes and fixed run summary counts.
+- Added ECG compatibility handling and generic category-event timestamp fallback.
+- Updated docs and added the required `0.4.0` changelog section.
+
+Verification passed:
+- `npm test` - 97 tests passed
+- `npm run typecheck` - passed
+- `npm run build` - passed
+
+Note: the working tree still shows pre-existing dirty `reference-implementation/` and `.specstory/` changes, plus your `package.json` version bump. I did not edit anything inside `reference-implementation/`.
+
+---
+
+_**User (2026-06-02 18:38:14Z)**_
+
+commit all
+
+
+---
+
+_**Agent (gpt-5.5 2026-06-02 18:38:28Z)**_
+
+I’ll stage everything currently in the working tree and commit it with an English message. I’ll quickly verify the version/changelog rule first, then run the commit.
+
+_**Agent (gpt-5.5 2026-06-02 18:38:28Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Chunk ID: feab24
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 439
+Output:
+ M .specstory/history/2026-04-18_00-49-33Z-bump-version-to-0.md
+ M .specstory/statistics.json
+ M CHANGELOG.md
+ M PORTING.md
+ M README.md
+ M TEST_MATRIX.md
+ M TEST_STRATEGY.md
+ M package.json
+ M reference-implementation/API.md
+ D reference-implementation/Dockerfile
+ D reference-implementation/LICENSE
+ M reference-implementation/README.md
+ D reference-implementation/docker-compose.yml
+ D reference-implementation/grafana/dashboards/activity.json
+ D reference-implementation/grafana/dashboards/healthsave-overview.json
+ D reference-implementation/grafana/dashboards/workouts.json
+ D reference-implementation/grafana/provisioning/dashboards/default.yaml
+ D reference-implementation/grafana/provisioning/datasources/healthsave.yaml
+ D reference-implementation/home-assistant/healthsave-package.yaml
+ D reference-implementation/home-assistant/secrets.example.yaml
+ D reference-implementation/migrations/001_audit_hardening.sql
+ D reference-implementation/pyproject.toml
+ D reference-implementation/requirements.txt
+ D reference-implementation/schema.sql
+ D reference-implementation/server.py
+ D reference-implementation/tests/test_api_contract.py
+ M src/app.ts
+ M src/auth.ts
+ M src/ingest.ts
+ M src/mqtt/publisher.ts
+ M src/routes/apple.ts
+ M src/routes/health.ts
+ M test/integration/app.test.ts
+ M test/unit/ingest.test.ts
+?? .cursor/
+?? .cursorindexingignore
+?? .specstory/history/2026-04-10_10-40-58Z-api-implementation-review.md
+?? .specstory/history/2026-06-02_15-41-47Z-in-reference-implementation-ist.md
+?? reference-implementation/BRIDGE.md
+?? src/readiness.ts
+?? src/routes/v2.ts
+?? src/state/idempotency-store.ts
+?? src/state/sync-receipts.ts
+?? test/unit/idempotency-store.test.ts
+?? test/unit/readiness.test.ts
+?? test/unit/sync-receipts.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:38:29Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `node -p "require('./package.json').version"`</summary>
+```
+Chunk ID: b79ccd
+Wall time: 0.0583 seconds
+Process exited with code 0
+Original token count: 2
+Output:
+0.4.0
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:38:29Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,30p' CHANGELOG.md`</summary>
+```
+Chunk ID: c71da2
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 318
+Output:
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+Version headers must match the `version` field in `package.json`.
+
+## 0.4.0
+
+### Added
+
+- Added a dedicated file and memory idempotency index for all successful batches with `Idempotency-Key`, including batches without sync-run receipt headers.
+- Added `GET /ready` readiness checks for local state writability and MQTT connection state.
+- Added failed-batch sync receipt rows so v2 run summaries report processed and failed batch counts separately.
+- Added ECG compatibility handling and category-event timestamp fallbacks for generic quantity ingestion.
+- Added tests for idempotency persistence, readiness probes, failed receipt summaries, ECG compatibility, and category-event fallback timestamps.
+
+### Changed
+
+- Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
+- Documented `/api/insights/*` as out of scope and kept status timestamps as ISO UTC strings for API compatibility.
+
+## 0.3.0
+
+### Changed
+
+- Bumped the app version to 0.3.0.
+- Changed ingest normalization to expose accepted, rejected, and in-batch deduped record counts for sync receipt accounting.
+
+### Added
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:38:32Z)**_
+
+The changelog top version matches `package.json` at `0.4.0`, so the repo rule is satisfied. I’m staging all current changes now, including the externally managed `.specstory/` files as requested by “commit all.”
+
+_**Agent (gpt-5.5 2026-06-02 18:38:36Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git add -A && git status --short`</summary>
+```
+Chunk ID: 80e2c9
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 452
+Output:
+A  .cursor/plans/api_alignment_improvements_0e2ae48f.plan.md
+A  .cursorindexingignore
+A  .specstory/history/2026-04-10_10-40-58Z-api-implementation-review.md
+M  .specstory/history/2026-04-18_00-49-33Z-bump-version-to-0.md
+A  .specstory/history/2026-06-02_15-41-47Z-in-reference-implementation-ist.md
+M  .specstory/statistics.json
+M  CHANGELOG.md
+M  PORTING.md
+M  README.md
+M  TEST_MATRIX.md
+M  TEST_STRATEGY.md
+M  package.json
+M  reference-implementation/API.md
+A  reference-implementation/BRIDGE.md
+D  reference-implementation/Dockerfile
+D  reference-implementation/LICENSE
+M  reference-implementation/README.md
+D  reference-implementation/docker-compose.yml
+D  reference-implementation/grafana/dashboards/activity.json
+D  reference-implementation/grafana/dashboards/healthsave-overview.json
+D  reference-implementation/grafana/dashboards/workouts.json
+D  reference-implementation/grafana/provisioning/dashboards/default.yaml
+D  reference-implementation/grafana/provisioning/datasources/healthsave.yaml
+D  reference-implementation/home-assistant/healthsave-package.yaml
+D  reference-implementation/home-assistant/secrets.example.yaml
+D  reference-implementation/migrations/001_audit_hardening.sql
+D  reference-implementation/pyproject.toml
+D  reference-implementation/requirements.txt
+D  reference-implementation/schema.sql
+D  reference-implementation/server.py
+D  reference-implementation/tests/test_api_contract.py
+M  src/app.ts
+M  src/auth.ts
+M  src/ingest.ts
+M  src/mqtt/publisher.ts
+A  src/readiness.ts
+M  src/routes/apple.ts
+M  src/routes/health.ts
+A  src/routes/v2.ts
+A  src/state/idempotency-store.ts
+A  src/state/sync-receipts.ts
+M  test/integration/app.test.ts
+A  test/unit/idempotency-store.test.ts
+M  test/unit/ingest.test.ts
+A  test/unit/readiness.test.ts
+A  test/unit/sync-receipts.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:38:39Z)**_
+
+Everything is staged. I’m creating the commit now with a concise message that covers the API alignment work and version bump.
+
+_**Agent (gpt-5.5 2026-06-02 18:38:40Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git commit -m "Implement API alignment improvements"`</summary>
+```
+Chunk ID: f4267e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 488
+Output:
+[main 256a0d0] Implement API alignment improvements
+ 46 files changed, 19054 insertions(+), 3595 deletions(-)
+ create mode 100644 .cursor/plans/api_alignment_improvements_0e2ae48f.plan.md
+ create mode 100644 .cursorindexingignore
+ create mode 100644 .specstory/history/2026-04-10_10-40-58Z-api-implementation-review.md
+ create mode 100644 .specstory/history/2026-06-02_15-41-47Z-in-reference-implementation-ist.md
+ create mode 100644 reference-implementation/BRIDGE.md
+ delete mode 100644 reference-implementation/Dockerfile
+ delete mode 100644 reference-implementation/LICENSE
+ delete mode 100644 reference-implementation/docker-compose.yml
+ delete mode 100644 reference-implementation/grafana/dashboards/activity.json
+ delete mode 100644 reference-implementation/grafana/dashboards/healthsave-overview.json
+ delete mode 100644 reference-implementation/grafana/dashboards/workouts.json
+ delete mode 100644 reference-implementation/grafana/provisioning/dashboards/default.yaml
+ delete mode 100644 reference-implementation/grafana/provisioning/datasources/healthsave.yaml
+ delete mode 100644 reference-implementation/home-assistant/healthsave-package.yaml
+ delete mode 100644 reference-implementation/home-assistant/secrets.example.yaml
+ delete mode 100644 reference-implementation/migrations/001_audit_hardening.sql
+ delete mode 100644 reference-implementation/pyproject.toml
+ delete mode 100644 reference-implementation/requirements.txt
+ delete mode 100644 reference-implementation/schema.sql
+ delete mode 100644 reference-implementation/server.py
+ delete mode 100644 reference-implementation/tests/test_api_contract.py
+ create mode 100644 src/readiness.ts
+ create mode 100644 src/routes/v2.ts
+ create mode 100644 src/state/idempotency-store.ts
+ create mode 100644 src/state/sync-receipts.ts
+ create mode 100644 test/unit/idempotency-store.test.ts
+ create mode 100644 test/unit/readiness.test.ts
+ create mode 100644 test/unit/sync-receipts.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:38:44Z)**_
+
+The commit succeeded on `main` as `256a0d0`. I’m checking the post-commit status once to confirm the working tree is clean.
+
+_**Agent (gpt-5.5 2026-06-02 18:38:45Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Chunk ID: 3d270e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 0
+Output:
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:38:49Z)**_
+
+Committed all staged/current changes.
+
+Commit: `256a0d0` `Implement API alignment improvements`
+
+Working tree is clean.
+
+::git-stage{cwd="/Users/bietiekay/code/health-data-to-mqtt"}
+::git-commit{cwd="/Users/bietiekay/code/health-data-to-mqtt"}
+
+---
+
+_**User (2026-06-02 18:39:26Z)**_
+
+are there any configuration file changes required?
+
+
+---
+
+_**Agent (gpt-5.5 2026-06-02 18:39:39Z)**_
+
+I’ll quickly check the shipped env/config templates so I can answer this against the repo as it stands, not just from memory.
+
+_**Agent (gpt-5.5 2026-06-02 18:39:39Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,220p' .env.example`</summary>
+```
+Chunk ID: 7bc7e8
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 447
+Output:
+# HTTP bind address used by the API container or local server.
+HOST=0.0.0.0
+
+# HTTP port. Keep 8000 for HealthSave/reference compatibility.
+PORT=8000
+
+# Maximum accepted HTTP request body size in bytes.
+# HealthSave can send large sync batches, so the default is 500 MiB.
+HTTP_BODY_LIMIT_BYTES=524288000
+
+# Optional client API key. Leave empty to accept requests without x-api-key.
+API_KEY=
+
+# Structured logging is enabled by default to make sync/debug issues visible.
+LOG_ENABLED=true
+LOG_LEVEL=info
+
+# Enable raw MQTT publishing for accepted HealthSave samples.
+MQTT_ENABLED=true
+
+# Broker URL used by Docker Compose. Use mqtt://localhost:1883 for local host runs.
+MQTT_URL=mqtt://mqtt-broker:1883
+
+# MQTT client identity and optional broker credentials.
+MQTT_CLIENT_ID=healthsave-proxy
+MQTT_USERNAME=
+MQTT_PASSWORD=
+
+# MQTT publish behavior.
+MQTT_QOS=1
+MQTT_RETAIN=false
+
+# Topic templates. The {metric} placeholder is replaced with the incoming metric name.
+MQTT_TOPIC_RAW=healthsave/raw/{metric}
+MQTT_TOPIC_NORMALIZED=healthsave/normalized/{metric}
+MQTT_TOPIC_CURRENT=healthsave/current/{metric}
+
+# Optional JSON array for prefixed multi-client contexts.
+# Each context has a name, URL prefix, and topic templates.
+# CONTEXTS=[{"name":"daniel","prefix":"/daniel","topics":{"raw":"healthsave/daniel/raw/{metric}","normalized":"healthsave/daniel/normalized/{metric}","current":"healthsave/daniel/current/{metric}"}}]
+
+# Persistent application data path. Docker Compose mounts this path as a volume.
+DATA_PATH=/data
+
+# Local status counter state backend. Use file for durable counters or memory for tests/dev.
+STATE_BACKEND=file
+
+# Optional raw batch archive path. Leave empty to disable.
+# Docker users can set RAW_STORAGE_PATH=/data/raw to store non-empty batches.
+RAW_STORAGE_PATH=
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:39:39Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,220p' .env.default`</summary>
+```
+Chunk ID: a3002e
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 447
+Output:
+# HTTP bind address used by the API container or local server.
+HOST=0.0.0.0
+
+# HTTP port. Keep 8000 for HealthSave/reference compatibility.
+PORT=8000
+
+# Maximum accepted HTTP request body size in bytes.
+# HealthSave can send large sync batches, so the default is 500 MiB.
+HTTP_BODY_LIMIT_BYTES=524288000
+
+# Optional client API key. Leave empty to accept requests without x-api-key.
+API_KEY=
+
+# Structured logging is enabled by default to make sync/debug issues visible.
+LOG_ENABLED=true
+LOG_LEVEL=info
+
+# Enable raw MQTT publishing for accepted HealthSave samples.
+MQTT_ENABLED=true
+
+# Broker URL used by Docker Compose. Use mqtt://localhost:1883 for local host runs.
+MQTT_URL=mqtt://mqtt-broker:1883
+
+# MQTT client identity and optional broker credentials.
+MQTT_CLIENT_ID=healthsave-proxy
+MQTT_USERNAME=
+MQTT_PASSWORD=
+
+# MQTT publish behavior.
+MQTT_QOS=1
+MQTT_RETAIN=false
+
+# Topic templates. The {metric} placeholder is replaced with the incoming metric name.
+MQTT_TOPIC_RAW=healthsave/raw/{metric}
+MQTT_TOPIC_NORMALIZED=healthsave/normalized/{metric}
+MQTT_TOPIC_CURRENT=healthsave/current/{metric}
+
+# Optional JSON array for prefixed multi-client contexts.
+# Each context has a name, URL prefix, and topic templates.
+# CONTEXTS=[{"name":"daniel","prefix":"/daniel","topics":{"raw":"healthsave/daniel/raw/{metric}","normalized":"healthsave/daniel/normalized/{metric}","current":"healthsave/daniel/current/{metric}"}}]
+
+# Persistent application data path. Docker Compose mounts this path as a volume.
+DATA_PATH=/data
+
+# Local status counter state backend. Use file for durable counters or memory for tests/dev.
+STATE_BACKEND=file
+
+# Optional raw batch archive path. Leave empty to disable.
+# Docker users can set RAW_STORAGE_PATH=/data/raw to store non-empty batches.
+RAW_STORAGE_PATH=
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:39:39Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,220p' config/app.config.example.yaml`</summary>
+```
+Chunk ID: f79e80
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 605
+Output:
+# Local npm configuration template.
+#
+# Copy this file and adjust it for your local machine:
+#
+#   cp config/app.config.example.yaml config/app.config.local.yaml
+#   npm run build
+#   npm start -- --config config/app.config.local.yaml
+#
+# This file is intended for plain local npm starts only.
+# Docker and Docker Compose deployments should use environment variables
+# from .env.default/.env.example instead of mounting this file.
+
+http:
+  # Bind address for the local HTTP server.
+  host: "0.0.0.0"
+
+  # HealthSave/reference-compatible HTTP port.
+  port: 8000
+
+  # Maximum accepted HTTP request body size in bytes.
+  # HealthSave can send large sync batches, so the default is 500 MiB.
+  bodyLimitBytes: 524288000
+
+auth:
+  # Optional client API key.
+  # Leave empty to accept requests without the x-api-key header.
+  apiKey: ""
+
+logging:
+  # Keep logs enabled while porting and debugging sync behavior.
+  enabled: true
+
+  # Common values: trace, debug, info, warn, error.
+  level: "info"
+
+mqtt:
+  # Publish one raw MQTT event per accepted HealthSave sample.
+  enabled: true
+
+  # Use mqtt://localhost:1883 for a broker running on the host.
+  url: "mqtt://localhost:1883"
+
+  # MQTT client identity and optional broker credentials.
+  clientId: "healthsave-proxy"
+  username: ""
+  password: ""
+
+  # MQTT publish behavior.
+  qos: 1
+  retain: false
+
+  topics:
+    # The {metric} placeholder is replaced with the incoming metric name.
+    # The {context} placeholder is replaced with the context name.
+    raw: "healthsave/raw/{metric}"
+    normalized: "healthsave/normalized/{metric}"
+    current: "healthsave/current/{metric}"
+
+# Optional multi-client contexts. The root context is always available as
+# name "default" with prefix "/". Configure HealthSave clients with the
+# prefixed base URL, for example http://host:8000/daniel.
+contexts:
+  - name: "daniel"
+    prefix: "/daniel"
+    topics:
+      raw: "healthsave/daniel/raw/{metric}"
+      normalized: "healthsave/daniel/normalized/{metric}"
+      current: "healthsave/daniel/current/{metric}"
+
+state:
+  # Use "file" for durable status counters or "memory" for disposable local runs.
+  backend: "file"
+
+storage:
+  # Persistent application data directory. The file state backend writes state.json here.
+  dataPath: ".data"
+
+  # Optional raw batch archive path.
+  # Leave empty to disable. Files are written as:
+  #   <rawDataPath>/<context>/yyyy-mm
+  rawDataPath: ""
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:39:39Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,220p' docker-compose.yml`</summary>
+```
+Chunk ID: 908c30
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 255
+Output:
+services:
+  proxy-api:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+      DATA_PATH: /data
+      STATE_BACKEND: file
+      MQTT_URL: mqtt://mqtt-broker:1883
+    ports:
+      - "8000:8000"
+    volumes:
+      - proxy_state:/data
+    depends_on:
+      mqtt-broker:
+        condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8000/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  mqtt-broker:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqtt_data:/mosquitto/data
+      - mqtt_log:/mosquitto/log
+
+volumes:
+  proxy_state:
+  mqtt_data:
+  mqtt_log:
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:39:47Z)**_
+
+No required configuration changes.
+
+The new behavior uses existing settings:
+
+- `DATA_PATH` now also stores:
+  - `/data/idempotency/...`
+  - `/data/receipts/...`
+  - `/data/status/...`
+- `STATE_BACKEND=file` already enables durable state.
+- `MQTT_ENABLED` / `MQTT_URL` already control MQTT and `/ready` MQTT checks.
+
+Optional changes only:
+
+- Use `GET /ready` for orchestrator/load-balancer readiness if you want dependency-gated checks.
+- Keep Docker healthcheck on `/health` unless you specifically want broker/state failures to mark the container unhealthy.
+- If you want raw batch archives, set `RAW_STORAGE_PATH=/data/raw` as before.
+
+---
+
+_**User (2026-06-02 18:43:39Z)**_
+
+i see "msg":"Route GET:/daniel/api/v2/sync/runs/latest not found"} in the log
+
+
+---
+
+_**Agent (gpt-5.5 2026-06-02 18:43:51Z)**_
+
+I’ll verify the route registration path and config shape quickly. This smells like `/daniel` is not configured as a context at runtime, but I’ll check the code paths before giving you the fix.
+
+_**Agent (gpt-5.5 2026-06-02 18:43:51Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,140p' src/routes/v2.ts`</summary>
+```
+Chunk ID: db452c
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 664
+Output:
+import type { FastifyInstance } from "fastify";
+import { requireApiKey } from "../auth.js";
+import type { AppConfig, AppContextConfig } from "../config.js";
+import type { SyncReceiptStore } from "../state/sync-receipts.js";
+
+interface V2RouteOptions {
+  config: AppConfig;
+  context: AppContextConfig;
+  syncReceiptStore: SyncReceiptStore;
+}
+
+export async function registerV2Routes(
+  app: FastifyInstance,
+  options: V2RouteOptions,
+): Promise<void> {
+  app.get("/api/v2/setup/diagnostics", async () => {
+    return {
+      service: "health-data-to-mqtt",
+      kind: "HealthSave MQTT API",
+      status: "ok",
+      auth_required: Boolean(options.config.apiKey),
+      health_endpoint: contextPath(options.context, "/api/health"),
+      status_endpoint: contextPath(options.context, "/api/apple/status"),
+      ingest_endpoint: contextPath(options.context, "/api/apple/batch"),
+      latest_sync_endpoint: contextPath(
+        options.context,
+        "/api/v2/sync/runs/latest",
+      ),
+      coverage_endpoint: contextPath(options.context, "/api/v2/sync/coverage"),
+      grafana_required: false,
+      wrong_port_hint:
+        "If you see Grafana auth JSON, Homepage HTML, or an MQTT broker response, the app is pointed at the wrong port. Use the Health Data to MQTT API base URL.",
+    };
+  });
+
+  app.get("/api/v2/sync/runs/latest", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    const latestRun = await options.syncReceiptStore.getLatestRun(
+      options.context.name,
+    );
+    if (!latestRun) {
+      return reply.code(404).send({
+        status: "not_found",
+        error: "No sync runs have been recorded",
+      });
+    }
+
+    return latestRun;
+  });
+
+  app.get<{
+    Params: { sync_run_id: string };
+  }>("/api/v2/sync/runs/:sync_run_id", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    const syncRun = await options.syncReceiptStore.getRun(
+      options.context.name,
+      request.params.sync_run_id,
+    );
+    if (!syncRun) {
+      return reply.code(404).send({
+        status: "not_found",
+        error: "Sync run not found",
+        sync_run_id: request.params.sync_run_id,
+      });
+    }
+
+    return syncRun;
+  });
+
+  app.get("/api/v2/sync/coverage", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    return options.syncReceiptStore.getCoverage(options.context.name);
+  });
+}
+
+function contextPath(context: AppContextConfig, path: string): string {
+  return context.prefix === "/" ? path : `${context.prefix}${path}`;
+}
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:43:52Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,120p' src/app.ts`</summary>
+```
+Chunk ID: 07041c
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 631
+Output:
+import Fastify, { type FastifyInstance } from "fastify";
+import type { AppConfig } from "./config.js";
+import { loadConfig } from "./config.js";
+import {
+  createMqttPublisher,
+  type HealthMqttPublisher,
+} from "./mqtt/publisher.js";
+import { registerAppleRoutes } from "./routes/apple.js";
+import { registerHealthRoutes } from "./routes/health.js";
+import { registerV2Routes } from "./routes/v2.js";
+import {
+  createIdempotencyStore,
+  type IdempotencyStore,
+} from "./state/idempotency-store.js";
+import {
+  createSyncReceiptStore,
+  type SyncReceiptStore,
+} from "./state/sync-receipts.js";
+import { createStateStore, type StateStore } from "./state/store.js";
+import {
+  createRawBatchStorage,
+  type RawBatchStorage,
+} from "./storage/raw-batch-storage.js";
+
+interface BuildAppOptions {
+  config?: AppConfig;
+  stateStore?: StateStore;
+  mqttPublisher?: HealthMqttPublisher;
+  rawBatchStorage?: RawBatchStorage;
+  syncReceiptStore?: SyncReceiptStore;
+  idempotencyStore?: IdempotencyStore;
+}
+
+export async function buildApp(
+  options: BuildAppOptions = {},
+): Promise<FastifyInstance> {
+  const config = options.config ?? loadConfig();
+  const stateStore = options.stateStore ?? createStateStore(config);
+  const mqttPublisher =
+    options.mqttPublisher ?? (await createMqttPublisher(config));
+  const rawBatchStorage =
+    options.rawBatchStorage ?? createRawBatchStorage(config);
+  const syncReceiptStore =
+    options.syncReceiptStore ?? createSyncReceiptStore(config);
+  const idempotencyStore =
+    options.idempotencyStore ?? createIdempotencyStore(config);
+
+  const app = Fastify({
+    bodyLimit: config.httpBodyLimitBytes,
+    logger: config.logEnabled
+      ? {
+          level: config.logLevel,
+          redact: ["req.headers.x-api-key"],
+        }
+      : false,
+  });
+
+  app.addHook("onClose", async () => {
+    await mqttPublisher.close();
+  });
+
+  for (const context of config.contexts) {
+    await app.register(
+      async (contextApp) => {
+        await registerHealthRoutes(contextApp, {
+          config,
+          mqttPublisher,
+        });
+        await registerAppleRoutes(contextApp, {
+          config,
+          context,
+          stateStore,
+          mqttPublisher,
+          rawBatchStorage,
+          syncReceiptStore,
+          idempotencyStore,
+        });
+        await registerV2Routes(contextApp, {
+          config,
+          context,
+          syncReceiptStore,
+        });
+      },
+      { prefix: context.prefix === "/" ? "" : context.prefix },
+    );
+  }
+
+  return app;
+}
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:43:52Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "CONTEXTS|contexts|daniel|prefix" README.md PORTING.md config/app.config.example.yaml .env.example docker-compose.yml src/config.ts test/integration/app.test.ts`</summary>
+```
+Chunk ID: de604b
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 2235
+Output:
+README.md:144:Additional clients can use configured prefixes as their HealthSave server URL:
+README.md:147:http://your-server:8000/daniel
+README.md:151:HealthSave still appends the same API paths, so a client configured with `/daniel` sends batches to:
+README.md:154:/daniel/api/apple/batch
+README.md:164:| `{context}` | Context name such as `default`, `daniel`, or `alice` |
+README.md:317:/data/raw/daniel/2026-04
+README.md:377:| `CONTEXTS` | empty | Optional JSON array of prefixed client contexts |
+README.md:410:The local config file uses grouped YAML sections for `http`, `auth`, `logging`, `mqtt`, `contexts`, and `state`. `config/app.config.local.yaml` is ignored by Git so local secrets and machine-specific settings are not committed. It is not used by the Docker image or `docker-compose.yml`; container deployments should use `.env` variables.
+README.md:429:contexts:
+README.md:430:  - name: "daniel"
+README.md:431:    prefix: "/daniel"
+README.md:433:      raw: "healthsave/daniel/raw/{metric}"
+README.md:434:      normalized: "healthsave/daniel/normalized/{metric}"
+README.md:435:      current: "healthsave/daniel/current/{metric}"
+src/config.ts:13:  prefix: string;
+src/config.ts:62:  prefix: z.string().optional().default("/"),
+src/config.ts:125:  contexts: AppContextConfig[];
+src/config.ts:166:    contexts: z.array(contextConfigSchema).optional(),
+src/config.ts:255:    contexts: buildContexts(
+src/config.ts:257:      parseContextsEnv(env.CONTEXTS) ?? fileConfig.contexts,
+src/config.ts:267:    return input.name === "default" || normalizeContextPrefix(input.prefix) === "/";
+src/config.ts:269:  const contexts: AppContextConfig[] = [
+src/config.ts:275:    const prefix = normalizeContextPrefix(input.prefix);
+src/config.ts:277:    if (name === "default" || prefix === "/") {
+src/config.ts:281:    contexts.push(
+src/config.ts:282:      createContextConfig(name, prefix, config.mqtt.topics, input.topics),
+src/config.ts:286:  assertUniqueContexts(contexts);
+src/config.ts:287:  return contexts;
+src/config.ts:292:  prefix: string,
+src/config.ts:298:    prefix,
+src/config.ts:309:  contextsValue: string | undefined,
+src/config.ts:311:  if (!contextsValue || contextsValue.trim().length === 0) {
+src/config.ts:316:    return z.array(contextConfigSchema).parse(JSON.parse(contextsValue));
+src/config.ts:318:    throw new Error("Invalid CONTEXTS JSON configuration", { cause: error });
+src/config.ts:322:function normalizeContextPrefix(prefix: string | undefined): string {
+src/config.ts:323:  const trimmed = (prefix ?? "/").trim();
+src/config.ts:332:function assertUniqueContexts(contexts: AppContextConfig[]): void {
+src/config.ts:334:  const prefixes = new Set<string>();
+src/config.ts:336:  for (const context of contexts) {
+src/config.ts:341:    if (prefixes.has(context.prefix)) {
+src/config.ts:342:      throw new Error(`Duplicate context prefix: ${context.prefix}`);
+src/config.ts:346:    prefixes.add(context.prefix);
+config/app.config.example.yaml:59:# Optional multi-client contexts. The root context is always available as
+config/app.config.example.yaml:60:# name "default" with prefix "/". Configure HealthSave clients with the
+config/app.config.example.yaml:61:# prefixed base URL, for example http://host:8000/daniel.
+config/app.config.example.yaml:62:contexts:
+config/app.config.example.yaml:63:  - name: "daniel"
+config/app.config.example.yaml:64:    prefix: "/daniel"
+config/app.config.example.yaml:66:      raw: "healthsave/daniel/raw/{metric}"
+config/app.config.example.yaml:67:      normalized: "healthsave/daniel/normalized/{metric}"
+config/app.config.example.yaml:68:      current: "healthsave/daniel/current/{metric}"
+PORTING.md:443:The root URL is always registered as the `default` context. Additional contexts can register URL prefixes such as:
+PORTING.md:446:/daniel
+PORTING.md:450:Clients configured with `http://host:8000/daniel` still send the reference API paths under that prefix:
+PORTING.md:453:/daniel/api/apple/batch
+PORTING.md:454:/daniel/api/apple/status
+PORTING.md:462:contexts:
+PORTING.md:463:  - name: "daniel"
+PORTING.md:464:    prefix: "/daniel"
+PORTING.md:466:      raw: "healthsave/daniel/raw/{metric}"
+PORTING.md:467:      normalized: "healthsave/daniel/normalized/{metric}"
+PORTING.md:468:      current: "healthsave/daniel/current/{metric}"
+PORTING.md:498:| `CONTEXTS` | empty JSON array |
+.env.example:38:# Optional JSON array for prefixed multi-client contexts.
+.env.example:39:# Each context has a name, URL prefix, and topic templates.
+.env.example:40:# CONTEXTS=[{"name":"daniel","prefix":"/daniel","topics":{"raw":"healthsave/daniel/raw/{metric}","normalized":"healthsave/daniel/normalized/{metric}","current":"healthsave/daniel/current/{metric}"}}]
+test/integration/app.test.ts:775:      context: { name: "default", prefix: "/" },
+test/integration/app.test.ts:1192:  it("supports prefixed context endpoints with isolated stat
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:44:06Z)**_
+
+That log means the `/daniel` context is not registered in the running server, or you’re running an old image/container.
+
+A configured-but-empty sync route would return JSON like `{"status":"not_found", ...}`. Fastify’s `"Route ... not found"` means the route itself was never registered.
+
+For Docker, add `CONTEXTS` to your `.env`:
+
+```env
+CONTEXTS=[{"name":"daniel","prefix":"/daniel","topics":{"raw":"healthsave/daniel/raw/{metric}","normalized":"healthsave/daniel/normalized/{metric}","current":"healthsave/daniel/current/{metric}"}}]
+```
+
+Then rebuild/restart:
+
+```bash
+docker compose up -d --build
+```
+
+Quick checks:
+
+```bash
+curl http://localhost:8000/api/v2/setup/diagnostics
+curl http://localhost:8000/daniel/api/v2/setup/diagnostics
+```
+
+If the first works and the second does not, `CONTEXTS` is missing/not loaded. If neither works, the running container is likely still on the old build. Note: `config/app.config.local.yaml` is only used by `npm run start:local`; Docker uses `.env` / compose env vars.
+
+---
+
+_**User (2026-06-02 18:45:00Z)**_
+
+no no /daniel is the user - thats normal the error goes to "msg":"Route GET:/api/v2/sync/runs/latest not found"}
+
+
+---
+
+_**Agent (gpt-5.5 2026-06-02 18:45:17Z)**_
+
+`/api/v2/sync/runs/latest` should exist on the root/default context in the current code.
+
+Expected outcomes:
+
+- no sync runs yet: `404` with JSON `{"status":"not_found", ...}`
+- API key wrong/missing when configured: `401`
+- route missing log: running old build/image or wrong service/port
+
+Most likely fix:
+
+For Docker:
+
+```bash
+docker compose build --no-cache proxy-api
+docker compose up -d proxy-api
+```
+
+For local `npm start`:
+
+```bash
+npm run build
+npm start
+```
+
+For local dev:
+
+```bash
+npm run dev
+```
+
+Quick verification:
+
+```bash
+curl -i http://localhost:8000/api/v2/setup/diagnostics
+curl -i http://localhost:8000/api/v2/sync/runs/latest
+```
+
+If `setup/diagnostics` is also route-not-found, the process definitely is not running the committed v2 code. If diagnostics works but `runs/latest` does not, then something strange is happening and I’d inspect the exact container/process command next.
+
+---
+
+_**User (2026-06-02 18:45:57Z)**_
+
+it seems the sync/runs/latest behaviour might not be right?
+
+
+---
+
+_**Agent (gpt-5.5 2026-06-02 18:46:08Z)**_
+
+I’ll sanity-check the implemented `sync/runs/latest` behavior against the reference contract and current tests. My hunch is that the route exists, but it only shows runs when batches include `X-HealthSave-Sync-Run-ID`, so a normal v1-style sync will still produce “no runs recorded.”
+
+_**Agent (gpt-5.5 2026-06-02 18:46:08Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,120p' src/routes/v2.ts`</summary>
+```
+Chunk ID: 6e6735
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 664
+Output:
+import type { FastifyInstance } from "fastify";
+import { requireApiKey } from "../auth.js";
+import type { AppConfig, AppContextConfig } from "../config.js";
+import type { SyncReceiptStore } from "../state/sync-receipts.js";
+
+interface V2RouteOptions {
+  config: AppConfig;
+  context: AppContextConfig;
+  syncReceiptStore: SyncReceiptStore;
+}
+
+export async function registerV2Routes(
+  app: FastifyInstance,
+  options: V2RouteOptions,
+): Promise<void> {
+  app.get("/api/v2/setup/diagnostics", async () => {
+    return {
+      service: "health-data-to-mqtt",
+      kind: "HealthSave MQTT API",
+      status: "ok",
+      auth_required: Boolean(options.config.apiKey),
+      health_endpoint: contextPath(options.context, "/api/health"),
+      status_endpoint: contextPath(options.context, "/api/apple/status"),
+      ingest_endpoint: contextPath(options.context, "/api/apple/batch"),
+      latest_sync_endpoint: contextPath(
+        options.context,
+        "/api/v2/sync/runs/latest",
+      ),
+      coverage_endpoint: contextPath(options.context, "/api/v2/sync/coverage"),
+      grafana_required: false,
+      wrong_port_hint:
+        "If you see Grafana auth JSON, Homepage HTML, or an MQTT broker response, the app is pointed at the wrong port. Use the Health Data to MQTT API base URL.",
+    };
+  });
+
+  app.get("/api/v2/sync/runs/latest", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    const latestRun = await options.syncReceiptStore.getLatestRun(
+      options.context.name,
+    );
+    if (!latestRun) {
+      return reply.code(404).send({
+        status: "not_found",
+        error: "No sync runs have been recorded",
+      });
+    }
+
+    return latestRun;
+  });
+
+  app.get<{
+    Params: { sync_run_id: string };
+  }>("/api/v2/sync/runs/:sync_run_id", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    const syncRun = await options.syncReceiptStore.getRun(
+      options.context.name,
+      request.params.sync_run_id,
+    );
+    if (!syncRun) {
+      return reply.code(404).send({
+        status: "not_found",
+        error: "Sync run not found",
+        sync_run_id: request.params.sync_run_id,
+      });
+    }
+
+    return syncRun;
+  });
+
+  app.get("/api/v2/sync/coverage", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    return options.syncReceiptStore.getCoverage(options.context.name);
+  });
+}
+
+function contextPath(context: AppContextConfig, path: string): string {
+  return context.prefix === "/" ? path : `${context.prefix}${path}`;
+}
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:46:08Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '380,470p' src/state/sync-receipts.ts`</summary>
+```
+Chunk ID: 4efc8f
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 816
+Output:
+    metric: input.headers.metric ?? input.metric,
+    batch_index: parseInteger(input.headers.batchIndex) ?? input.batchIndex,
+    total_batches: parseInteger(input.headers.totalBatches) ?? input.totalBatches,
+    ...optionalField("sync_mode", input.headers.syncMode),
+    ...optionalField("anchor_present", input.headers.anchorPresent),
+    ...optionalField("lower_bound_reason", input.headers.lowerBoundReason),
+    ...optionalField("full_export", input.headers.fullExport),
+    ...optionalField("query_lower_bound", input.headers.queryLowerBound),
+    ...optionalField("sample_min_time", input.headers.sampleMinTime),
+    ...optionalField("sample_max_time", input.headers.sampleMaxTime),
+    ...optionalField(
+      "latest_destination_sample_time",
+      input.latestDestinationSampleTime,
+    ),
+    records_received: input.recordsReceived,
+    records_accepted: input.recordsAccepted,
+    records_skipped: recordsRejected,
+    records_rejected: recordsRejected,
+    records_deduped_in_batch: input.recordsDedupedInBatch,
+    response: input.response,
+  };
+}
+
+function createFailedReceiptRecord(
+  input: RecordFailedSyncReceiptInput,
+): SyncReceiptRecord | undefined {
+  const syncRunId = input.headers.syncRunId?.trim();
+  if (!syncRunId) {
+    return undefined;
+  }
+
+  const receivedAt = new Date().toISOString();
+  return {
+    received_at: receivedAt,
+    context: normalizeContextName(input.contextName),
+    sync_run_id: syncRunId,
+    receipt_id: syncRunId,
+    outcome: "failed",
+    ...optionalField("idempotency_key", input.headers.idempotencyKey),
+    ...optionalField("batch_id", input.headers.batchId),
+    ...optionalField("payload_hash", input.headers.payloadHash),
+    metric: input.headers.metric ?? input.metric,
+    batch_index: parseInteger(input.headers.batchIndex) ?? input.batchIndex,
+    total_batches: parseInteger(input.headers.totalBatches) ?? input.totalBatches,
+    ...optionalField("sync_mode", input.headers.syncMode),
+    ...optionalField("anchor_present", input.headers.anchorPresent),
+    ...optionalField("lower_bound_reason", input.headers.lowerBoundReason),
+    ...optionalField("full_export", input.headers.fullExport),
+    ...optionalField("query_lower_bound", input.headers.queryLowerBound),
+    ...optionalField("sample_min_time", input.headers.sampleMinTime),
+    ...optionalField("sample_max_time", input.headers.sampleMaxTime),
+    records_received: input.recordsReceived,
+    records_accepted: 0,
+    records_skipped: 0,
+    records_rejected: 0,
+    records_deduped_in_batch: 0,
+    failure_status_code: input.failureStatusCode,
+    failure_reason: input.failureReason,
+  };
+}
+
+function findIdempotencyReceipt(
+  records: SyncReceiptRecord[],
+  idempotencyKey: string,
+): IdempotencyReceipt | undefined {
+  const key = idempotencyKey.trim();
+  if (!key) {
+    return undefined;
+  }
+
+  const record = [...records]
+    .reverse()
+    .find(
+      (candidate) =>
+        candidate.idempotency_key === key &&
+        candidate.outcome !== "failed" &&
+        candidate.response,
+    );
+  if (!record?.response) {
+    return undefined;
+  }
+
+  return {
+    idempotency_key: key,
+    payload_hash: record.payload_hash,
+    response: record.response,
+  };
+}
+
+function latestRunSummary(
+  records: SyncReceiptRecord[],
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:46:08Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '513,566p' reference-implementation/API.md`</summary>
+```
+Chunk ID: 77d3d5
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 494
+Output:
+### `GET /api/v2/sync/runs/latest`
+
+Protected by `x-api-key` when `API_KEY` is set. Returns the latest observed
+HealthSave sync run with batch counts, accepted / rejected / in-batch-deduped
+record counts, and metric names.
+
+### `GET /api/v2/sync/runs/{sync_run_id}`
+
+Protected by `x-api-key` when `API_KEY` is set. Returns the delivery receipt
+summary for one HealthSave sync run. This endpoint proves Data Hub saw the
+batches HealthSave sent; it is not a full sample-by-sample manifest verifier.
+
+Example response:
+
+```json
+{
+  "status": "ok",
+  "sync_run_id": "run_01HY...",
+  "receipt_id": "run_01HY...",
+  "verification_level": "delivery_receipt",
+  "records_received": 512,
+  "records_accepted": 488,
+  "records_inserted_new": null,
+  "records_deduped_existing": null,
+  "storage_result_level": "accepted_only",
+  "records_skipped": 0,
+  "records_rejected": 0,
+  "records_deduped_in_batch": 24,
+  "sample_window": {
+    "min_sample_time": "2026-05-24T07:10:00Z",
+    "max_sample_time": "2026-05-24T07:13:00Z"
+  },
+  "latest_sample_time": "2026-05-24T07:13:00Z",
+  "batches_seen": 2,
+  "batches_processed": 2,
+  "batches_failed": 0,
+  "metrics": ["heart_rate", "step_count"],
+  "oldest_received_at": "2026-05-24T07:12:00Z",
+  "newest_receipt_at": "2026-05-24T07:13:22Z"
+}
+```
+
+**Honest accounting (1.5+).** `records_rejected` (and the persisted
+`records_skipped`) count ONLY true validation failures — samples missing a
+parseable time/value/date. They never include aggregation rollup (sleep stage
+samples folded into sessions are preserved in `sleep_stages`) nor
+`records_deduped_in_batch` (legitimate HealthKit full-export overlap collapsed
+on the conflict key). A healthy full-history sync therefore reports
+`records_rejected: 0`, not a large number derived from
+`records_received - records_accepted`. In the example above, 512 received
+samples yielded 488 unique rows with 24 in-batch duplicates collapsed and 0
+genuine rejections.
+
+### `GET /api/v2/sync/coverage`
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:46:08Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "runs/latest|No sync runs|does not expose v2|records v2" test/integration/app.test.ts`</summary>
+```
+Chunk ID: 2c3ba8
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 192
+Output:
+269:      latest_sync_endpoint: "/api/v2/sync/runs/latest",
+506:  it("records v2 sync receipts for batches with HealthSave run headers", async () => {
+539:      url: "/api/v2/sync/runs/latest",
+593:  it("does not expose v2 sync receipts for batches without a sync run id", async () => {
+610:      url: "/api/v2/sync/runs/latest",
+624:      error: "No sync runs have been recorded",
+1286:      url: "/api/v2/sync/runs/latest",
+1290:      url: "/daniel/api/v2/sync/runs/latest",
+1298:      latest_sync_endpoint: "/daniel/api/v2/sync/runs/latest",
+1522:      url: "/api/v2/sync/runs/latest",
+1532:      url: "/api/v2/sync/runs/latest",
+1575:      url: "/api/v2/sync/runs/latest",
+1704:      url: "/api/v2/sync/runs/latest",
+1765:      url: "/api/v2/sync/runs/latest",
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:46:13Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '430,492p' src/state/sync-receipts.ts && sed -n '506,568p' test/integration/app.test.ts`</summary>
+```
+Chunk ID: 641df1
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 906
+Output:
+    ...optionalField("sample_max_time", input.headers.sampleMaxTime),
+    records_received: input.recordsReceived,
+    records_accepted: 0,
+    records_skipped: 0,
+    records_rejected: 0,
+    records_deduped_in_batch: 0,
+    failure_status_code: input.failureStatusCode,
+    failure_reason: input.failureReason,
+  };
+}
+
+function findIdempotencyReceipt(
+  records: SyncReceiptRecord[],
+  idempotencyKey: string,
+): IdempotencyReceipt | undefined {
+  const key = idempotencyKey.trim();
+  if (!key) {
+    return undefined;
+  }
+
+  const record = [...records]
+    .reverse()
+    .find(
+      (candidate) =>
+        candidate.idempotency_key === key &&
+        candidate.outcome !== "failed" &&
+        candidate.response,
+    );
+  if (!record?.response) {
+    return undefined;
+  }
+
+  return {
+    idempotency_key: key,
+    payload_hash: record.payload_hash,
+    response: record.response,
+  };
+}
+
+function latestRunSummary(
+  records: SyncReceiptRecord[],
+): SyncRunSummary | undefined {
+  const latestRecord = records.reduce<SyncReceiptRecord | undefined>(
+    (latest, record) =>
+      !latest || record.received_at > latest.received_at ? record : latest,
+    undefined,
+  );
+  return latestRecord
+    ? runSummary(records, latestRecord.sync_run_id)
+    : undefined;
+}
+
+function runSummary(
+  records: SyncReceiptRecord[],
+  syncRunId: string,
+): SyncRunSummary | undefined {
+  const runRecords = records.filter((record) => record.sync_run_id === syncRunId);
+  if (runRecords.length === 0) {
+    return undefined;
+  }
+
+  const sampleMinTimes = runRecords.flatMap((record) =>
+    record.sample_min_time ? [record.sample_min_time] : [],
+  it("records v2 sync receipts for batches with HealthSave run headers", async () => {
+    const server = await createApp();
+    const batchResponse = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      headers: {
+        "idempotency-key": "key-1",
+        "x-healthsave-sync-run-id": "run-1",
+        "x-healthsave-batch-id": "batch-1",
+        "x-healthsave-payload-hash": "hash-1",
+        "x-healthsave-sample-min-time": "2026-04-10T12:00:00Z",
+        "x-healthsave-sample-max-time": "2026-04-10T12:00:00Z",
+      },
+      payload: {
+        metric: "heart_rate",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          { date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" },
+          { date: "2026-04-10T12:00:00Z", qty: 73, source: "Watch" },
+          { date: "not-a-date", qty: 74, source: "Watch" },
+        ],
+      },
+    });
+
+    expect(batchResponse.statusCode).toBe(200);
+    expect(batchResponse.json()).toMatchObject({
+      status: "processed",
+      records: 1,
+    });
+
+    const latest = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/latest",
+    });
+    const run = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/run-1",
+    });
+    const coverage = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/coverage",
+    });
+
+    expect(latest.statusCode).toBe(200);
+    expect(latest.json()).toMatchObject({
+      status: "ok",
+      sync_run_id: "run-1",
+      verification_level: "delivery_receipt",
+      storage_result_level: "accepted_only",
+      records_received: 3,
+      records_accepted: 1,
+      records_inserted_new: null,
+      records_deduped_existing: null,
+      records_rejected: 1,
+      records_skipped: 1,
+      records_deduped_in_batch: 1,
+      batches_seen: 1,
+      batches_processed: 1,
+      batches_failed: 0,
+      metrics: ["heart_rate"],
+      sample_window: {
+        min_sample_time: "2026-04-10T12:00:00.000Z",
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:46:29Z)**_
+
+I found the current behavior: the route returns `200` only after at least one batch with `X-HealthSave-Sync-Run-ID`; otherwise it returns our own `404 {"status":"not_found"}`. That is different from “route not found,” but it may still be the behavior you’re questioning. I’m checking whether the reference docs imply a better empty-state shape.
+
+_**Agent (gpt-5.5 2026-06-02 18:46:29Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "runs/latest|latest observed|No sync|sync runs|not_found|404|healthsave_sync_receipts" reference-implementation README.md PORTING.md .cursor/plans/api_alignment_improvements_0e2ae48f.plan.md`</summary>
+```
+Chunk ID: 36ef8b
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 47980
+Output:
+Total output lines: 18
+
+PORTING.md:76:| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
+PORTING.md:92:- `GET /api/v2/sync/runs/latest`
+README.md:130:| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
+reference-implementation/API.md:429:Data Hub also implements `GET /api/v2/sync/runs/latest` and
+reference-implementation/API.md:444:  is `404`, iOS retries once at `GET /health`. Implement either one (or both);
+reference-implementation/API.md:481:  "latest_sync_endpoint": "/api/v2/sync/runs/latest",
+reference-implementation/API.md:484:  "wrong_port_hint": "If you see Grafana auth JSON or Homepage HTML 404, the app is pointed at the wrong port. Use the Data Hub API base URL, not Grafana/Homepage."
+reference-implementation/API.md:507:Data Hub records them in `healthsave_sync_receipts` so operators can prove that a
+reference-implementation/API.md:513:### `GET /api/v2/sync/runs/latest`
+reference-implementation/API.md:515:Protected by `x-api-key` when `API_KEY` is set. Returns the latest observed
+reference-implementation/BRIDGE.md:332:    <path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"></path>
+reference-implementation/BRIDGE.md:557:    <path d="M7.998 15.035c-4.562 0-7.873-2.914-7.998-3.749V9.338c.085-.628.677-1.686 1.588-2.065.013-.07.024-.143.036-.218.029-.183.06-.384.126-.612-.201-.508-.254-1.084-.254-1.656 0-.87.128-1.769.693-2.484.579-.733 1.494-1.124 2.724-1.261 1.206-.134 2.262.034 2.944.765.05.053.096.108.139.165.044-.057.094-.112.143-.165.682-.731 1.738-.899 2.944-.765 1.23.137 2.145.528 2.724 1.261.566.715.693 1.614.693 2.484 0 .572-.053 1.148-.254 1.656.066.228.098.429.126.612.012.076.024.148.037.218.924.385 1.522 1.471 1.591 2.095v1.872c0 .766-3.351 3.795-8.002 3.795Zm0-1.485c2.28 0 4.584-1.11 5.002-1.433V7.862l-.023-.116c-.49.21-1.075.291-1.727.291-1.146 0-2.059-.327-2.71-.991A3.222 3.222 0 0 1 8 6.303a3.24 3.24 0 0 1-.544.743c-.65.664-1.563.991-2.71.991-.652 0-1.236-.081-1.727-.291l-.023.116v4.255c.419.323 2.722 1.433 5.002 1.433ZM6.762 2.83c-.193-.206-.637-.413-1.682-.297-1.019.113-1.479.404-1.713.7-.247.312-.369.789-.369 1.554 0 .793.129 1.171.308 1.371.162.181.519.379 1.442.379.853 0 1.339-.235 1.638-.54.315-.322.527-.827.617-1.553.117-.935-.037-1.395-.241-1.614Zm4.155-.297c-1.044-.116-1.488.091-1.681.297-.204.219-.359.679-.242 1.614.091.726.303 1.231.618 1.553.299.305.784.54 1.638.54.922 0 1.28-.198 1.442-.379.179-.2.308-.578.308-1.371 0-.765-.123-1.242-.37-1.554-.233-.296-.693-.587-1.713-.7Z"></path><path d="M6.25 9.037a.75.75 0 0 1 .75.75v1.501a.75.75 0 0 1-1.5 0V9.787a.75.75 0 0 1 .75-.75Zm4.25.75v1.501a.75.75 0 0 1-1.5 0V9.787a.75.75 0 0 1 1.5 0Z"></path>
+reference-implementation/BRIDGE.md:1432:    <path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224c-1.483 0-2.359-.808-2.987-2.313-.247-.607-.517-.966-1.034-1.033-.27-.023-.359-.135-.359-.27 0-.27.45-.471.898-.471.652 0 1.213.404 1.797 1.235.45.651.921.943 1.483.943.561 0 .92-.202 1.437-.719.382-.381.674-.718.944-.943"></path>
+reference-implementation/README.md:332:    <path d="M10.226 17.284c-2.965-.36-5.054-2.493-5.054-5.256 0-1.123.404-2.336 1.078-3.144-.292-.741-.247-2.314.09-2.965.898-.112 2.111.36 2.83 1.01.853-.269 1.752-.404 2.853-.404 1.1 0 1.999.135 2.807.382.696-.629 1.932-1.1 2.83-.988.315.606.36 2.179.067 2.942.72.854 1.101 2 1.101 3.167 0 2.763-2.089 4.852-5.098 5.234.763.494 1.28 1.572 1.28 2.807v2.336c0 .674.561 1.056 1.235.786 4.066-1.55 7.255-5.615 7.255-10.646C23.5 6.188 18.334 1 11.978 1 5.62 1 .5 6.188.5 12.545c0 4.986 3.167 9.12 7.435 10.669.606.225 1.19-.18 1.19-.786V20.63a2.9 2.9 0 0 1-1.078.224
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:46:29Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "runs/latest|sync/runs/latest|latest" . -g '!node_modules' -g '!dist'`</summary>
+```
+Chunk ID: 1b2f6c
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 63841
+Output:
+Total output lines: 88
+
+./README.md:130:| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
+./PORTING.md:76:| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
+./PORTING.md:92:- `GET /api/v2/sync/runs/latest`
+./PORTING.md:280:- Adds normalized `awake` from the latest stage in the session and publishes it as the `sleep_sessions` current MQTT value.
+./src/routes/v2.ts:25:      latest_sync_endpoint: contextPath(
+./src/routes/v2.ts:27:        "/api/v2/sync/runs/latest",
+./src/routes/v2.ts:36:  app.get("/api/v2/sync/runs/latest", async (request, reply) => {
+./src/routes/v2.ts:41:    const latestRun = await options.syncReceiptStore.getLatestRun(
+./src/routes/v2.ts:44:    if (!latestRun) {
+./src/routes/v2.ts:51:    return latestRun;
+./reference-implementation/API.md:429:Data Hub also implements `GET /api/v2/sync/runs/latest` and
+./reference-implementation/API.md:481:  "latest_sync_endpoint": "/api/v2/sync/runs/latest",
+./reference-implementation/API.md:513:### `GET /api/v2/sync/runs/latest`
+./reference-implementation/API.md:515:Protected by `x-api-key` when `API_KEY` is set. Returns the latest observed
+./reference-implementation/API.md:545:  "latest_sample_time": "2026-05-24T07:13:00Z",
+./reference-implementation/API.md:570:time; `latest_destination_sample_time` proves the newest sample currently stored
+./reference-implementation/BRIDGE.md:1298:  <div data-target="react-app.reactRoot"><meta name="github-code-view-meta-stats" id="github-code-view-meta-stats" data-hydrostats="publish"/> <!-- --> <a hidden="" id="code-view-repo-link" href="/umutkeltek/health-data-hub" data-discover="true"></a> <div class="d-none"></div><div><div style="--spacing:var(--spacing-none)" class="prc-PageLayout-PageLayoutRoot--KH-d"><div class="prc-PageLayout-PageLayoutWrapper-2BhU2" data-width="full"><div class="prc-PageLayout-PageLayoutContent-BneH9"><div class="CodeViewFileTreeLayout-module__sidebar__n_Aau" tabindex="0"><div class="prc-PageLayout-PaneWrapper-pHPop ReposFileTreePane-module__Pane__rBZpI ReposFileTreePane-module__HideTree__AYZnm ReposFileTreePane-module__HidePane__VHAVt" style="--offset-header:0px;--spacing-row:var(--spacing-none);--spacing-column:var(--spacing-none)" data-is-hidden="false" data-position="start" data-sticky="true"><div class="prc-PageLayout-HorizontalDivider-JLVqp prc-PageLayout-PaneHorizontalDivider-9tbnE" data-variant-regular="none" data-variant-narrow="none" data-position="start" style="--spacing-divider:var(--spacing-none);--spacing:var(--spacing-none)"></div><div class="prc-PageLayout-Pane-AyzHK" data-resizable="true" style="--spacing:var(--spacing-none);--pane-min-width:256px;--pane-max-width:calc(100vw - var(--pane-max-width-diff));--pane-width-size:var(--pane-width-large);--pane-width:320px"></div><div class="prc-PageLayout-VerticalDivider-9QRmK prc-PageLayout-PaneVerticalDivider-le57g" data-variant-narrow="none" data-variant-regular="line" data-variant-wide="line" data-position="start" style="--spacing:var(--spacing-none)"><div class="prc-PageLayout-DraggableHandle-9s6B4" role="slider" aria-label="Draggable pane splitter" aria-valuemin="256" aria-valuemax="600" aria-valuenow="320" aria-valuetext="Pane width 320 pixels" tabindex="0"></div></div></div></div><div class="prc-PageLayout-ContentWrapper-gR9eG"><div class="prc-PageLayout-Content-xWL-A" data-width="full" style="--spacing:var(--spacing-none)"><div class="SharedPageLayout-module__content__IwGAp" data-selector="repos-split-pane-content" tabindex="0"> <!-- --> <div class="container CodeViewHeader-module__Box__JkPOb"><div class="CodeViewHeader-module__StickyHeader__Qn7UN" id="StickyHeader"><div class="CodeViewHeader-module__Box_1__SbNDV"><div class="CodeViewHeader-module__Box_2__TB46f"><div class="react-code-view-header-wrap--narrow CodeViewHeader-module__Box_3__q1zUL"><div class="CodeViewHeader-module__treeToggleWrapper__RQ__9"><h2 class="use-tree-pane-module__Heading__s4QbZ prc-Heading-Heading-MtWFE" data-component="Heading"><button data-component="Button" type="button" aria-label="Expand file tree" data-testid="expand-file-tree-button-mobile" class="prc-Button-ButtonBase-9n-Xk ExpandFileTreeButton-module__Button_1__Svs95" data-loading="false" data-size="medium" data-variant="invisible"><span data-component="buttonContent" data-align="center" class="prc-Button-ButtonContent-Iohp5"><span data-component="leadingVisual" class="prc-Button-Visual-YNt2F prc-Button-VisualWrap-E4cnq"><svg data-component="Octicon" aria-hidden="true" focusable="false" class="octicon octicon-arrow-left" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align:text-bottom"><path d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06l4.25-4.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:26Z)**_
+
+I agree there is a plausible trap here: the route exists, but the current empty-state behavior returns `404` until a batch with `X-HealthSave-Sync-Run-ID` has been received. I’m going to inspect the exact tests/docs around that now, then I’ll tighten the behavior so “no latest run yet” doesn’t look like a missing endpoint.
+
+_**Agent (gpt-5.5 2026-06-02 18:47:26Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "sync/runs/latest|No sync runs|latest observed|not_found|batches_seen" src test* tests README.md PORTING.md TEST_MATRIX.md TEST_STRATEGY.md CHANGELOG.md`</summary>
+```
+Chunk ID: 836476
+Wall time: 0.0000 seconds
+Process exited with code 2
+Original token count: 604
+Output:
+rg: tests: No such file or directory (os error 2)
+CHANGELOG.md:32:- Added protected `GET /api/v2/sync/runs/latest`, `GET /api/v2/sync/runs/{sync_run_id}`, and `GET /api/v2/sync/coverage` delivery receipt endpoints.
+PORTING.md:76:| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
+PORTING.md:92:- `GET /api/v2/sync/runs/latest`
+README.md:130:| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
+test/integration/app.test.ts:269:      latest_sync_endpoint: "/api/v2/sync/runs/latest",
+test/integration/app.test.ts:539:      url: "/api/v2/sync/runs/latest",
+test/integration/app.test.ts:563:      batches_seen: 1,
+test/integration/app.test.ts:610:      url: "/api/v2/sync/runs/latest",
+test/integration/app.test.ts:623:      status: "not_found",
+test/integration/app.test.ts:624:      error: "No sync runs have been recorded",
+test/integration/app.test.ts:628:      status: "not_found",
+test/integration/app.test.ts:1286:      url: "/api/v2/sync/runs/latest",
+test/integration/app.test.ts:1290:      url: "/daniel/api/v2/sync/runs/latest",
+test/integration/app.test.ts:1298:      latest_sync_endpoint: "/daniel/api/v2/sync/runs/latest",
+test/integration/app.test.ts:1480:      batches_seen: 1,
+test/integration/app.test.ts:1490:      batches_seen: 1,
+test/integration/app.test.ts:1522:      url: "/api/v2/sync/runs/latest",
+test/integration/app.test.ts:1532:      url: "/api/v2/sync/runs/latest",
+test/integration/app.test.ts:1575:      url: "/api/v2/sync/runs/latest",
+test/integration/app.test.ts:1704:      url: "/api/v2/sync/runs/latest",
+test/integration/app.test.ts:1765:      url: "/api/v2/sync/runs/latest",
+src/routes/v2.ts:27:        "/api/v2/sync/runs/latest",
+src/routes/v2.ts:36:  app.get("/api/v2/sync/runs/latest", async (request, reply) => {
+src/routes/v2.ts:46:        status: "not_found",
+src/routes/v2.ts:47:        error: "No sync runs have been recorded",
+src/routes/v2.ts:67:        status: "not_found",
+test/unit/sync-receipts.test.ts:167:      batches_seen: 2,
+test/unit/sync-receipts.test.ts:235:      batches_seen: 2,
+src/state/sync-receipts.ts:87:  batches_seen: number;
+src/state/sync-receipts.ts:105:  batches_seen: number;
+src/state/sync-receipts.ts:521:    batches_seen: uniqueBatchCount(runRecords),
+src/state/sync-receipts.ts:550:      batches_seen: uniqueBatchCount(metricRecords),
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:26Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,240p' src/routes/v2.ts`</summary>
+```
+Chunk ID: e1f5ef
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 664
+Output:
+import type { FastifyInstance } from "fastify";
+import { requireApiKey } from "../auth.js";
+import type { AppConfig, AppContextConfig } from "../config.js";
+import type { SyncReceiptStore } from "../state/sync-receipts.js";
+
+interface V2RouteOptions {
+  config: AppConfig;
+  context: AppContextConfig;
+  syncReceiptStore: SyncReceiptStore;
+}
+
+export async function registerV2Routes(
+  app: FastifyInstance,
+  options: V2RouteOptions,
+): Promise<void> {
+  app.get("/api/v2/setup/diagnostics", async () => {
+    return {
+      service: "health-data-to-mqtt",
+      kind: "HealthSave MQTT API",
+      status: "ok",
+      auth_required: Boolean(options.config.apiKey),
+      health_endpoint: contextPath(options.context, "/api/health"),
+      status_endpoint: contextPath(options.context, "/api/apple/status"),
+      ingest_endpoint: contextPath(options.context, "/api/apple/batch"),
+      latest_sync_endpoint: contextPath(
+        options.context,
+        "/api/v2/sync/runs/latest",
+      ),
+      coverage_endpoint: contextPath(options.context, "/api/v2/sync/coverage"),
+      grafana_required: false,
+      wrong_port_hint:
+        "If you see Grafana auth JSON, Homepage HTML, or an MQTT broker response, the app is pointed at the wrong port. Use the Health Data to MQTT API base URL.",
+    };
+  });
+
+  app.get("/api/v2/sync/runs/latest", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    const latestRun = await options.syncReceiptStore.getLatestRun(
+      options.context.name,
+    );
+    if (!latestRun) {
+      return reply.code(404).send({
+        status: "not_found",
+        error: "No sync runs have been recorded",
+      });
+    }
+
+    return latestRun;
+  });
+
+  app.get<{
+    Params: { sync_run_id: string };
+  }>("/api/v2/sync/runs/:sync_run_id", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    const syncRun = await options.syncReceiptStore.getRun(
+      options.context.name,
+      request.params.sync_run_id,
+    );
+    if (!syncRun) {
+      return reply.code(404).send({
+        status: "not_found",
+        error: "Sync run not found",
+        sync_run_id: request.params.sync_run_id,
+      });
+    }
+
+    return syncRun;
+  });
+
+  app.get("/api/v2/sync/coverage", async (request, reply) => {
+    if (!requireApiKey(request, reply, options.config)) {
+      return reply;
+    }
+
+    return options.syncReceiptStore.getCoverage(options.context.name);
+  });
+}
+
+function contextPath(context: AppContextConfig, path: string): string {
+  return context.prefix === "/" ? path : `${context.prefix}${path}`;
+}
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:27Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,280p' src/state/sync-receipts.ts`</summary>
+```
+Chunk ID: c0cc6b
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 2047
+Output:
+import { appendFile, mkdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
+import type { IncomingHttpHeaders } from "node:http";
+import type { AppConfig } from "../config.js";
+import { parseTimestamp } from "../ingest.js";
+import { encodeContextName } from "../storage/raw-batch-storage.js";
+
+export interface SyncReceiptHeaders {
+  idempotencyKey?: string;
+  syncRunId?: string;
+  batchId?: string;
+  payloadHash?: string;
+  metric?: string;
+  batchIndex?: string;
+  totalBatches?: string;
+  syncMode?: string;
+  anchorPresent?: string;
+  lowerBoundReason?: string;
+  fullExport?: string;
+  queryLowerBound?: string;
+  sampleMinTime?: string;
+  sampleMaxTime?: string;
+}
+
+export interface BatchResponseBody {
+  status: "processed" | "empty";
+  metric: string;
+  batch: number;
+  total_batches?: number;
+  records: number;
+}
+
+export interface IdempotencyReceipt {
+  idempotency_key: string;
+  payload_hash?: string;
+  response: BatchResponseBody;
+}
+
+export interface SyncReceiptRecord {
+  received_at: string;
+  context: string;
+  sync_run_id: string;
+  receipt_id: string;
+  outcome: "processed" | "failed";
+  idempotency_key?: string;
+  batch_id?: string;
+  payload_hash?: string;
+  metric: string;
+  batch_index: number;
+  total_batches: number;
+  sync_mode?: string;
+  anchor_present?: string;
+  lower_bound_reason?: string;
+  full_export?: string;
+  query_lower_bound?: string;
+  sample_min_time?: string;
+  sample_max_time?: string;
+  latest_destination_sample_time?: string;
+  records_received: number;
+  records_accepted: number;
+  records_skipped: number;
+  records_rejected: number;
+  records_deduped_in_batch: number;
+  response?: BatchResponseBody;
+  failure_status_code?: number;
+  failure_reason?: string;
+}
+
+export interface SyncRunSummary {
+  status: "ok";
+  sync_run_id: string;
+  receipt_id: string;
+  verification_level: "delivery_receipt";
+  records_received: number;
+  records_accepted: number;
+  records_inserted_new: null;
+  records_deduped_existing: null;
+  storage_result_level: "accepted_only";
+  records_skipped: number;
+  records_rejected: number;
+  records_deduped_in_batch: number;
+  sample_window: {
+    min_sample_time: string | null;
+    max_sample_time: string | null;
+  };
+  latest_sample_time: string | null;
+  batches_seen: number;
+  batches_processed: number;
+  batches_failed: number;
+  metrics: string[];
+  oldest_received_at: string;
+  newest_receipt_at: string;
+}
+
+export interface SyncCoverageMetric {
+  metric: string;
+  records_received: number;
+  records_accepted: number;
+  records_inserted_new: null;
+  records_deduped_existing: null;
+  storage_result_level: "accepted_only";
+  records_skipped: number;
+  records_rejected: number;
+  records_deduped_in_batch: number;
+  batches_seen: number;
+  newest_receipt_at: string;
+  latest_receipt_sample_time: string | null;
+  latest_destination_sample_time: string | null;
+}
+
+export interface SyncCoverageSummary {
+  status: "ok";
+  storage_result_level: "accepted_only";
+  count: number;
+  metrics: SyncCoverageMetric[];
+}
+
+export interface RecordSyncReceiptInput {
+  contextName: string;
+  headers: SyncReceiptHeaders;
+  metric: string;
+  batchIndex: number;
+  totalBatches: number;
+  recordsReceived: number;
+  recordsAccepted: number;
+  recordsRejected: number;
+  recordsDedupedInBatch: number;
+  latestDestinationSampleTime?: string;
+  response: BatchResponseBody;
+}
+
+export interface RecordFailedSyncReceiptInput {
+  contextName: string;
+  headers: SyncReceiptHeaders;
+  metric: string;
+  batchIndex: number;
+  totalBatches: number;
+  recordsReceived: number;
+  failureStatusCode: number;
+  failureReason: string;
+}
+
+export interface SyncReceiptStore {
+  getIdempotencyReceipt(
+    contextName: string,
+    idempotencyKey: string,
+  ): Promise<IdempotencyReceipt | undefined>;
+  recordBatch(input: RecordSyncReceiptInput): Promise<SyncReceiptRecord | undefined>;
+  recordFailedBatch(
+    input: RecordFailedSyncReceiptInput,
+  ): Promise<SyncReceiptRecord | undefined>;
+  getLatestRun(contextName: string): Promise<SyncRunSummary | undefined>;
+  getRun(
+    contextName: string,
+    syncRunId: string,
+  ): Promise<SyncRunSummary | undefined>;
+  getCoverage(contextName: string): Promise<SyncCoverageSummary>;
+}
+
+export function createSyncReceiptStore(config: AppConfig): SyncReceiptStore {
+  if (config.stateBackend === "memory") {
+    return createMemorySyncReceiptStore();
+  }
+
+  return new FileSyncReceiptStore(join(config.dataPath, "receipts"));
+}
+
+export function createMemorySyncReceiptStore(
+  initialRecords: SyncReceiptRecord[] = [],
+): SyncReceiptStore {
+  const recordsByContext = new Map<string, SyncReceiptRecord[]>();
+  for (const record of initialRecords) {
+    contextRecords(recordsByContext, record.context).push(record);
+  }
+
+  return {
+    async getIdempotencyReceipt(contextName, idempotencyKey) {
+      return findIdempotencyReceipt(contextRecords(record
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:35Z)**_
+
+The current implementation confirms the suspicion: `/latest` is implemented, but its empty state is a JSON `404`. That can be indistinguishable from “this server does not support the endpoint” to clients or log readers, so I’m going to make `/latest` return a stable empty success while keeping specific unknown run IDs as `404`.
+
+_**Agent (gpt-5.5 2026-06-02 18:47:35Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '500,660p' test/integration/app.test.ts`</summary>
+```
+Chunk ID: 265c78
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1190
+Output:
+    });
+
+    const status = await server.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toEqual(emptyStatusResponse());
+  });
+
+  it("records v2 sync receipts for batches with HealthSave run headers", async () => {
+    const server = await createApp();
+    const batchResponse = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      headers: {
+        "idempotency-key": "key-1",
+        "x-healthsave-sync-run-id": "run-1",
+        "x-healthsave-batch-id": "batch-1",
+        "x-healthsave-payload-hash": "hash-1",
+        "x-healthsave-sample-min-time": "2026-04-10T12:00:00Z",
+        "x-healthsave-sample-max-time": "2026-04-10T12:00:00Z",
+      },
+      payload: {
+        metric: "heart_rate",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          { date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" },
+          { date: "2026-04-10T12:00:00Z", qty: 73, source: "Watch" },
+          { date: "not-a-date", qty: 74, source: "Watch" },
+        ],
+      },
+    });
+
+    expect(batchResponse.statusCode).toBe(200);
+    expect(batchResponse.json()).toMatchObject({
+      status: "processed",
+      records: 1,
+    });
+
+    const latest = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/latest",
+    });
+    const run = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/run-1",
+    });
+    const coverage = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/coverage",
+    });
+
+    expect(latest.statusCode).toBe(200);
+    expect(latest.json()).toMatchObject({
+      status: "ok",
+      sync_run_id: "run-1",
+      verification_level: "delivery_receipt",
+      storage_result_level: "accepted_only",
+      records_received: 3,
+      records_accepted: 1,
+      records_inserted_new: null,
+      records_deduped_existing: null,
+      records_rejected: 1,
+      records_skipped: 1,
+      records_deduped_in_batch: 1,
+      batches_seen: 1,
+      batches_processed: 1,
+      batches_failed: 0,
+      metrics: ["heart_rate"],
+      sample_window: {
+        min_sample_time: "2026-04-10T12:00:00.000Z",
+        max_sample_time: "2026-04-10T12:00:00.000Z",
+      },
+      latest_sample_time: "2026-04-10T12:00:00.000Z",
+    });
+    expect(run.json()).toMatchObject(latest.json());
+    expect(coverage.statusCode).toBe(200);
+    expect(coverage.json()).toMatchObject({
+      status: "ok",
+      storage_result_level: "accepted_only",
+      count: 1,
+      metrics: [
+        {
+          metric: "heart_rate",
+          records_received: 3,
+          records_accepted: 1,
+          records_rejected: 1,
+          records_deduped_in_batch: 1,
+          latest_receipt_sample_time: "2026-04-10T12:00:00.000Z",
+          latest_destination_sample_time: "2026-04-10T12:00:00.000Z",
+        },
+      ],
+    });
+  });
+
+  it("does not expose v2 sync receipts for batches without a sync run id", async () => {
+    const server = await createApp();
+    await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      headers: {
+        "idempotency-key": "key-1",
+        "x-healthsave-payload-hash": "hash-1",
+      },
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+      },
+    });
+
+    const latest = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/latest",
+    });
+    const run = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/run-1",
+    });
+    const coverage = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/coverage",
+    });
+
+    expect(latest.statusCode).toBe(404);
+    expect(latest.json()).toEqual({
+      status: "not_found",
+      error: "No sync runs have been recorded",
+    });
+    expect(run.statusCode).toBe(404);
+    expect(run.json()).toEqual({
+      status: "not_found",
+      error: "Sync run not found",
+      sync_run_id: "run-1",
+    });
+    expect(coverage.statusCode).toBe(200);
+    expect(coverage.json()).toEqual({
+      status: "ok",
+      storage_result_level: "accepted_only",
+      count: 0,
+      metrics: [],
+    });
+  });
+
+  it("counts blood pressure correlations as separate quantity samples", async () => {
+    const server = await createApp();
+
+    const response = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "blood_pressure",
+        samples: [
+          {
+            metric: "blood_pressure_systolic",
+            date: "2026-04-10T09:00:00Z",
+            qty: 120,
+            source: "Monitor",
+          },
+          {
+            metric: "blood_pressure_diastolic",
+            date: "2026-04-10T09:00:00Z",
+            qty: 80,
+            source: "Monitor",
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:35Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1260,1310p' test/integration/app.test.ts`</summary>
+```
+Chunk ID: 11b2d9
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 396
+Output:
+          },
+        ],
+      },
+      mqttPublisher: createRecordingMqttPublisher(),
+    });
+
+    const diagnostics = await app.inject({
+      method: "GET",
+      url: "/daniel/api/v2/setup/diagnostics",
+    });
+    await app.inject({
+      method: "POST",
+      url: "/daniel/api/apple/batch",
+      headers: {
+        "idempotency-key": "daniel-key-1",
+        "x-healthsave-sync-run-id": "daniel-run-1",
+        "x-healthsave-payload-hash": "daniel-hash-1",
+      },
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72 }],
+      },
+    });
+
+    const defaultLatest = await app.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/latest",
+    });
+    const danielLatest = await app.inject({
+      method: "GET",
+      url: "/daniel/api/v2/sync/runs/latest",
+    });
+
+    expect(diagnostics.statusCode).toBe(200);
+    expect(diagnostics.json()).toMatchObject({
+      health_endpoint: "/daniel/api/health",
+      status_endpoint: "/daniel/api/apple/status",
+      ingest_endpoint: "/daniel/api/apple/batch",
+      latest_sync_endpoint: "/daniel/api/v2/sync/runs/latest",
+      coverage_endpoint: "/daniel/api/v2/sync/coverage",
+    });
+    expect(defaultLatest.statusCode).toBe(404);
+    expect(danielLatest.statusCode).toBe(200);
+    expect(danielLatest.json()).toMatchObject({
+      sync_run_id: "daniel-run-1",
+      metrics: ["heart_rate"],
+    });
+  });
+
+  it("stores prefixed context batches under their context directory", async () => {
+    tempDirectory = mkdtempSync(join(tmpdir(), "health-api-raw-storage-"));
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:35Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1500,1545p' test/integration/app.test.ts`</summary>
+```
+Chunk ID: d0f649
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 353
+Output:
+      method: "GET",
+      url: "/api/apple/status",
+      headers: { "x-api-key": "wrong" },
+    });
+
+    expect(unauthorized.statusCode).toBe(401);
+    expect(unauthorized.json()).toEqual({ detail: "Invalid API key" });
+
+    const authorized = await server.inject({
+      method: "GET",
+      url: "/api/apple/status",
+      headers: { "x-api-key": "secret" },
+    });
+
+    expect(authorized.statusCode).toBe(200);
+  });
+
+  it("requires the configured API key on protected v2 sync endpoints", async () => {
+    const server = await createApp("secret");
+
+    const unauthorized = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/latest",
+      headers: { "x-api-key": "wrong" },
+    });
+    const diagnostics = await server.inject({
+      method: "GET",
+      url: "/api/v2/setup/diagnostics",
+      headers: { "x-api-key": "wrong" },
+    });
+    const authorized = await server.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/latest",
+      headers: { "x-api-key": "secret" },
+    });
+
+    expect(unauthorized.statusCode).toBe(401);
+    expect(unauthorized.json()).toEqual({ detail: "Invalid API key" });
+    expect(diagnostics.statusCode).toBe(200);
+    expect(authorized.statusCode).toBe(404);
+  });
+
+  it("replays idempotency keys without sync run ids", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:35Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '60,110p' PORTING.md && sed -n '120,145p' README.md && sed -n '1,70p' CHANGELOG.md`</summary>
+```
+Chunk ID: 069c24
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1990
+Output:
+| `TEST_STRATEGY.md` | Maintainers/implementers | Define the test approach and testing layers |
+| `TEST_MATRIX.md` | Maintainers/implementers | Track existing, planned, and blocked tests |
+| `CHANGELOG.md` | Users/maintainers | Track changes under the `package.json` version |
+
+## 4) Compatibility Contract
+
+### 4.1 Required Endpoints
+
+| Endpoint | Method | Required response/behavior |
+| --- | --- | --- |
+| `/health` | GET | Return `{"status":"ok"}` |
+| `/api/health` | GET | Return `{"status":"ok"}` |
+| `/ready` | GET | Return readiness for local state and MQTT dependencies |
+| `/api/apple/batch` | POST | Receive and process one metric batch |
+| `/api/apple/status` | GET | Return flat status objects in reference-compatible shape |
+| `/api/v2/setup/diagnostics` | GET | Return unauthenticated setup diagnostics for API base URL checks |
+| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
+| `/api/v2/sync/runs/{sync_run_id}` | GET | Return one run-specific delivery receipt summary |
+| `/api/v2/sync/coverage` | GET | Return metric-level sync receipt coverage |
+
+### 4.2 Authentication
+
+The reference behavior is intentionally simple:
+
+- If `API_KEY` is empty or unset, requests are accepted without `x-api-key`.
+- If `API_KEY` is set, requests must include the matching `x-api-key` header.
+- Invalid keys return HTTP `401`.
+
+This must apply to:
+
+- `POST /api/apple/batch`
+- `GET /api/apple/status`
+- `GET /api/v2/sync/runs/latest`
+- `GET /api/v2/sync/runs/{sync_run_id}`
+- `GET /api/v2/sync/coverage`
+
+Health, readiness, and setup diagnostics endpoints remain unauthenticated. This satisfies
+HealthSave 1.5 liveness behavior, which checks `/api/health` first and accepts
+`/health` as a fallback.
+
+### 4.3 Status Response
+
+`GET /api/apple/status` must return a flat object whose top-level keys are the
+known HealthSave status metrics, even when they are empty:
+
+```json
+{
+  "heart_rate": { "count": 0, "oldest": null, "newest": null },
+  "hrv": { "count": 0, "oldest": null, "newest": null },
+  "blood_oxygen": { "count": 0, "oldest": null, "newest": null },
+  "daily_activity": { "count": 0, "oldest": null, "newest": null },
+Supported client-facing endpoints:
+
+| Endpoint | Method | Purpose |
+| --- | --- | --- |
+| `/health` | GET | Basic service health check |
+| `/api/health` | GET | App-compatible health check. HealthSave 1.5 checks this first and falls back to `/health` if needed. |
+| `/ready` | GET | Unauthenticated readiness check for local state writability and MQTT availability when enabled |
+| `/api/apple/batch` | POST | Receive one metric batch |
+| `/api/apple/status` | GET | Return flat sync/status objects with `count`, `oldest`, and `newest` |
+| `/api/v2/setup/diagnostics` | GET | Unauthenticated setup diagnostics for confirming the API base URL |
+| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
+| `/api/v2/sync/runs/{sync_run_id}` | GET | Delivery receipt summary for one HealthSave sync run |
+| `/api/v2/sync/coverage` | GET | Metric-level receipt coverage summary |
+
+`/health` and `/api/health` are lightweight liveness checks. `/ready` is stricter and returns `503` when file-backed state cannot be written or when MQTT is enabled but disconnected. Docker keeps using `/health` for container liveness by default; operators can point load balancers or orchestrators at `/ready` when dependency-gated readiness is desired.
+
+## Multiple Client Contexts
+
+The root URL continues to work as the `default` context:
+
+```text
+http://your-server:8000
+```
+
+Additional clients can use configured prefixes as their HealthSave server URL:
+
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+Version headers must match the `version` field in `package.json`.
+
+## 0.4.0
+
+### Added
+
+- Added a dedicated file and memory idempotency index for all successful batches with `Idempotency-Key`, including batches without sync-run receipt headers.
+- Added `GET /ready` readiness checks for local state writability and MQTT connection state.
+- Added failed-batch sync receipt rows so v2 run summaries report processed and failed batch counts separately.
+- Added ECG compatibility handling and category-event timestamp fallbacks for generic quantity ingestion.
+- Added tests for idempotency persistence, readiness probes, failed receipt summaries, ECG compatibility, and category-event fallback timestamps.
+
+### Changed
+
+- Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
+- Documented `/api/insights/*` as out of scope and kept status timestamps as ISO UTC strings for API compatibility.
+
+## 0.3.0
+
+### Changed
+
+- Bumped the app version to 0.3.0.
+- Changed ingest normalization to expose accepted, rejected, and in-batch deduped record coun
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:38Z)**_
+
+I’m going to make the empty response explicit rather than changing the actual receipt summaries. That keeps successful `/latest` responses exactly as they are today, while avoiding a misleading `404` before the first sync receipt lands.
+
+_**Agent (gpt-5.5 2026-06-02 18:47:44Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/src/routes/v2.ts`**
+
+```diff
+@@
+     const latestRun = await options.syncReceiptStore.getLatestRun(
+       options.context.name,
+     );
+     if (!latestRun) {
+-      return reply.code(404).send({
+-        status: "not_found",
+-        error: "No sync runs have been recorded",
+-      });
++      return emptyLatestSyncRunResponse();
+     }
+ 
+     return latestRun;
+   });
+@@
+ function contextPath(context: AppContextConfig, path: string): string {
+   return context.prefix === "/" ? path : `${context.prefix}${path}`;
+ }
++
++function emptyLatestSyncRunResponse() {
++  return {
++    status: "empty",
++    sync_run_id: null,
++    receipt_id: null,
++    verification_level: "none",
++    records_received: 0,
++    records_accepted: 0,
++    records_inserted_new: null,
++    records_deduped_existing: null,
++    storage_result_level: "accepted_only",
++    records_skipped: 0,
++    records_rejected: 0,
++    records_deduped_in_batch: 0,
++    sample_window: {
++      min_sample_time: null,
++      max_sample_time: null,
++    },
++    latest_sample_time: null,
++    batches_seen: 0,
++    batches_processed: 0,
++    batches_failed: 0,
++    metrics: [],
++    oldest_received_at: null,
++    newest_receipt_at: null,
++  };
++}
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/src/routes/v2.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:47:48Z)**_
+
+The route now answers with an empty success payload when there are no recorded sync-run receipts. I’m updating the tests that encoded the old `404` assumption, including the prefixed-context isolation case so `/api/...` and `/daniel/api/...` remain clearly separate.
+
+_**Agent (gpt-5.5 2026-06-02 18:47:53Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts`**
+
+```diff
+@@
+-    expect(latest.statusCode).toBe(404);
+-    expect(latest.json()).toEqual({
+-      status: "not_found",
+-      error: "No sync runs have been recorded",
+-    });
++    expect(latest.statusCode).toBe(200);
++    expect(latest.json()).toMatchObject({
++      status: "empty",
++      sync_run_id: null,
++      verification_level: "none",
++      records_received: 0,
++      records_accepted: 0,
++      records_rejected: 0,
++      batches_seen: 0,
++      batches_processed: 0,
++      batches_failed: 0,
++      metrics: [],
++    });
+@@
+-    expect(defaultLatest.statusCode).toBe(404);
++    expect(defaultLatest.statusCode).toBe(200);
++    expect(defaultLatest.json()).toMatchObject({
++      status: "empty",
++      sync_run_id: null,
++      metrics: [],
++    });
+@@
+-    expect(authorized.statusCode).toBe(404);
++    expect(authorized.statusCode).toBe(200);
++    expect(authorized.json()).toMatchObject({
++      status: "empty",
++      sync_run_id: null,
++    });
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:01Z)**_
+
+I also need to reflect this in the docs, because this is a client-visible behavior change. The important distinction will be: `/latest` returns `200` with `status: "empty"` before any sync-run receipt, while `/api/v2/sync/runs/{id}` still returns `404` for an unknown concrete run ID.
+
+_**Agent (gpt-5.5 2026-06-02 18:48:01Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `rg -n "sync/runs/latest|No sync runs|empty|not_found|v2 sync|delivery receipt" README.md PORTING.md TEST_MATRIX.md TEST_STRATEGY.md CHANGELOG.md`</summary>
+```
+Chunk ID: 69df58
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 1345
+Output:
+CHANGELOG.md:19:- Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
+CHANGELOG.md:32:- Added protected `GET /api/v2/sync/runs/latest`, `GET /api/v2/sync/runs/{sync_run_id}`, and `GET /api/v2/sync/coverage` delivery receipt endpoints.
+CHANGELOG.md:43:- Changed batch `records` reporting to count valid deduplicated logical records and return `0` for non-empty batches whose samples are all invalid.
+CHANGELOG.md:74:- Added raw MQTT publishing for non-empty HealthSave batch samples.
+CHANGELOG.md:85:- Added accepted-sample status counting for non-empty batches that do not produce normalized records.
+TEST_MATRIX.md:15:| Config | Raw storage path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers opt-in `RAW_STORAGE_PATH`, YAML `storage.rawDataPath`, env override, and empty-path disabled behavior |
+TEST_MATRIX.md:68:| API | Protected v2 sync endpoints enforce API key auth | Existing | `test/integration/app.test.ts` | Verifies v2 sync routes use the same optional `x-api-key` behavior as v1 protected routes |
+TEST_MATRIX.md:70:| API | Batches without sync run IDs do not appear in v2 receipts | Existing | `test/integration/app.test.ts` | Verifies latest/run 404s and empty coverage for v1-style requests |
+TEST_MATRIX.md:72:| API | Non-empty batches without normalized records return `records: 0` and unchanged status | Existing | `test/integration/app.test.ts` | Verifies invalid samples are skipped without inflating status |
+TEST_MATRIX.md:74:| API | Empty batch returns reference-compatible empty response | Existing | `test/integration/app.test.ts` | No counter increment |
+TEST_MATRIX.md:91:| Storage | Batch route archives non-empty valid batches | Existing | `test/integration/app.test.ts` | Verifies the raw request body is stored before successful acceptance |
+TEST_MATRIX.md:93:| Storage | Batch route skips empty batch archive writes | Existing | `test/integration/app.test.ts` | Verifies empty batches do not create raw archive files |
+TEST_MATRIX.md:98:| State | Idempotency key replay works without sync run IDs | Existing | `test/integration/app.test.ts` | Verifies idempotency is decoupled from v2 delivery receipts |
+TEST_STRATEGY.md:42:- empty batch responses,
+TEST_STRATEGY.md:48:- v2 sync receipt authorization, summaries, coverage, and 404 behavior.
+TEST_STRATEGY.md:59:- API route calls into the publisher before accepting non-empty batches,
+README.md:130:| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
+README.md:170:When MQTT is enabled, non-empty batch requests are only accepted after MQTT publishing succeeds. If publishing fails, the endpoint returns `502` so the client can retry instead of silently dropping data.
+README.md:260:When HealthSave also sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, the service records delivery receipts. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and can show both processed and failed batch attempts for a sync run.
+README.md:295:Set `RAW_STORAGE_PATH` to archive non-empty, valid HealthSave batch requests before MQTT publishing. Leave it empty to disable raw storage.
+README.md:359:| `API_KEY` | empty | Optional API key. Empty disables auth enforcement. |
+README.md:370:| `MQTT_USERNAME` | empty | Optional broker username |
+README.md:371:| `MQTT_PASSWORD` | empty | Optional broker password |
+README.md:377:| `CONTEXTS` | empty | Optional JSON array of prefixed client contexts |
+README.md:386:| `TIMESCALE_URL` | empty | Optional Timescale/PostgreSQL connection string |
+README.md:388:| `RAW_STORAGE_PATH` | empty | Optional raw NDJSON batch archive path. Empty disables raw storage. |
+PORTING.md:76:| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
+PORTING.md:77:| `/api/v2/sync/runs/{sync_run_id}` | GET | Return one run-specific delivery receipt summary |
+PORTING.md:84:- If `API_KEY` is empty or unset, requests are accepted without `x-api-key`.
+PORTING.md:92:- `GET /api/v2/sync/runs/latest`
+PORTING.md:103:known HealthSave status metrics, even when they are empty:
+PORTING.md:165:If `samples` is empty or absent:
+PORTING.md:169:  "status": "empty",
+PORTING.md:191:filtering and routing. Non-empty batches with no valid logical records still
+PORTING.md:398:6. Non-empty valid raw batches are optionally archived to local NDJSON storage.
+PORTING.md:480:| `API_KEY` | empty | Empty disables API-key enforcement |
+PORTING.md:491:| `MQTT_USERNAME` | empty |
+PORTING.md:492:| `MQTT_PASSWORD` | empty |
+PORTING.md:498:| `CONTEXTS` | empty JSON array |
+PORTING.md:512:The same backend also stores lightweight sync delivery receipts under
+PORTING.md:529:| `RAW_STORAGE_PATH` | empty | Opt
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:01Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,220p' TEST_MATRIX.md`</summary>
+```
+Chunk ID: 82e845
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 4369
+Output:
+# Test Matrix
+
+This file is the current inventory of existing, planned, and blocked tests. Update it in the same change whenever tests are added, removed, or changed.
+
+| Area | Test | Status | Location | Notes |
+| --- | --- | --- | --- | --- |
+| Auth | No configured API key accepts missing header | Existing | `test/unit/auth.test.ts` | Reference-compatible auth disabled behavior |
+| Auth | Configured API key accepts matching header | Existing | `test/unit/auth.test.ts` | Unit-level auth helper coverage |
+| Auth | Configured API key rejects missing or wrong header | Existing | `test/unit/auth.test.ts` | Unit-level auth helper coverage |
+| Config | Local YAML configuration file loads successfully | Existing | `test/unit/config.test.ts` | Covers local-only `--config` file format including MQTT topic templates |
+| Config | Environment variables override YAML configuration | Existing | `test/unit/config.test.ts` | Preserves container-first env behavior |
+| Config | HTTP body limit loads from defaults, environment, and YAML | Existing | `test/unit/config.test.ts` | Covers the 500 MiB default and `HTTP_BODY_LIMIT_BYTES` override for large sync batches |
+| Config | Contexts load from environment JSON | Existing | `test/unit/config.test.ts` | Covers Docker-friendly multi-client context configuration |
+| Config | Data path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers `DATA_PATH`, YAML `storage.dataPath`, and env override |
+| Config | Raw storage path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers opt-in `RAW_STORAGE_PATH`, YAML `storage.rawDataPath`, env override, and empty-path disabled behavior |
+| Ingest | Unknown metrics map to `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Reference-compatible fallback for generic quantity metrics |
+| Ingest | Batch schema applies reference-compatible defaults | Existing | `test/unit/ingest.test.ts` | Covers missing metric, batch fields, and samples |
+| Ingest | JSON-encoded batch and sample wrappers deserialize | Existing | `test/unit/ingest.test.ts` | Covers wrapped `data` payloads and sample-level JSON strings |
+| Ingest | Dedicated metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers heart rate timestamp, value, and source extraction |
+| Ingest | Blood oxygen aliases normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers HealthKit-style `oxygenSaturation` values and fractional saturation conversion |
+| Ingest | Daily quantity metrics normalize into `daily_activity` | Existing | `test/unit/ingest.test.ts` | Covers `step_count` routing and date-level deduped records |
+| Ingest | Daily quantity mapping matrix stays complete | Existing | `test/unit/ingest.test.ts` | Covers every supported `daily_activity` quantity metric and field transform |
+| Ingest | Non-summary daily metrics remain in `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Covers `apple_stand_time` fallback behavior |
+| Ingest | Generic quantity metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers unknown metric fallback fields |
+| Ingest | Activity summaries normalize aliases | Existing | `test/unit/ingest.test.ts` | Covers reference activity field aliases |
+| Ingest | Activity summary alias matrix stays complete | Existing | `test/unit/ingest.test.ts` | Covers all supported activity summary source fields and aliases |
+| Ingest | Sleep stage samples aggregate into sessions | Existing | `test/unit/ingest.test.ts` | Covers reference stage bucket and duration behavior |
+| Ingest | Sleep sessions expose latest awake state | Existing | `test/unit/ingest.test.ts` | Covers normalized `awake` boolean from the latest sleep stage |
+| Ingest | Workouts normalize field variants | Existing | `test/unit/ingest.test.ts` | Covers start/end aliases and duration seconds conversion |
+| Ingest | Workout active energy normalizes from HealthSave aliases | Existing | `test/unit/ingest.test.ts` | Covers `workouts` calories from `activeEnergyBurned` plus sessionless active-energy fallback |
+| Ingest | Blood pressure correlations preserve inner metric names | Existing | `test/unit/ingest.test.ts` | Covers subtype-specific `quantity_samples` identities |
+| Ingest | Body temperature aliases normalize without public status entries | Existing | `test/unit/ingest.test.ts` | Covers `wrist_temperature` mapping to `body_temperature` |
+| Ingest | Device identity honors source aliases and `HealthSave` fallback | Existing | `test/unit/ingest.test.ts` | Covers `sourceName`, `deviceName`, and fallback handling |
+| Ingest | ISO timestamps normalize to UTC | Existing | `test/unit/ingest.test.ts` | Covers offset timestamp parsing |
+| Ingest | Normalization stats separate rejected and in-batch deduped records | Existing | `test/unit/ingest.test.ts` | Covers receipt accounting without deriving re
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:01Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1,180p' TEST_STRATEGY.md`</summary>
+```
+Chunk ID: c4b3e1
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 702
+Output:
+# Test Strategy
+
+This document describes how the project should verify compatibility, MQTT behavior, and operational safety.
+
+## Principles
+
+- Tests move with implementation changes.
+- Compatibility with the reference HTTP contract is the first test priority.
+- Unit tests should cover deterministic parsing, mapping, and auth logic.
+- Integration tests should exercise Fastify routes through in-process injection where possible.
+- MQTT behavior should be covered with unit tests for payload construction and integration tests for route-to-publisher behavior.
+- Multi-client context behavior should verify prefixed routes, topic selection, and isolated status counters.
+- Replay fixtures should model realistic HealthSave sync batches.
+
+## Test Layers
+
+### Unit Tests
+
+Unit tests cover small deterministic behavior:
+
+- auth decisions,
+- batch request defaults,
+- metric-to-counter routing,
+- future metric mappers,
+- topic rendering,
+- raw MQTT payload construction,
+- raw batch archive path handling,
+- idempotency index persistence and replay lookups,
+- sync receipt header parsing and receipt store persistence,
+- readiness probe helpers,
+- ingest accounting for accepted, rejected, and in-batch deduped records,
+- ECG and category-event compatibility behavior.
+
+### API Integration Tests
+
+API integration tests cover the HealthSave-facing contract:
+
+- `GET /health`,
+- `GET /api/health`,
+- `GET /ready`,
+- `POST /api/apple/batch`,
+- empty batch responses,
+- status counters,
+- optional API-key behavior.
+- prefixed context endpoints.
+- raw batch archive success, skip, and failure behavior.
+- v2 setup diagnostics.
+- v2 sync receipt authorization, summaries, coverage, and 404 behavior.
+- idempotency replay and conflict behavior before ingest side effects.
+- failed sync-run receipt visibility.
+
+### MQTT Tests
+
+MQTT tests cover implemented publisher behavior and planned broker-backed integration coverage:
+
+- raw event publication through a recording client,
+- normalized event publication through a recording client,
+- scalar current value publication through a recording client,
+- API route calls into the publisher before accepting non-empty batches,
+- QoS and retain settings,
+- topic template overrides,
+- context-specific topic template overrides,
+- MQTT-disabled mode,
+- future broker-backed publication checks,
+- future broker-backed normalized publication checks.
+
+### Replay Tests
+
+Replay tests are planned once realistic client fixtures are captured. Fixtures should include:
+
+- multiple metric types,
+- duplicate samples,
+- out-of-order batches,
+- unknown metrics,
+- mixed timestamp fields,
+- older client field variants.
+
+## Running Tests
+
+Run the full test suite:
+
+```bash
+npm test
+```
+
+Run TypeScript checks:
+
+```bash
+npm run typecheck
+```
+
+Build the app:
+
+```bash
+npm run build
+```
+```
+</details></tool-use>
+
+---
+
+_**User (2026-06-02 18:48:01Z)**_
+
+document change and commit
+
+
+---
+
+_**Agent (gpt-5.5 2026-06-02 18:48:05Z)**_
+
+Understood. I’ll document the `/latest` empty-state behavior, update the test inventory to match, run the verification commands, then commit this as a small follow-up.
+
+_**Agent (gpt-5.5 2026-06-02 18:48:11Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/README.md`**
+
+```diff
+@@
+-| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
++| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt, or an empty success response before any sync-run receipt exists |
+@@
+-When HealthSave also sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, the service records delivery receipts. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and can show both processed and failed batch attempts for a sync run.
++When HealthSave also sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, the service records delivery receipts. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and can show both processed and failed batch attempts for a sync run.
++
++`GET /api/v2/sync/runs/latest` is always a supported route. Before the first sync-run receipt is recorded, it returns `200` with `status: "empty"`, zero counts, and no metrics. A request for a specific unknown sync run, such as `GET /api/v2/sync/runs/{sync_run_id}`, still returns `404`.
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/README.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:17Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/PORTING.md`**
+
+```diff
+@@
+-| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
++| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt, or an empty success response before any sync-run receipt exists |
+@@
+ This must apply to:
+@@
+ Health, readiness, and setup diagnostics endpoints remain unauthenticated. This satisfies
+ HealthSave 1.5 liveness behavior, which checks `/api/health` first and accepts
+ `/health` as a fallback.
++
++`GET /api/v2/sync/runs/latest` returns HTTP `200` with `status: "empty"` when
++the endpoint is available but no `X-HealthSave-Sync-Run-ID` receipt has been
++recorded yet. Specific unknown run IDs still return HTTP `404` from
++`GET /api/v2/sync/runs/{sync_run_id}`.
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/PORTING.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:23Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/TEST_STRATEGY.md`**
+
+```diff
+@@
+-- v2 sync receipt authorization, summaries, coverage, and 404 behavior.
++- v2 sync receipt authorization, empty latest responses, summaries, coverage, and specific-run 404 behavior.
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/TEST_STRATEGY.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:28Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/TEST_MATRIX.md`**
+
+```diff
+@@
+-| API | Batches without sync run IDs do not appear in v2 receipts | Existing | `test/integration/app.test.ts` | Verifies latest/run 404s and empty coverage for v1-style requests |
++| API | Batches without sync run IDs do not appear in v2 receipts | Existing | `test/integration/app.test.ts` | Verifies latest returns an empty success, specific run lookup returns `404`, and coverage stays empty for v1-style requests |
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/TEST_MATRIX.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:31Z)**_
+
+The docs now state the intended distinction plainly: `/latest` means “the surface is available but currently empty,” while a concrete unknown run ID remains a `404`. I’m adding the changelog entry under `0.4.0` and then I’ll run the full checks.
+
+_**Agent (gpt-5.5 2026-06-02 18:48:33Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/CHANGELOG.md`**
+
+```diff
+@@
+ ### Changed
+ 
+ - Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
++- Changed `GET /api/v2/sync/runs/latest` to return a `200` empty-state response before any sync-run receipt exists, while keeping specific unknown run IDs as `404`.
+ - Documented `/api/insights/*` as out of scope and kept status timestamps as ISO UTC strings for API compatibility.
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/CHANGELOG.md
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:36Z)**_
+
+Implementation and docs are in place. Now I’m running the same verification set as before so the commit isn’t just “looks right from here.”
+
+_**Agent (gpt-5.5 2026-06-02 18:48:37Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm test`</summary>
+```
+Chunk ID: 247b73
+Wall time: 1.6561 seconds
+Process exited with code 1
+Original token count: 1274
+Output:
+
+> health-data-to-mqtt@0.4.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/bietiekay/code/health-data-to-mqtt
+
+ ✓ test/unit/raw-batch-storage.test.ts (3 tests) 19ms
+ ✓ test/unit/state-store.test.ts (4 tests) 59ms
+ ✓ test/unit/sync-receipts.test.ts (5 tests) 32ms
+ ✓ test/unit/ingest.test.ts (25 tests) 20ms
+ ✓ test/unit/config.test.ts (7 tests) 42ms
+ ✓ test/unit/mqtt-publisher.test.ts (6 tests) 26ms
+ ✓ test/unit/idempotency-store.test.ts (3 tests) 10ms
+ ✓ test/unit/auth.test.ts (3 tests) 2ms
+ ✓ test/unit/readiness.test.ts (4 tests) 13ms
+ ❯ test/integration/app.test.ts (37 tests | 1 failed) 225ms
+   ✓ compatibility endpoints > returns health responses 77ms
+   ✓ compatibility endpoints > returns readiness when dependencies are available 4ms
+   ✓ compatibility endpoints > returns readiness failure when file-backed state is unavailable 3ms
+   ✓ compatibility endpoints > returns readiness failure when MQTT is enabled but unavailable 2ms
+   ✓ compatibility endpoints > returns unauthenticated v2 setup diagnostics 5ms
+   ✓ compatibility endpoints > accepts batches without an API key when auth is disabled 7ms
+   ✓ compatibility endpoints > accepts HealthSave batches larger than Fastify's default body limit 7ms
+   ✓ compatibility endpoints > returns the reference-compatible empty batch response 4ms
+   ✓ compatibility endpoints > returns flat status objects for processed batches 4ms
+   ✓ compatibility endpoints > expands oldest and newest without double-counting duplicate retries 4ms
+   ✓ compatibility endpoints > publishes blood oxygen aliases as normalized and current data 3ms
+   ✓ compatibility endpoints > skips invalid samples in non-empty batches without changing status 3ms
+   ✓ compatibility endpoints > records v2 sync receipts for batches with HealthSave run headers 6ms
+   ✓ compatibility endpoints > does not expose v2 sync receipts for batches without a sync run id 3ms
+   ✓ compatibility endpoints > counts blood pressure correlations as separate quantity samples 2ms
+   ✓ compatibility endpoints > processes body temperature without exposing it in public status 2ms
+   ✓ compatibility endpoints > persists status counters in the configured data path 7ms
+   ✓ compatibility endpoints > publishes daily quantity datapoints to MQTT before accepting batches 4ms
+   ✓ compatibility endpoints > publishes workouts active energy as normalized and current data 3ms
+   ✓ compatibility endpoints > publishes sleep awake state as normalized and current data 3ms
+   ✓ compatibility endpoints > stores non-empty valid batches before accepting them 4ms
+   ✓ compatibility endpoints > archives the original wrapped request body and publishes real MQTT topics end-to-end 7ms
+   ✓ compatibility endpoints > does not store empty batches 2ms
+   ✓ compatibility endpoints > publishes correlated quantity metrics to per-sample MQTT topics end-to-end 2ms
+   ✓ compatibility endpoints > rejects batches before MQTT and status updates when raw storage fails 2ms
+   ✓ compatibility endpoints > supports prefixed context endpoints with isolated status counts 4ms
+   ✓ compatibility endpoints > isolates prefixed v2 diagnostics and sync receipts 4ms
+   ✓ compatibility endpoints > stores prefixed context batches under their context directory 4ms
+   ✓ compatibility endpoints > rejects non-empty batches when MQTT publication fails 2ms
+   ✓ compatibility endpoints > records failed sync-run receipts and allows a later retry to succeed 6ms
+   ✓ compatibility endpoints > requires the configured API key on protected endpoints 4ms
+   ✓ compatibility endpoints > requires the configured API key on protected v2 sync endpoints 3ms
+   × compatibility endpoints > replays idempotency keys without sync run ids 11ms
+     → expected 200 to be 404 // Object.is equality
+   ✓ compatibility endpoints > rejects idempotency hash conflicts without sync run ids before side effects 3ms
+   ✓ compatibility endpoints > persists idempotency keys across file-backed app restarts 7ms
+   ✓ compatibility endpoints > replays matching idempotency keys without repeating ingest side effects 3ms
+   ✓ compatibility endpoints > rejects reused idempotency keys with different payload hashes before side effects 2ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/integration/app.test.ts > compatibility endpoints > replays idempotency keys without sync run ids
+AssertionError: expected 200 to be 404 // Object.is equality
+
+- Expected
++ Received
+
+- 404
++ 200
+
+ ❯ test/integration/app.test.ts:1598:31
+    1596|       heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
+    1597|     });
+    1598|     expect(latest.statusCode).toBe(404);
+       |                               ^
+    1599|   });
+    1600| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Fil
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:42Z)**_
+
+One remaining test still encoded the old empty-state expectation in the idempotency-without-sync-run case. The failure is useful: it’s exactly the behavioral rule we’re changing, so I’m updating that assertion too.
+
+_**Agent (gpt-5.5 2026-06-02 18:48:43Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `sed -n '1560,1605p' test/integration/app.test.ts`</summary>
+```
+Chunk ID: 201f15
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 346
+Output:
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: false,
+      },
+      mqttPublisher,
+    });
+    const request = {
+      method: "POST" as const,
+      url: "/api/apple/batch",
+      headers: {
+        "idempotency-key": "key-no-run",
+        "x-healthsave-payload-hash": "hash-no-run",
+      },
+      payload: {
+        metric: "heart_rate",
+        samples: [{ date: "2026-04-10T12:00:00Z", qty: 72, source: "Watch" }],
+      },
+    };
+
+    const first = await app.inject(request);
+    const second = await app.inject(request);
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(second.json()).toEqual(first.json());
+    expect(mqttPublisher.batches).toHaveLength(1);
+
+    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+    const latest = await app.inject({
+      method: "GET",
+      url: "/api/v2/sync/runs/latest",
+    });
+
+    expect(status.json()).toMatchObject({
+      heart_rate: metricStatus(1, "2026-04-10T12:00:00.000Z"),
+    });
+    expect(latest.statusCode).toBe(404);
+  });
+
+  it("rejects idempotency hash conflicts without sync run ids before side effects", async () => {
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:46Z)**_
+
+<tool-use data-tool-type="write" data-tool-name="apply_patch"><details>
+<summary>Tool use: **apply_patch**</summary>
+**Update: `/Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts`**
+
+```diff
+@@
+-    expect(latest.statusCode).toBe(404);
++    expect(latest.statusCode).toBe(200);
++    expect(latest.json()).toMatchObject({
++      status: "empty",
++      sync_run_id: null,
++      batches_seen: 0,
++      metrics: [],
++    });
+   });
+```
+
+
+```
+Exit code: 0
+Wall time: 0 seconds
+Output:
+Success. Updated the following files:
+M /Users/bietiekay/code/health-data-to-mqtt/test/integration/app.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:49Z)**_
+
+That old assertion is corrected. I’m rerunning the full test suite first, then typecheck and build.
+
+_**Agent (gpt-5.5 2026-06-02 18:48:50Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm test`</summary>
+```
+Chunk ID: e5703c
+Wall time: 1.3726 seconds
+Process exited with code 0
+Original token count: 198
+Output:
+
+> health-data-to-mqtt@0.4.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /Users/bietiekay/code/health-data-to-mqtt
+
+ ✓ test/unit/raw-batch-storage.test.ts (3 tests) 13ms
+ ✓ test/unit/state-store.test.ts (4 tests) 75ms
+ ✓ test/unit/ingest.test.ts (25 tests) 29ms
+ ✓ test/unit/sync-receipts.test.ts (5 tests) 42ms
+ ✓ test/unit/config.test.ts (7 tests) 52ms
+ ✓ test/unit/mqtt-publisher.test.ts (6 tests) 19ms
+ ✓ test/unit/readiness.test.ts (4 tests) 10ms
+ ✓ test/unit/auth.test.ts (3 tests) 2ms
+ ✓ test/unit/idempotency-store.test.ts (3 tests) 10ms
+ ✓ test/integration/app.test.ts (37 tests) 227ms
+
+ Test Files  10 passed (10)
+      Tests  97 passed (97)
+   Start at  20:48:50
+   Duration  976ms (transform 561ms, setup 0ms, collect 1.62s, tests 479ms, environment 1ms, prepare 829ms)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:56Z)**_
+
+Tests are green now: all 97 pass. I’m running TypeScript and production build next, then I’ll stage and commit the follow-up.
+
+_**Agent (gpt-5.5 2026-06-02 18:48:56Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm run typecheck`</summary>
+```
+Chunk ID: 2f3372
+Wall time: 3.0624 seconds
+Process exited with code 0
+Original token count: 18
+Output:
+
+> health-data-to-mqtt@0.4.0 typecheck
+> tsc --noEmit -p tsconfig.json
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:48:56Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `npm run build`</summary>
+```
+Chunk ID: 610922
+Wall time: 3.0081 seconds
+Process exited with code 0
+Original token count: 15
+Output:
+
+> health-data-to-mqtt@0.4.0 build
+> tsc -p tsconfig.json
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:49:05Z)**_
+
+Typecheck and build both passed. I’m checking the diff now so the commit contains only the intended API behavior and documentation updates.
+
+_**Agent (gpt-5.5 2026-06-02 18:49:05Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short`</summary>
+```
+Chunk ID: af757f
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 34
+Output:
+ M CHANGELOG.md
+ M PORTING.md
+ M README.md
+ M TEST_MATRIX.md
+ M TEST_STRATEGY.md
+ M src/routes/v2.ts
+ M test/integration/app.test.ts
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:49:05Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git diff -- src/routes/v2.ts test/integration/app.test.ts README.md PORTING.md TEST_STRATEGY.md TEST_MATRIX.md CHANGELOG.md`</summary>
+```
+Chunk ID: 9a75f5
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 2479
+Output:
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index db2c099..83673de 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -17,6 +17,7 @@ Version headers must match the `version` field in `package.json`.
+ ### Changed
+ 
+ - Changed sync receipt accounting to keep delivery receipts scoped to `X-HealthSave-Sync-Run-ID` while idempotency replay is handled by the new dedicated index.
++- Changed `GET /api/v2/sync/runs/latest` to return a `200` empty-state response before any sync-run receipt exists, while keeping specific unknown run IDs as `404`.
+ - Documented `/api/insights/*` as out of scope and kept status timestamps as ISO UTC strings for API compatibility.
+ 
+ ## 0.3.0
+diff --git a/PORTING.md b/PORTING.md
+index d63a393..a5d850d 100644
+--- a/PORTING.md
++++ b/PORTING.md
+@@ -73,7 +73,7 @@ Do not use the reference implementation as the runtime target. The new service s
+ | `/api/apple/batch` | POST | Receive and process one metric batch |
+ | `/api/apple/status` | GET | Return flat status objects in reference-compatible shape |
+ | `/api/v2/setup/diagnostics` | GET | Return unauthenticated setup diagnostics for API base URL checks |
+-| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt when available |
++| `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt, or an empty success response before any sync-run receipt exists |
+ | `/api/v2/sync/runs/{sync_run_id}` | GET | Return one run-specific delivery receipt summary |
+ | `/api/v2/sync/coverage` | GET | Return metric-level sync receipt coverage |
+ 
+@@ -97,6 +97,11 @@ Health, readiness, and setup diagnostics endpoints remain unauthenticated. This
+ HealthSave 1.5 liveness behavior, which checks `/api/health` first and accepts
+ `/health` as a fallback.
+ 
++`GET /api/v2/sync/runs/latest` returns HTTP `200` with `status: "empty"` when
++the endpoint is available but no `X-HealthSave-Sync-Run-ID` receipt has been
++recorded yet. Specific unknown run IDs still return HTTP `404` from
++`GET /api/v2/sync/runs/{sync_run_id}`.
++
+ ### 4.3 Status Response
+ 
+ `GET /api/apple/status` must return a flat object whose top-level keys are the
+diff --git a/README.md b/README.md
+index afd1518..ed4ab1f 100644
+--- a/README.md
++++ b/README.md
+@@ -127,7 +127,7 @@ Supported client-facing endpoints:
+ | `/api/apple/batch` | POST | Receive one metric batch |
+ | `/api/apple/status` | GET | Return flat sync/status objects with `count`, `oldest`, and `newest` |
+ | `/api/v2/setup/diagnostics` | GET | Unauthenticated setup diagnostics for confirming the API base URL |
+-| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt when sync-run headers are present |
++| `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt, or an empty success response before any sync-run receipt exists |
+ | `/api/v2/sync/runs/{sync_run_id}` | GET | Delivery receipt summary for one HealthSave sync run |
+ | `/api/v2/sync/coverage` | GET | Metric-level receipt coverage summary |
+ 
+@@ -259,6 +259,8 @@ When HealthSave sends `Idempotency-Key`, the service records a lightweight idemp
+ 
+ When HealthSave also sends sync receipt headers such as `X-HealthSave-Sync-Run-ID`, the service records delivery receipts. These receipts contain batch metadata and counts, not raw health samples. They power the `/api/v2/sync/*` endpoints and can show both processed and failed batch attempts for a sync run.
+ 
++`GET /api/v2/sync/runs/latest` is always a supported route. Before the first sync-run receipt is recorded, it returns `200` with `status: "empty"`, zero counts, and no metrics. A request for a specific unknown sync run, such as `GET /api/v2/sync/runs/{sync_run_id}`, still returns `404`.
++
+ Docker example:
+ 
+ ```env
+diff --git a/TEST_MATRIX.md b/TEST_MATRIX.md
+index e90958e..a24d24b 100644
+--- a/TEST_MATRIX.md
++++ b/TEST_MATRIX.md
+@@ -67,7 +67,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
+ | API | `GET /api/v2/setup/diagnostics` is unauthenticated | Existing | `test/integration/app.test.ts` | Verifies port identity, auth-required flag, endpoint paths, and wrong-port hint |
+ | API | Protected v2 sync endpoints enforce API key auth | Existing | `test/integration/app.test.ts` | Verifies v2 sync routes use the same optional `x-api-key` behavior as v1 protected routes |
+ | API | V2 sync receipts summarize batches with HealthSave run headers | Existing | `test/integration/app.test.ts` | Verifies latest run, run-specific receipt, coverage, and accepted/rejected/deduped counts |
+-| API | Batches without sync run IDs do not appear in v2 receipts | Existing | `test/integration/app.test.ts` | Verifies latest/run 404s and empty coverage for v1-style requests |
++| API | Batches without sync run IDs do not appear in v2 receipts | Existing | `test/integration/app.test.ts` | Verifies latest returns an empty success, specific run lookup returns `40
+... (truncated)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:49:05Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git diff -- reference-implementation`</summary>
+```
+Chunk ID: c0b782
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 0
+Output:
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:49:08Z)**_
+
+The diff is clean and nothing touched `reference-implementation/`. I’m staging these seven files and committing with an English message now.
+
+_**Agent (gpt-5.5 2026-06-02 18:49:10Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git add CHANGELOG.md PORTING.md README.md TEST_MATRIX.md TEST_STRATEGY.md src/routes/v2.ts test/integration/app.test.ts && git commit -m "Return empty latest sync receipt response"`</summary>
+```
+Chunk ID: 448fea
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 28
+Output:
+[main 3c40149] Return empty latest sync receipt response
+ 7 files changed, 71 insertions(+), 15 deletions(-)
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:49:12Z)**_
+
+The commit succeeded. I’m doing one final status check so I can hand you the exact state without guessing.
+
+_**Agent (gpt-5.5 2026-06-02 18:49:13Z)**_
+
+<tool-use data-tool-type="shell" data-tool-name="exec_command"><details>
+<summary>Tool use: **exec_command** `git status --short && git log --oneline -1`</summary>
+```
+Chunk ID: b95722
+Wall time: 0.0000 seconds
+Process exited with code 0
+Original token count: 13
+Output:
+3c40149 Return empty latest sync receipt response
+```
+</details></tool-use>
+
+_**Agent (gpt-5.5 2026-06-02 18:49:20Z)**_
+
+Erledigt und committed.
+
+`GET /api/v2/sync/runs/latest` gibt jetzt bei noch nicht vorhandenen Sync-Receipts `200` mit `status: "empty"` zurück, statt `404`. Konkrete unbekannte Run-IDs unter `/api/v2/sync/runs/{sync_run_id}` bleiben weiterhin `404`.
+
+Commit: `3c40149 Return empty latest sync receipt response`
+
+Verifiziert:
+- `npm test` passed, 97 Tests
+- `npm run typecheck` passed
+- `npm run build` passed
+
+::git-stage{cwd="/Users/bietiekay/code/health-data-to-mqtt"}
+::git-commit{cwd="/Users/bietiekay/code/health-data-to-mqtt"}

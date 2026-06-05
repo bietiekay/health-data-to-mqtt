@@ -47,9 +47,10 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Storage | Raw batch archive writes NDJSON by context and month | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies append-only lines, UTC month naming, and per-context directories |
 | Storage | Raw batch archive encodes unusual context names | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies context directory names do not allow path traversal |
 | Storage | Raw batch archive preserves original request body | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies wrapped payloads are stored unchanged instead of parsed replacements |
-| State | File-backed status ledger persists by context | Existing | `test/unit/state-store.test.ts` | Verifies prefixed contexts reload separate flat status objects |
-| State | File-backed status ledger deduplicates and tracks oldest/newest | Existing | `test/unit/state-store.test.ts` | Verifies duplicate observations are ignored and ranges update |
-| State | File-backed state writes NDJSON observations under the configured path | Existing | `test/unit/state-store.test.ts` | Verifies the durable status ledger file is created |
+| State | SQLite-backed status store persists by context | Existing | `test/unit/state-store.test.ts` | Verifies prefixed contexts reload separate flat status objects from `status.sqlite` |
+| State | SQLite-backed status store deduplicates and tracks oldest/newest | Existing | `test/unit/state-store.test.ts` | Verifies duplicate observations are ignored and ranges update |
+| State | SQLite-backed status store writes the configured database | Existing | `test/unit/state-store.test.ts` | Verifies `DATA_PATH/status/status.sqlite` is created and legacy ledgers are not appended |
+| State | Legacy status NDJSON migration | Existing | `test/unit/state-store.test.ts` | Verifies legacy observations, quantity samples, device names containing colons, duplicate rows, malformed rows, migration logging, and marker skip behavior |
 | State | Idempotency index records and replays memory entries | Existing | `test/unit/idempotency-store.test.ts` | Verifies successful batch responses can be looked up by idempotency key |
 | State | Idempotency index does not overwrite existing keys | Existing | `test/unit/idempotency-store.test.ts` | Verifies the first response remains authoritative for a reused key |
 | State | File-backed idempotency index persists by context | Existing | `test/unit/idempotency-store.test.ts` | Verifies `<DATA_PATH>/idempotency/<context>/keys.ndjson` reload behavior |
@@ -58,12 +59,12 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | State | Sync receipt run, coverage, and idempotency summaries | Existing | `test/unit/sync-receipts.test.ts` | Verifies accepted-only accounting, metric coverage, and stored response replay metadata |
 | State | Sync receipt summaries separate processed and failed rows | Existing | `test/unit/sync-receipts.test.ts` | Verifies `batches_processed` and `batches_failed` aggregation |
 | State | File-backed sync receipt ledger persists by context | Existing | `test/unit/sync-receipts.test.ts` | Verifies `<DATA_PATH>/receipts/<context>/receipts.ndjson` reload behavior |
-| Readiness | Memory and file readiness probes | Existing | `test/unit/readiness.test.ts` | Verifies reference success shape and file-backed state probe behavior |
+| Readiness | Memory and file readiness probes | Existing | `test/unit/readiness.test.ts` | Verifies reference success shape, file-backed state probes, and unavailable state-store readiness |
 | Readiness | Reference-compatible readiness ignores MQTT state | Existing | `test/unit/readiness.test.ts` | Verifies unavailable local state failures and DB/state-only V1 readiness semantics |
 | API | `GET /health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /api/health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /ready` returns reference-compatible success when ready | Existing | `test/integration/app.test.ts` | Verifies unauthenticated readiness success shape |
-| API | `GET /ready` returns `503` when local state is unavailable | Existing | `test/integration/app.test.ts` | Verifies reference-compatible local state failure behavior |
+| API | File-backed state startup fails when local state is unavailable | Existing | `test/integration/app.test.ts` | Verifies unusable durable state fails startup instead of exposing partial status |
 | API | Frozen reference V1 route inventory is served | Existing | `test/integration/app.test.ts` | Verifies health, readiness, Apple, metrics, and insights routes respond |
 | API | Reference-shaped no-data insight and metrics responses | Existing | `test/integration/app.test.ts` | Verifies `/metrics` names and empty `/api/insights/*` response shapes |
 | API | Insight query parameter validation | Existing | `test/integration/app.test.ts` | Verifies invalid `since`, `severity`, and `period` reference-style errors |
@@ -81,9 +82,10 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | API | Malformed sample-window headers return null windows | Existing | `test/integration/app.test.ts` | Verifies malformed HealthSave timestamp headers do not fail batch ingest |
 | API | Status endpoint returns flat metric objects | Existing | `test/integration/app.test.ts` | Verifies HRV status uses `{count, oldest, newest}` without wrapper keys |
 | API | Duplicate retries do not inflate status and oldest/newest expand correctly | Existing | `test/integration/app.test.ts` | Verifies deduplicated logical-record status behavior |
-| API | Status endpoint survives app restart | Existing | `test/integration/app.test.ts` | Verifies `DATA_PATH/status/<context>/observations.ndjson` rebuilds already-observed status |
+| API | Status endpoint survives app restart | Existing | `test/integration/app.test.ts` | Verifies `DATA_PATH/status/status.sqlite` preserves already-observed status |
+| API | Broken SQLite status store fails startup | Existing | `test/integration/app.test.ts` | Verifies startup fails instead of exposing partial status when the status database cannot open |
 | API | Protected endpoints reject incorrect API keys | Existing | `test/integration/app.test.ts` | Verifies `401` and reference-compatible error body |
-| API | Prefixed context endpoints isolate status objects | Existing | `test/integration/app.test.ts` | Verifies `/prefix/api/...` uses context routing and separate status ledgers |
+| API | Prefixed context endpoints isolate status objects | Existing | `test/integration/app.test.ts` | Verifies `/prefix/api/...` uses context routing and separate status rows |
 | API | Prefixed context endpoints isolate v2 diagnostics and receipts | Existing | `test/integration/app.test.ts` | Verifies prefixed v2 endpoint paths and context-specific sync run storage |
 | API | Blood pressure correlations count as distinct quantity samples | Existing | `test/integration/app.test.ts` | Verifies systolic and diastolic rows do not collapse into one record |
 | API | Body temperature batches do not surface in public status | Existing | `test/integration/app.test.ts` | Verifies processed body temperature stays outside the public status keys |

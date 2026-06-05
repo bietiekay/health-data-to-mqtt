@@ -55,6 +55,26 @@ describe("checkReadiness", () => {
     });
   });
 
+  it("returns unavailable while the state store is not ready", async () => {
+    const dataPath = createTempDataPath();
+    const config = loadConfig({
+      STATE_BACKEND: "file",
+      DATA_PATH: dataPath,
+      MQTT_ENABLED: "false",
+      LOG_ENABLED: "false",
+    });
+
+    await expect(
+      checkReadiness(config, { isReady: () => true }, { isReady: () => false }),
+    ).resolves.toEqual({
+      statusCode: 503,
+      body: {
+        detail: "database unavailable",
+        database: "unavailable",
+      },
+    });
+  });
+
   it("returns unavailable when file-backed state cannot be probed", async () => {
     const config = loadConfig({
       STATE_BACKEND: "file",

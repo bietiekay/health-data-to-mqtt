@@ -261,7 +261,7 @@ Exact normalized payload fields may still change while the porting plan is final
 
 ## Local State
 
-`GET /api/apple/status` returns a flat JSON object whose top-level keys are the HealthSave status metrics. Each value has the shape `{ "count": number, "oldest": string | null, "newest": string | null }`. The file-backed implementation stores a deduplicated observation ledger when `STATE_BACKEND=file`, so retries do not inflate counts and `oldest` / `newest` survive restarts.
+`GET /api/apple/status` returns a flat JSON object whose top-level keys are the HealthSave status metrics. Each value has the shape `{ "count": number, "oldest": string | null, "newest": string | null }`. The file-backed implementation stores exact dedupe rows in SQLite when `STATE_BACKEND=file`, so retries do not inflate counts and `oldest` / `newest` survive restarts without loading all historical identities into memory.
 
 Batch responses include the legacy `status`, `metric`, `batch`, `total_batches`, and `records` fields plus additive delivery receipt fields such as `receipt_id`, `records_received`, `records_accepted`, `records_rejected`, `records_deduped_in_batch`, `sample_window`, `verification_level`, and `per_metric`.
 
@@ -278,11 +278,15 @@ DATA_PATH=/data
 STATE_BACKEND=file
 ```
 
-The file-backed status ledger is written under:
+The file-backed status store is written under:
 
 ```text
-<DATA_PATH>/status/<context>/observations.ndjson
+<DATA_PATH>/status/status.sqlite
 ```
+
+SQLite may also create adjacent `status.sqlite-wal` and `status.sqlite-shm` files while the service is running. Include all `status.sqlite*` files in backups. Rollbacks to versions that predate the SQLite store will ignore rows written only to SQLite.
+
+On first startup after upgrading from the legacy NDJSON status ledger, the service scans existing `<DATA_PATH>/status/<context>/observations.ndjson` files, migrates valid observations into SQLite, records a migration marker, and leaves the legacy files untouched. Startup logs include the selected state backend, SQLite database path, schema initialization, whether migration ran or was skipped, per-context scanned/inserted/duplicate/skipped counts, and a final migration summary. Malformed legacy rows are logged with safe metadata only.
 
 The file-backed sync receipt ledger is written under:
 
@@ -300,7 +304,7 @@ Status endpoint timestamps are returned as ISO UTC strings. This keeps internal 
 
 Docker Compose mounts `/data` as a persistent volume, so the HealthSave app can see already-observed records after container restarts. Set `STATE_BACKEND=memory` only for disposable local runs or tests.
 
-If you previously ran a build that stored counter-only data in `<DATA_PATH>/state.json`, that file is no longer used. The new flat status response needs per-record timestamps and dedupe keys, so operators should expect a one-time status reset or trigger a re-sync after upgrading.
+If you previously ran a build that stored counter-only data in `<DATA_PATH>/state.json`, that file is no longer used. The flat status response needs per-record timestamps and dedupe keys, so operators should expect a one-time status reset or trigger a re-sync when upgrading from counter-only versions. Existing NDJSON status ledgers from newer builds migrate automatically.
 
 ## Raw Batch Storage
 
@@ -393,7 +397,7 @@ State and migration options:
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DATA_PATH` | `/data` | Persistent application data directory |
-| `STATE_BACKEND` | `file` | Local status, sync receipt, and idempotency backend. Use `file` for durable observations/receipts/keys or `memory` for disposable runs. |
+| `STATE_BACKEND` | `file` | Local status, sync receipt, and idempotency backend. Use `file` for durable SQLite status, receipts, and keys or `memory` for disposable runs. |
 | `TIMESCALE_MODE` | `off` | Optional reference mode: `off`, `shadow`, or `bridge` |
 | `TIMESCALE_URL` | empty | Optional Timescale/PostgreSQL connection string |
 | `TIMESCALE_STRICT_STARTUP` | `false` | Fail startup if reference mode cannot connect |

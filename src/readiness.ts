@@ -2,6 +2,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AppConfig } from "./config.js";
 import type { HealthMqttPublisher } from "./mqtt/publisher.js";
+import type { StateStore } from "./state/store.js";
 
 export interface ReadyResponse {
   status?: "ok";
@@ -12,8 +13,10 @@ export interface ReadyResponse {
 export async function checkReadiness(
   config: AppConfig,
   _mqttPublisher: Pick<HealthMqttPublisher, "isReady">,
+  stateStore?: Pick<StateStore, "isReady">,
 ): Promise<{ statusCode: 200 | 503; body: ReadyResponse }> {
-  const databaseReady = await isStateReady(config);
+  const databaseReady =
+    (stateStore?.isReady() ?? true) && (await isStateReady(config));
 
   if (databaseReady) {
     return {

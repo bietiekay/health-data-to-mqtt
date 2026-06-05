@@ -157,16 +157,16 @@ export function createStatusObservations(
   return records.flatMap((record) => {
     const statusMetric = publicStatusMetricForRecord(record);
     const observedAt = observedAtForRecord(record);
-    const identityKey = identityKeyForRecord(record);
+    const identity = statusIdentityForRecord(record);
 
-    if (!statusMetric || !observedAt || !identityKey) {
+    if (!statusMetric || !observedAt || !identity) {
       return [];
     }
 
     return [
       {
         statusMetric,
-        identityKey,
+        ...identity,
         observedAt,
       },
     ];
@@ -761,19 +761,21 @@ function observedAtForRecord(record: NormalizedRecord): string | undefined {
   return undefined;
 }
 
-function identityKeyForRecord(record: NormalizedRecord): string | undefined {
+function statusIdentityForRecord(
+  record: NormalizedRecord,
+): Pick<StatusObservation, "deviceId" | "secondaryKey"> | undefined {
   if (
     record.normalizedMetric === "heart_rate" ||
     record.normalizedMetric === "hrv" ||
     record.normalizedMetric === "blood_oxygen"
   ) {
     const time = getStringValue(record.normalizedSample.time);
-    return time ? `${record.deviceId}:${time}` : undefined;
+    return time ? { deviceId: record.deviceId } : undefined;
   }
 
   if (record.normalizedMetric === "daily_activity") {
     const date = getStringValue(record.normalizedSample.date);
-    return date ? `${record.deviceId}:${date}` : undefined;
+    return date ? { deviceId: record.deviceId } : undefined;
   }
 
   if (
@@ -781,14 +783,14 @@ function identityKeyForRecord(record: NormalizedRecord): string | undefined {
     record.normalizedMetric === "workouts"
   ) {
     const startTime = getStringValue(record.normalizedSample.start_time);
-    return startTime ? `${record.deviceId}:${startTime}` : undefined;
+    return startTime ? { deviceId: record.deviceId } : undefined;
   }
 
   if (record.normalizedMetric === "quantity_samples") {
     const time = getStringValue(record.normalizedSample.time);
     const metricName = getStringValue(record.normalizedSample.metric_name);
     return time && metricName
-      ? `${record.deviceId}:${metricName}:${time}`
+      ? { deviceId: record.deviceId, secondaryKey: metricName }
       : undefined;
   }
 

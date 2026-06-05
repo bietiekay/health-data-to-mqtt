@@ -252,7 +252,7 @@ export async function registerAppleRoutes(
         applied_status_observations: statusUpdate.applied,
         duplicate_status_observations: statusUpdate.duplicates,
       },
-      "updated apple health status ledger",
+      "updated apple health status store",
     );
 
     const response = createBatchResponse({
