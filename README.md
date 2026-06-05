@@ -286,7 +286,7 @@ The file-backed status store is written under:
 
 SQLite may also create adjacent `status.sqlite-wal` and `status.sqlite-shm` files while the service is running. Include all `status.sqlite*` files in backups. Rollbacks to versions that predate the SQLite store will ignore rows written only to SQLite.
 
-On first startup after upgrading from the legacy NDJSON status ledger, the service scans existing `<DATA_PATH>/status/<context>/observations.ndjson` files, migrates valid observations into SQLite, records a migration marker, and leaves the legacy files untouched. Startup logs include the selected state backend, SQLite database path, schema initialization, whether migration ran or was skipped, per-context scanned/inserted/duplicate/skipped counts, and a final migration summary. Malformed legacy rows are logged with safe metadata only.
+On first startup after upgrading from the legacy NDJSON status ledger, the service scans existing `<DATA_PATH>/status/<context>/observations.ndjson` files, migrates valid observations into SQLite, renames each processed legacy file to `observations.ndjson.migrated`, and then records a migration marker. Startup logs include the selected state backend, SQLite database path, schema initialization, whether migration ran or was skipped, per-context scanned/inserted/duplicate/skipped counts, renamed ledger counts, and a final migration summary. Malformed legacy rows are logged with safe metadata only.
 
 The file-backed sync receipt ledger is written under:
 

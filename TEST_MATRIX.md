@@ -49,8 +49,8 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Storage | Raw batch archive preserves original request body | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies wrapped payloads are stored unchanged instead of parsed replacements |
 | State | SQLite-backed status store persists by context | Existing | `test/unit/state-store.test.ts` | Verifies prefixed contexts reload separate flat status objects from `status.sqlite` |
 | State | SQLite-backed status store deduplicates and tracks oldest/newest | Existing | `test/unit/state-store.test.ts` | Verifies duplicate observations are ignored and ranges update |
-| State | SQLite-backed status store writes the configured database | Existing | `test/unit/state-store.test.ts` | Verifies `DATA_PATH/status/status.sqlite` is created and legacy ledgers are not appended |
-| State | Legacy status NDJSON migration | Existing | `test/unit/state-store.test.ts` | Verifies legacy observations, quantity samples, device names containing colons, duplicate rows, malformed rows, migration logging, and marker skip behavior |
+| State | SQLite-backed status store writes the configured database | Existing | `test/unit/state-store.test.ts` | Verifies `DATA_PATH/status/status.sqlite` is created and new legacy ledgers are not appended |
+| State | Legacy status NDJSON migration | Existing | `test/unit/state-store.test.ts` | Verifies legacy observations, quantity samples, device names containing colons, duplicate rows, malformed rows, migration logging, ledger renaming, and marker skip behavior |
 | State | Idempotency index records and replays memory entries | Existing | `test/unit/idempotency-store.test.ts` | Verifies successful batch responses can be looked up by idempotency key |
 | State | Idempotency index does not overwrite existing keys | Existing | `test/unit/idempotency-store.test.ts` | Verifies the first response remains authoritative for a reused key |
 | State | File-backed idempotency index persists by context | Existing | `test/unit/idempotency-store.test.ts` | Verifies `<DATA_PATH>/idempotency/<context>/keys.ndjson` reload behavior |

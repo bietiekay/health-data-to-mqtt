@@ -3,9 +3,10 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  renameSync,
 } from "node:fs";
 import { DatabaseSync, type StatementSync } from "node:sqlite";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { AppConfig } from "../config.js";
 
 export const statusMetricKeys = [
@@ -413,7 +414,9 @@ export class SQLiteStateStore implements StateStore {
       inserted: 0,
       duplicates: 0,
       skipped: 0,
+      renamed: 0,
     };
+    const ledgersToRename: string[] = [];
 
     this.withTransaction(() => {
       for (const contextDirectory of legacyContextDirectories(this.basePath)) {
@@ -429,8 +432,18 @@ export class SQLiteStateStore implements StateStore {
         summary.inserted += contextSummary.inserted;
         summary.duplicates += contextSummary.duplicates;
         summary.skipped += contextSummary.skipped;
+        ledgersToRename.push(ledgerPath);
       }
 
+    });
+
+    for (const ledgerPath of ledgersToRename) {
+      if (this.renameLegacyLedger(ledgerPath)) {
+        summary.renamed += 1;
+      }
+    }
+
+    this.withTransaction(() => {
       this.insertMigrationStatement.run(
         legacyMigrationName,
         new Date().toISOString(),
@@ -446,6 +459,7 @@ export class SQLiteStateStore implements StateStore {
         inserted_rows: summary.inserted,
         duplicate_rows: summary.duplicates,
         skipped_rows: summary.skipped,
+        renamed_ledgers: summary.renamed,
         elapsed_ms: Date.now() - migrationStartedAt,
         migration_marker_written: true,
       },
@@ -464,6 +478,7 @@ export class SQLiteStateStore implements StateStore {
       inserted: 0,
       duplicates: 0,
       skipped: 0,
+      renamed: 0,
     };
     const content = readFileSync(ledgerPath, "utf8");
 
@@ -514,6 +529,23 @@ export class SQLiteStateStore implements StateStore {
     );
 
     return summary;
+  }
+
+  private renameLegacyLedger(ledgerPath: string): boolean {
+    if (!existsSync(ledgerPath)) {
+      return false;
+    }
+
+    const archivedPath = archivedLegacyLedgerPath(ledgerPath);
+    renameSync(ledgerPath, archivedPath);
+    this.logger.info(
+      {
+        legacy_ledger_path: ledgerPath,
+        archived_legacy_ledger_path: archivedPath,
+      },
+      "renamed migrated sqlite status legacy ledger",
+    );
+    return true;
   }
 
   private logSkippedLegacyRow(
@@ -760,6 +792,7 @@ interface LegacyMigrationSummary {
   inserted: number;
   duplicates: number;
   skipped: number;
+  renamed: number;
 }
 
 interface ParsedLegacyObservation {
@@ -778,6 +811,7 @@ type LegacyObservationParseResult =
   | FailedLegacyObservationParse;
 
 const legacyMigrationName = "legacy-status-ndjson-v1";
+const archivedLegacyLedgerFileName = "observations.ndjson.migrated";
 
 const noopLogger: StateStoreLogger = {
   info() {
@@ -854,6 +888,19 @@ function legacyContextDirectories(
       name: entry.name,
       path: join(basePath, entry.name),
     }));
+}
+
+function archivedLegacyLedgerPath(ledgerPath: string): string {
+  const directory = dirname(ledgerPath);
+  let candidate = join(directory, archivedLegacyLedgerFileName);
+  let suffix = 1;
+
+  while (existsSync(candidate)) {
+    candidate = join(directory, `${archivedLegacyLedgerFileName}.${suffix}`);
+    suffix += 1;
+  }
+
+  return candidate;
 }
 
 function decodeContextName(encodedContextName: string): string {

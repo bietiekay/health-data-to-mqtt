@@ -14,7 +14,7 @@ Version headers must match the `version` field in `package.json`.
 
 ### Added
 
-- Added automatic one-time migration from legacy `<DATA_PATH>/status/<context>/observations.ndjson` status ledgers into SQLite while leaving legacy files untouched.
+- Added automatic one-time migration from legacy `<DATA_PATH>/status/<context>/observations.ndjson` status ledgers into SQLite, then renaming processed ledgers to `observations.ndjson.migrated`.
 - Added startup and migration logs for the selected state backend, SQLite schema initialization, per-context migration counts, skipped malformed legacy rows, and final migration summaries.
 - Added tests for SQLite status persistence, exact dedupe, legacy migration, migration marker skipping, close readiness, and startup failure when SQLite cannot open.
 

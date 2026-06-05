@@ -597,12 +597,13 @@ identities into memory.
 
 On first startup after upgrading from the legacy status ledger, existing
 `<DATA_PATH>/status/<context>/observations.ndjson` files are migrated into
-SQLite and left untouched. Startup logs report the selected state backend,
-SQLite database path, schema initialization, whether migration ran or was
-skipped, per-context migration counts, skipped malformed rows, and a final
-migration summary. SQLite may create `status.sqlite-wal` and `status.sqlite-shm`
-beside the main database file; all `status.sqlite*` files are part of the
-durable status state.
+SQLite and then renamed to `observations.ndjson.migrated` so they are not picked
+up by later forced or remedial migration scans. Startup logs report the selected
+state backend, SQLite database path, schema initialization, whether migration
+ran or was skipped, per-context migration counts, skipped malformed rows,
+renamed legacy ledgers, and a final migration summary. SQLite may create
+`status.sqlite-wal` and `status.sqlite-shm` beside the main database file; all
+`status.sqlite*` files are part of the durable status state.
 
 The same backend also stores lightweight sync delivery receipts under
 `<DATA_PATH>/receipts/<context>/receipts.ndjson` when clients send

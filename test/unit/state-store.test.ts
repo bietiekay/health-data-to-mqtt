@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   SQLiteStateStore,
@@ -209,7 +209,7 @@ describe("SQLiteStateStore", () => {
     await store.close();
   });
 
-  it("migrates legacy ndjson ledgers without appending to them", async () => {
+  it("migrates and renames legacy ndjson ledgers", async () => {
     const statePath = createTempStatePath();
     const legacyContent = [
       legacyObservationLine(
@@ -244,7 +244,14 @@ describe("SQLiteStateStore", () => {
         newest: "2026-04-09T07:30:00.000Z",
       },
     });
-    await expect(readFile(ledgerPath, "utf8")).resolves.toBe(legacyContent);
+    const archivedLedgerPath = join(
+      dirname(ledgerPath),
+      "observations.ndjson.migrated",
+    );
+    await expect(access(ledgerPath)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(archivedLedgerPath, "utf8")).resolves.toBe(
+      legacyContent,
+    );
     expect(logger.entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -256,7 +263,16 @@ describe("SQLiteStateStore", () => {
             inserted_rows: 2,
             duplicate_rows: 0,
             skipped_rows: 0,
+            renamed_ledgers: 1,
             migration_marker_written: true,
+          }),
+        }),
+        expect.objectContaining({
+          level: "info",
+          message: "renamed migrated sqlite status legacy ledger",
+          bindings: expect.objectContaining({
+            legacy_ledger_path: ledgerPath,
+            archived_legacy_ledger_path: archivedLedgerPath,
           }),
         }),
       ]),
