@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 Version headers must match the `version` field in `package.json`.
 
+## 0.4.2
+
+### Changed
+
+- Bumped the app version to 0.4.2.
+
 ## 0.4.1
 
 ### Changed
