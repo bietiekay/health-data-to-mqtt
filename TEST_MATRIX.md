@@ -13,6 +13,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Config | Contexts load from environment JSON | Existing | `test/unit/config.test.ts` | Covers Docker-friendly multi-client context configuration |
 | Config | Data path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers `DATA_PATH`, YAML `storage.dataPath`, and env override |
 | Config | Raw storage path loads from environment and YAML | Existing | `test/unit/config.test.ts` | Covers opt-in `RAW_STORAGE_PATH`, YAML `storage.rawDataPath`, env override, and empty-path disabled behavior |
+| Config | Whoop webhook secret loads from environment | Existing | `test/unit/config.test.ts` | Covers `WHOOP_WEBHOOK_SECRET` for HMAC verification |
 | Ingest | Unknown metrics map to `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Reference-compatible fallback for generic quantity metrics |
 | Ingest | Batch schema applies reference-compatible defaults | Existing | `test/unit/ingest.test.ts` | Covers missing metric, batch fields, and samples |
 | Ingest | JSON-encoded batch and sample wrappers deserialize | Existing | `test/unit/ingest.test.ts` | Covers wrapped `data` payloads and sample-level JSON strings |
@@ -61,19 +62,26 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | State | Sync receipt run, coverage, and idempotency summaries | Existing | `test/unit/sync-receipts.test.ts` | Verifies accepted-only accounting, metric coverage, and stored response replay metadata |
 | State | Sync receipt summaries separate processed and failed rows | Existing | `test/unit/sync-receipts.test.ts` | Verifies `batches_processed` and `batches_failed` aggregation |
 | State | File-backed sync receipt ledger persists by context | Existing | `test/unit/sync-receipts.test.ts` | Verifies `<DATA_PATH>/receipts/<context>/receipts.ndjson` reload behavior |
-| Readiness | Memory and file readiness probes | Existing | `test/unit/readiness.test.ts` | Verifies reference success shape, file-backed state probes, and unavailable state-store readiness |
+| State | Read store deterministic stream IDs and in-memory observations | Existing | `test/unit/read-store.test.ts` | Verifies stable UUIDs, canonical observation storage, identity pagination, device derivation, and export summaries |
+| Readiness | Memory and file readiness probes | Existing | `test/unit/readiness.test.ts` | Verifies updated `status: "ready"` success shape, file-backed state probes, and unavailable state-store readiness |
 | Readiness | Reference-compatible readiness ignores MQTT state | Existing | `test/unit/readiness.test.ts` | Verifies unavailable local state failures and DB/state-only V1 readiness semantics |
 | API | `GET /health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
 | API | `GET /api/health` returns `{"status":"ok"}` | Existing | `test/integration/app.test.ts` | Uses Fastify injection |
-| API | `GET /ready` returns reference-compatible success when ready | Existing | `test/integration/app.test.ts` | Verifies unauthenticated readiness success shape |
+| API | `GET /ready` returns updated reference success when ready | Existing | `test/integration/app.test.ts` | Verifies unauthenticated `{status:"ready",database:"ok"}` success shape |
 | API | File-backed state startup fails when local state is unavailable | Existing | `test/integration/app.test.ts` | Verifies unusable durable state fails startup instead of exposing partial status |
 | API | Frozen reference V1 route inventory is served | Existing | `test/integration/app.test.ts` | Verifies health, readiness, Apple, metrics, and insights routes respond |
 | API | Reference-shaped no-data insight and metrics responses | Existing | `test/integration/app.test.ts` | Verifies `/metrics` names and empty `/api/insights/*` response shapes |
 | API | Insight query parameter validation | Existing | `test/integration/app.test.ts` | Verifies invalid `since`, `severity`, and `period` reference-style errors |
 | API | `GET /api/v2/setup/diagnostics` is unauthenticated | Existing | `test/integration/app.test.ts` | Verifies port identity, auth-required flag, endpoint paths, and wrong-port hint |
+| API | Markdown API reference auth inventory | Existing | `test/integration/app.test.ts` | Verifies all local contract-inventory endpoints classify as open, keyed, or HMAC |
+| API | V2 meta and metric catalog endpoints | Existing | `test/integration/app.test.ts` | Verifies open `/api/v2/meta` and `/api/v2/metrics` response shapes |
 | API | Protected v2 sync endpoints enforce API key auth | Existing | `test/integration/app.test.ts` | Verifies v2 sync routes use the same optional `x-api-key` behavior as v1 protected routes |
-| API | V2 sync receipts summarize batches with HealthSave run headers | Existing | `test/integration/app.test.ts` | Verifies latest run, run-specific receipt, coverage, and accepted/rejected/deduped counts |
+| API | V2 sync receipts summarize batches with HealthSave run headers | Existing | `test/integration/app.test.ts` | Verifies latest run, run-specific receipt, coverage summary, receipt sample windows, destination counts, and accepted/rejected/deduped counts |
 | API | Batches without sync run IDs do not appear in v2 receipts | Existing | `test/integration/app.test.ts` | Verifies latest returns an empty success, specific run lookup returns `404`, and coverage stays empty for v1-style requests |
+| API | V2 read, identity, export, changes, and receipts from accepted batches | Existing | `test/integration/app.test.ts` | Verifies series, batch series, sources/devices/streams, readiness, export JSON/CSV, ETag 304, and receipt freshness from local read state |
+| API | V2 unavailable engines return typed empty/no-op shapes | Existing | `test/integration/app.test.ts` | Verifies insights, sync anomalies, experiment candidates, and agent proposal stubs |
+| API | V2 lightweight experiments | Existing | `test/integration/app.test.ts` | Verifies create/list/get/analyze/abandon local experiment records |
+| API | V2 intelligence and privacy posture | Existing | `test/integration/app.test.ts` | Verifies settings updates redact secrets, consent, privacy, local detection, provider probe, and audit receipts |
 | API | Batch body validation errors match reference style | Existing | `test/integration/app.test.ts` | Verifies invalid JSON `400` and schema validation `422` response shapes |
 | API | Batch happy path returns processed delivery receipt | Existing | `test/integration/app.test.ts` | Counts valid deduplicated logical records and verifies reference delivery receipt fields |
 | API | Non-empty batches without normalized records return `records: 0` and unchanged status | Existing | `test/integration/app.test.ts` | Verifies invalid samples are skipped without inflating status |
@@ -112,6 +120,8 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | State | Sync-run fallback idempotency replays accepted batches | Existing | `test/integration/app.test.ts` | Verifies `sync_run_id:metric:batch_index` fallback when explicit key and batch ID are absent |
 | State | File-backed idempotency survives app restart | Existing | `test/integration/app.test.ts` | Verifies replay works after restarting with the same `DATA_PATH` |
 | State | Failed sync-run batches appear in receipt summaries | Existing | `test/integration/app.test.ts` | Verifies MQTT failure records `batches_failed` and retry can later succeed |
+| Webhooks | Whoop webhook HMAC helper | Existing | `test/unit/whoop.test.ts` | Verifies base64 HMAC-SHA256 over timestamp plus body and rejects tampered/missing inputs |
+| Webhooks | Whoop webhook route signature enforcement | Existing | `test/integration/app.test.ts` | Verifies configured `WHOOP_WEBHOOK_SECRET` requires valid Whoop timestamp and signature headers |
 | MQTT | Broker-backed raw publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | MQTT | Broker-backed normalized publication | Planned | Not implemented | Add a real broker or Testcontainers-style integration check |
 | Replay | Realistic multi-metric sync fixtures | Planned | Not implemented | Add with mapper implementation |

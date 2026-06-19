@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
+import { apiReferenceEndpoints } from "../../src/contracts/api-reference.js";
 import { loadConfig, type AppContextConfig } from "../../src/config.js";
 import type { BatchRequest, NormalizedRecord } from "../../src/ingest.js";
 import type {
@@ -19,6 +20,7 @@ import {
 } from "../../src/mqtt/publisher.js";
 import { createMemorySyncReceiptStore } from "../../src/state/sync-receipts.js";
 import type { RawBatchStorage } from "../../src/storage/raw-batch-storage.js";
+import { createWhoopSignature } from "../../src/webhooks/whoop.js";
 
 const baseConfig = loadConfig({
   HOST: "127.0.0.1",
@@ -37,14 +39,16 @@ interface PublishCall {
   options?: { qos?: 0 | 1 | 2; retain?: boolean };
 }
 
-async function createApp(apiKey = "") {
+async function createApp(apiKey = "", overrides: Partial<typeof baseConfig> = {}) {
   app = await buildApp({
     config: {
       ...baseConfig,
+      ...overrides,
       apiKey,
       logEnabled: false,
       mqtt: {
         ...baseConfig.mqtt,
+        ...overrides.mqtt,
         enabled: false,
       },
     },
@@ -268,7 +272,7 @@ describe("compatibility endpoints", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      status: "ok",
+      status: "ready",
       database: "ok",
     });
   });
@@ -309,7 +313,7 @@ describe("compatibility endpoints", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      status: "ok",
+      status: "ready",
       database: "ok",
     });
   });
@@ -332,6 +336,7 @@ describe("compatibility endpoints", () => {
       ingest_endpoint: "/api/apple/batch",
       latest_sync_endpoint: "/api/v2/sync/runs/latest",
       coverage_endpoint: "/api/v2/sync/coverage",
+      anomalies_endpoint: "/api/v2/sync/anomalies",
       grafana_required: false,
       wrong_port_hint:
         "If you see Grafana auth JSON, Homepage HTML, or an MQTT broker response, the app is pointed at the wrong port. Use the Health Data to MQTT API base URL.",
@@ -360,6 +365,64 @@ describe("compatibility endpoints", () => {
       const response = await server.inject(testCase);
       expect(response.statusCode, `${testCase.method} ${testCase.url}`).toBe(200);
     }
+  });
+
+  it("classifies the markdown API reference endpoints by auth surface", async () => {
+    const server = await createApp("secret", {
+      whoopWebhookSecret: "whoop-secret",
+    });
+
+    for (const endpoint of apiReferenceEndpoints) {
+      const response = await server.inject({
+        method: endpoint.method,
+        url: endpoint.path,
+        payload: endpoint.method === "GET" ? undefined : {},
+      });
+
+      if (endpoint.auth === "key") {
+        expect(
+          response.statusCode,
+          `${endpoint.method} ${endpoint.path}`,
+        ).toBe(401);
+      } else if (endpoint.auth === "hmac") {
+        expect(
+          response.statusCode,
+          `${endpoint.method} ${endpoint.path}`,
+        ).toBe(401);
+      } else {
+        expect(
+          response.statusCode,
+          `${endpoint.method} ${endpoint.path}`,
+        ).not.toBe(401);
+      }
+    }
+  });
+
+  it("returns v2 meta and canonical metric catalog as open endpoints", async () => {
+    const server = await createApp("secret");
+
+    const meta = await server.inject({ method: "GET", url: "/api/v2/meta" });
+    const metrics = await server.inject({ method: "GET", url: "/api/v2/metrics" });
+
+    expect(meta.statusCode).toBe(200);
+    expect(meta.json()).toEqual({
+      v2_status: "active",
+      versions: {
+        api_contract: "1",
+        ontology: "1",
+        normalizer: "1",
+        fusion_policy: "1",
+      },
+      decision_record: "ADR-0001",
+    });
+    expect(metrics.statusCode).toBe(200);
+    expect(metrics.json()).toContainEqual({
+      id: "vital.heart_rate",
+      display_name: "Heart Rate",
+      category: "vital",
+      value_type: "quantity",
+      canonical_unit: "count/min",
+    });
   });
 
   it("returns reference-shaped no-data insight and metrics responses", async () => {
@@ -1021,14 +1084,200 @@ describe("compatibility endpoints", () => {
       metrics: [
         {
           metric: "heart_rate",
+          batches_seen: 1,
           records_received: 3,
           records_accepted: 1,
           records_rejected: 1,
           records_deduped_in_batch: 1,
+          receipt_sample_window: {
+            min_sample_time: "2026-04-10T12:00:00Z",
+            max_sample_time: "2026-04-10T12:00:00Z",
+          },
           latest_receipt_sample_time: "2026-04-10T12:00:00Z",
           latest_destination_sample_time: "2026-04-10T12:00:00.000Z",
+          destination_row_count: 1,
         },
       ],
+    });
+  });
+
+  it("serves v2 read, identity, export, changes, and receipts from accepted batches", async () => {
+    const server = await createApp("secret");
+    const batchResponse = await server.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      headers: {
+        "x-api-key": "secret",
+        "x-healthsave-sync-run-id": "run-read-1",
+        "x-healthsave-batch-id": "batch-read-1",
+      },
+      payload: {
+        metric: "heart_rate",
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          { date: "2026-04-10T12:00:00Z", qty: 72, source: "Apple Watch" },
+        ],
+      },
+    });
+    expect(batchResponse.statusCode).toBe(200);
+
+    const series = await server.inject({
+      method: "GET",
+      url: "/api/v2/metrics/vital.heart_rate/series?start=2026-04-10T00:00:00Z&end=2026-04-11T00:00:00Z",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(series.statusCode).toBe(200);
+    expect(series.json()).toMatchObject({
+      metric: { id: "vital.heart_rate" },
+      points: [
+        {
+          t: "2026-04-10T12:00:00.000Z",
+          value: 72,
+          source_id: "apple_watch",
+        },
+      ],
+    });
+
+    const batchSeries = await server.inject({
+      method: "GET",
+      url: "/api/v2/series?ids=vital.heart_rate,not.a.metric&start=2026-04-10T00:00:00Z&end=2026-04-11T00:00:00Z",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(batchSeries.statusCode).toBe(200);
+    expect(batchSeries.json()).toMatchObject({
+      series: [
+        { metric: { id: "vital.heart_rate" }, points: [{ value: 72 }] },
+        { metric_id: "not.a.metric", error: "unknown metric" },
+      ],
+    });
+
+    const sources = await server.inject({
+      method: "GET",
+      url: "/api/v2/sources?limit=10&offset=0",
+      headers: { "x-api-key": "secret" },
+    });
+    const streams = await server.inject({
+      method: "GET",
+      url: "/api/v2/streams",
+      headers: { "x-api-key": "secret" },
+    });
+    const devices = await server.inject({
+      method: "GET",
+      url: "/api/v2/devices",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(sources.json()).toMatchObject({
+      count: 1,
+      total: 1,
+      sources: [{ plugin_id: "apple-healthkit-ios" }],
+    });
+    expect(streams.json()).toMatchObject({
+      count: 1,
+      total: 1,
+      streams: [{ device_label: "Apple Watch", source_plugin_id: "apple-healthkit-ios" }],
+    });
+    expect(devices.json()).toMatchObject({
+      count: 1,
+      total: 1,
+      devices: [{ device_label: "Apple Watch", stream_count: 1 }],
+    });
+
+    const streamId = streams.json().streams[0].id as string;
+    expect(streamId).toMatch(/^[0-9a-f-]{36}$/);
+    const stream = await server.inject({
+      method: "GET",
+      url: `/api/v2/streams/${streamId}`,
+      headers: { "x-api-key": "secret" },
+    });
+    expect(stream.statusCode).toBe(200);
+    expect(stream.json()).toMatchObject({ id: streamId, device_label: "Apple Watch" });
+
+    const readiness = await server.inject({
+      method: "GET",
+      url: "/api/v2/readiness",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(readiness.json()).toMatchObject({
+      summary: { metrics_with_data: 1 },
+      metrics: [
+        {
+          metric_id: "vital.heart_rate",
+          observation_count: 1,
+          days_with_data: 1,
+        },
+      ],
+    });
+
+    const exportMetrics = await server.inject({
+      method: "GET",
+      url: "/api/v2/export/metrics",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(exportMetrics.json()).toEqual([
+      {
+        metric: "vital.heart_rate",
+        display_name: "Heart Rate",
+        count: 1,
+        oldest: "2026-04-10T12:00:00.000Z",
+        newest: "2026-04-10T12:00:00.000Z",
+      },
+    ]);
+
+    const exported = await server.inject({
+      method: "GET",
+      url: "/api/v2/export?metric=vital.heart_rate",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(exported.json()).toMatchObject({
+      count: 1,
+      rows: [{ metric_id: "vital.heart_rate", value: 72 }],
+    });
+    const exportedCsv = await server.inject({
+      method: "GET",
+      url: "/api/v2/export?metric=vital.heart_rate&format=csv",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(exportedCsv.headers["content-type"]).toContain("text/csv");
+    expect(exportedCsv.body).toContain("metric_id");
+    expect(exportedCsv.body).toContain("vital.heart_rate");
+
+    const changes = await server.inject({
+      method: "GET",
+      url: "/api/v2/changes",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(changes.statusCode).toBe(200);
+    expect(changes.json()).toMatchObject({
+      last_ingested_at: expect.any(String),
+      latest_sync_run: {
+        sync_run_id: "run-read-1",
+      },
+      last_narrative_at: null,
+      version_token: expect.any(String),
+    });
+    const notModified = await server.inject({
+      method: "GET",
+      url: "/api/v2/changes",
+      headers: {
+        "x-api-key": "secret",
+        "if-none-match": changes.headers.etag as string,
+      },
+    });
+    expect(notModified.statusCode).toBe(304);
+
+    const receipts = await server.inject({
+      method: "GET",
+      url: "/api/v2/receipts",
+      headers: { "x-api-key": "secret" },
+    });
+    expect(receipts.json()).toMatchObject({
+      events_unavailable: false,
+      count: 0,
+      ingest: {
+        sources: [{ source_plugin_id: "apple-healthkit-ios" }],
+        latest_sync_run: { sync_run_id: "run-read-1" },
+      },
     });
   });
 
@@ -1084,7 +1333,240 @@ describe("compatibility endpoints", () => {
       status: "ok",
       storage_result_level: "accepted_only",
       count: 0,
+      summary: {
+        metrics_seen: 0,
+        batches_seen: 0,
+        records_received: 0,
+        records_accepted: 0,
+        records_inserted_new: null,
+        records_deduped_existing: null,
+        records_skipped: 0,
+      },
       metrics: [],
+    });
+  });
+
+  it("returns typed empty or no-op shapes for unavailable v2 engines", async () => {
+    const server = await createApp("secret");
+    const headers = { "x-api-key": "secret" };
+
+    await expect(
+      server.inject({ method: "GET", url: "/api/v2/insights/latest", headers }),
+    ).resolves.toMatchObject({
+      statusCode: 200,
+      body: JSON.stringify({
+        daily_briefing: null,
+        weekly_summary: null,
+        recent_findings: [],
+        runs: {
+          daily_briefing: null,
+          weekly_summary: null,
+        },
+      }),
+    });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/v2/insights/findings", headers })).json(),
+    ).toEqual({ findings: [], count: 0 });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/v2/insights/correlations", headers })).json(),
+    ).toEqual({ correlations: [], count: 0 });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/v2/insights/narratives", headers })).json(),
+    ).toEqual({ narratives: [], count: 0, limit: 20 });
+    expect(
+      (await server.inject({
+        method: "POST",
+        url: "/api/v2/insights/trigger",
+        headers,
+        payload: { type: "weekly_summary" },
+      })).json(),
+    ).toMatchObject({
+      status: "skipped",
+      run_type: "weekly_summary",
+      run_id: null,
+    });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/v2/sync/anomalies", headers })).json(),
+    ).toEqual({ status: "ok", count: 0, anomalies: [] });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/v2/experiments/candidates", headers })).json(),
+    ).toEqual({ candidates: [], count: 0, testable_count: 0 });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/v2/agents/proposals", headers })).json(),
+    ).toEqual({ count: 0, undecided_only: true, proposals: [] });
+  });
+
+  it("creates and updates lightweight v2 experiments", async () => {
+    const server = await createApp("secret");
+    const headers = { "x-api-key": "secret" };
+
+    const created = await server.inject({
+      method: "POST",
+      url: "/api/v2/experiments",
+      headers,
+      payload: {
+        lever_metric_id: "intake.caffeine_mg",
+        outcome_metric_id: "sleep.efficiency",
+        hypothesis: "Less caffeine improves sleep",
+        design: "AB",
+        block_days: 7,
+        start_date: "2026-06-01",
+      },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({
+      status: "running",
+      lever_metric_id: "intake.caffeine_mg",
+      outcome_metric_id: "sleep.efficiency",
+      block_days: 7,
+      start_date: "2026-06-01",
+    });
+
+    const experimentId = created.json().id as string;
+    expect(
+      (await server.inject({
+        method: "GET",
+        url: "/api/v2/experiments",
+        headers,
+      })).json(),
+    ).toMatchObject({ count: 1, experiments: [{ id: experimentId }] });
+    expect(
+      (await server.inject({
+        method: "GET",
+        url: `/api/v2/experiments/${experimentId}`,
+        headers,
+      })).json(),
+    ).toMatchObject({ id: experimentId, status: "running" });
+    expect(
+      (await server.inject({
+        method: "POST",
+        url: `/api/v2/experiments/${experimentId}/analyze`,
+        headers,
+      })).json(),
+    ).toMatchObject({ id: experimentId, status: "analyzed" });
+    expect(
+      (await server.inject({
+        method: "POST",
+        url: `/api/v2/experiments/${experimentId}/abandon`,
+        headers,
+      })).json(),
+    ).toMatchObject({ id: experimentId, status: "abandoned" });
+  });
+
+  it("stores v2 intelligence posture without returning provider secrets", async () => {
+    const server = await createApp("secret");
+    const headers = { "x-api-key": "secret" };
+
+    const updated = await server.inject({
+      method: "PUT",
+      url: "/api/v2/intelligence",
+      headers,
+      payload: {
+        mode: "cloud",
+        primary: {
+          provider: "deepseek",
+          model: "deepseek/deepseek-chat",
+          api_key: "sk-testabcd",
+        },
+        redact_cloud_prompts: true,
+        fallback: [],
+      },
+    });
+    expect(updated.statusCode).toBe(200);
+    expect(updated.json()).toMatchObject({
+      mode: "cloud",
+      revision: 1,
+      primary: {
+        provider: "deepseek",
+        model: "deepseek/deepseek-chat",
+        destination: "cloud",
+        key_last4: "abcd",
+      },
+    });
+    expect(JSON.stringify(updated.json())).not.toContain("sk-testabcd");
+
+    const consent = await server.inject({
+      method: "POST",
+      url: "/api/v2/intelligence/consent",
+      headers,
+      payload: { granted: true, consent_version: "2026-06" },
+    });
+    expect(consent.statusCode).toBe(200);
+    expect(consent.json()).toMatchObject({
+      granted: true,
+      version: "2026-06",
+      at: expect.any(String),
+    });
+    expect(
+      (await server.inject({ method: "GET", url: "/api/v2/privacy", headers })).json(),
+    ).toMatchObject({
+      provider: "deepseek",
+      destination: "cloud",
+      allow_cloud_egress: true,
+      raw_observations_leave_host: false,
+    });
+    expect(
+      (await server.inject({
+        method: "POST",
+        url: "/api/v2/intelligence/test-connection",
+        headers,
+        payload: { provider: "deepseek", model: "deepseek/deepseek-chat" },
+      })).json(),
+    ).toMatchObject({ ok: true, destination: "cloud" });
+    expect(
+      (await server.inject({
+        method: "GET",
+        url: "/api/v2/intelligence/detect-local",
+        headers,
+      })).json(),
+    ).toMatchObject({ candidates: expect.any(Array) });
+
+    const receipts = await server.inject({
+      method: "GET",
+      url: "/api/v2/receipts",
+      headers,
+    });
+    expect(receipts.json()).toMatchObject({
+      count: 3,
+      events: expect.arrayContaining([
+        expect.objectContaining({ event_type: "intelligence_settings_updated" }),
+        expect.objectContaining({ event_type: "consent_granted" }),
+        expect.objectContaining({ event_type: "provider_healthcheck" }),
+      ]),
+    });
+  });
+
+  it("verifies Whoop webhook signatures when a secret is configured", async () => {
+    const server = await createApp("", {
+      whoopWebhookSecret: "whoop-secret",
+    });
+    const payload = { event: "ping" };
+    const timestamp = "2026-06-19T12:00:00Z";
+
+    const unauthorized = await server.inject({
+      method: "POST",
+      url: "/api/v2/sources/whoop/webhook",
+      payload,
+    });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const authorized = await server.inject({
+      method: "POST",
+      url: "/api/v2/sources/whoop/webhook",
+      headers: {
+        "x-whoop-timestamp": timestamp,
+        "x-whoop-signature": createWhoopSignature(
+          "whoop-secret",
+          timestamp,
+          JSON.stringify(payload),
+        ),
+      },
+      payload,
+    });
+    expect(authorized.statusCode).toBe(200);
+    expect(authorized.json()).toEqual({
+      status: "accepted",
+      received: true,
     });
   });
 
@@ -1765,6 +2247,7 @@ describe("compatibility endpoints", () => {
       ingest_endpoint: "/daniel/api/apple/batch",
       latest_sync_endpoint: "/daniel/api/v2/sync/runs/latest",
       coverage_endpoint: "/daniel/api/v2/sync/coverage",
+      anomalies_endpoint: "/daniel/api/v2/sync/anomalies",
     });
     expect(defaultLatest.statusCode).toBe(200);
     expect(defaultLatest.json()).toMatchObject({

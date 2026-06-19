@@ -30,7 +30,7 @@ describe("checkReadiness", () => {
     await expect(checkReadiness(config, { isReady: () => false })).resolves.toEqual({
       statusCode: 200,
       body: {
-        status: "ok",
+        status: "ready",
         database: "ok",
       },
     });
@@ -49,7 +49,7 @@ describe("checkReadiness", () => {
     await expect(checkReadiness(config, { isReady: () => true })).resolves.toEqual({
       statusCode: 200,
       body: {
-        status: "ok",
+        status: "ready",
         database: "ok",
       },
     });
@@ -102,7 +102,7 @@ describe("checkReadiness", () => {
     await expect(checkReadiness(config, { isReady: () => false })).resolves.toEqual({
       statusCode: 200,
       body: {
-        status: "ok",
+        status: "ready",
         database: "ok",
       },
     });

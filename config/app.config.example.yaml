@@ -72,10 +72,14 @@ state:
   backend: "file"
 
 storage:
-  # Persistent application data directory. The file state backend writes state.json here.
+  # Persistent application data directory. The file state backend writes SQLite
+  # and NDJSON state under this path.
   dataPath: ".data"
 
   # Optional raw batch archive path.
   # Leave empty to disable. Files are written as:
   #   <rawDataPath>/<context>/yyyy-mm
   rawDataPath: ""
+
+# WHOOP_WEBHOOK_SECRET is currently environment-only. Set it in .env when using
+# /api/v2/sources/whoop/webhook with HMAC verification.

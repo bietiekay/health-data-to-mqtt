@@ -80,10 +80,30 @@ Do not use the reference implementation as the runtime target. The new service s
 | `/api/insights/trends` | GET | Return trend list shape with reference query validation |
 | `/api/insights/trigger` | POST | Return trigger response shape; MQTT bridge returns skipped for supported jobs |
 | `/api/insights/runs` | GET | Return analysis run list shape; MQTT bridge returns an empty list |
+| `/api/v2/meta` | GET | Return v2 contract/ontology/normalizer/fusion-policy version axes |
+| `/api/v2/metrics` | GET | Return the canonical metric catalog |
+| `/api/v2/metrics/{metric_id}/series` | GET | Return local time series for one canonical metric |
+| `/api/v2/series` | GET | Return batch time-series results with per-id unknown-metric errors |
+| `/api/v2/sources` | GET | Return observed source integrations with optional pagination |
+| `/api/v2/devices` | GET | Return distinct device labels derived from streams |
+| `/api/v2/streams` | GET | Return source-device streams with stable deterministic UUIDs |
+| `/api/v2/streams/{stream_id}` | GET | Return one source-device stream or `404` |
 | `/api/v2/setup/diagnostics` | GET | Return unauthenticated setup diagnostics for API base URL checks |
 | `/api/v2/sync/runs/latest` | GET | Return the latest sync delivery receipt, or an empty success response before any sync-run receipt exists |
 | `/api/v2/sync/runs/{sync_run_id}` | GET | Return one run-specific delivery receipt summary |
-| `/api/v2/sync/coverage` | GET | Return metric-level sync receipt coverage |
+| `/api/v2/sync/coverage` | GET | Return metric-level sync receipt coverage with summary and destination counts |
+| `/api/v2/sync/anomalies` | GET | Return typed empty overlapping-sync anomaly list until implemented |
+| `/api/v2/readiness` | GET | Return per-metric data sufficiency from local read state |
+| `/api/v2/changes` | GET | Return ETag-backed local change fingerprint |
+| `/api/v2/receipts` | GET | Return local intelligence audit events plus ingest freshness |
+| `/api/v2/export/metrics` | GET | Return exportable metric counts and ranges |
+| `/api/v2/export` | GET | Return JSON or CSV normalized observation exports |
+| `/api/v2/privacy` | GET | Return current egress posture |
+| `/api/v2/intelligence*` | GET/PUT/POST | Store narrator settings, consent, local detection, and no-health-data probe results |
+| `/api/v2/insights/*` | GET/POST | Return typed empty/no-op v2 insight surfaces until an analysis engine exists |
+| `/api/v2/experiments*` | GET/POST | Store lightweight local self-experiment records |
+| `/api/v2/agents/proposals*` | GET/POST | Return typed empty proposal surface and decision acknowledgement |
+| `/api/v2/sources/whoop/webhook` | POST | Accept Whoop webhook events with HMAC verification when configured |
 
 ### 4.2 Authentication
 
@@ -111,6 +131,13 @@ This must apply to:
 Health, readiness, and setup diagnostics endpoints remain unauthenticated. This satisfies
 HealthSave 1.5 liveness behavior, which checks `/api/health` first and accepts
 `/health` as a fallback.
+
+The updated upstream `API_REFERENCE.md` documents a stricter `ALLOW_NO_AUTH`
+default-deny mode where keyed endpoints return `503 auth_not_configured` if
+`API_KEY` is unset and local demo mode is not explicitly acknowledged. This port
+intentionally keeps the repository's existing compatibility behavior for now:
+empty `API_KEY` means keyed routes are open. Production deployments should set a
+long random `API_KEY`.
 
 `GET /api/v2/sync/runs/latest` returns HTTP `200` with `status: "empty"` when
 the endpoint is available but no `X-HealthSave-Sync-Run-ID` receipt has been
@@ -593,6 +620,7 @@ contexts:
 | `API_KEY` | empty | Empty disables API-key enforcement |
 | `LOG_ENABLED` | `true` | Debuggability first |
 | `LOG_LEVEL` | `info` | Standard production default |
+| `WHOOP_WEBHOOK_SECRET` | empty | Optional HMAC secret for the Whoop webhook |
 
 ### 10.2 MQTT
 
@@ -637,6 +665,12 @@ The same backend also stores lightweight sync delivery receipts under
 `<DATA_PATH>/receipts/<context>/receipts.ndjson` when clients send
 `X-HealthSave-Sync-Run-ID`. These records contain sync metadata and counts, not
 raw health samples.
+
+The v2 read plane stores accepted normalized observations, Source/Device/Stream
+identity, intelligence settings/audit events, and lightweight experiment records
+in SQLite under `<DATA_PATH>/read/read.sqlite`. This read model is intentionally
+small and local; MQTT remains the operational output, and analysis-heavy
+surfaces return typed empty/no-op shapes until dedicated engines are added.
 
 Idempotency entries are stored separately under
 `<DATA_PATH>/idempotency/<context>/keys.ndjson` for every successful batch with

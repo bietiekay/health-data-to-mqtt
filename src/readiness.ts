@@ -5,7 +5,7 @@ import type { HealthMqttPublisher } from "./mqtt/publisher.js";
 import type { StateStore } from "./state/store.js";
 
 export interface ReadyResponse {
-  status?: "ok";
+  status?: "ready";
   detail?: "database unavailable";
   database: "ok" | "unavailable";
 }
@@ -14,15 +14,18 @@ export async function checkReadiness(
   config: AppConfig,
   _mqttPublisher: Pick<HealthMqttPublisher, "isReady">,
   stateStore?: Pick<StateStore, "isReady">,
+  readStore?: Pick<StateStore, "isReady">,
 ): Promise<{ statusCode: 200 | 503; body: ReadyResponse }> {
   const databaseReady =
-    (stateStore?.isReady() ?? true) && (await isStateReady(config));
+    (stateStore?.isReady() ?? true) &&
+    (readStore?.isReady() ?? true) &&
+    (await isStateReady(config));
 
   if (databaseReady) {
     return {
       statusCode: 200,
       body: {
-        status: "ok",
+        status: "ready",
         database: "ok",
       },
     };

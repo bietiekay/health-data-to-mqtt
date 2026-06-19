@@ -17,6 +17,7 @@ import {
   type SyncReceiptHeaders,
   type SyncReceiptStore,
 } from "../state/sync-receipts.js";
+import type { ReadStore } from "../state/read-store.js";
 import { createEmptyStatus, type StateStore } from "../state/store.js";
 import type { RawBatchStorage } from "../storage/raw-batch-storage.js";
 
@@ -28,6 +29,7 @@ interface AppleRouteOptions {
   rawBatchStorage: RawBatchStorage;
   syncReceiptStore: SyncReceiptStore;
   idempotencyStore: IdempotencyStore;
+  readStore: ReadStore;
 }
 
 export async function registerAppleRoutes(
@@ -253,6 +255,12 @@ export async function registerAppleRoutes(
         error: "Failed to publish batch to MQTT",
       });
     }
+
+    await options.readStore.recordBatch({
+      contextName: options.context.name,
+      batch,
+      records: normalizedRecords,
+    });
 
     const statusUpdate = await options.stateStore.applyObservations(
       statusObservations,

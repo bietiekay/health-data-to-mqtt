@@ -9,12 +9,19 @@ Version headers must match the `version` field in `package.json`.
 ### Changed
 
 - Updated npm dependencies to resolve audit advisories in Fastify, Vitest, and transitive URI, IP address, and WebSocket packages.
+- Changed `GET /ready` success responses to the updated reference shape with `status: "ready"`.
+- Changed the test script to run source tests from `test/` directly so stale compiled `dist/test` files cannot shadow current tests.
+- Changed v2 sync coverage responses to include a summary envelope, receipt sample windows, and destination row counts.
 - Changed the file-backed `/api/apple/status` store from per-context NDJSON ledgers to a SQLite database at `<DATA_PATH>/status/status.sqlite`.
-- Changed the test script to ignore compiled `dist/**` output so source tests remain reliable after a build.
 - Changed `unknown_health_data` warning logs to schema v2 with redacted field profiles and mapper-ready hints instead of raw sample values.
 
 ### Added
 
+- Added the expanded `/api/v2` API reference surface, including meta, metric catalog, series reads, identity, readiness, changes, receipts, export, privacy, intelligence, experiments, agents, sync anomalies, and the Whoop webhook route.
+- Added a lightweight local read-state SQLite store under `<DATA_PATH>/read/read.sqlite` for normalized observations, Source/Device/Stream identity, intelligence audit/settings, and experiment records.
+- Added a local API reference endpoint inventory used by tests to assert open, keyed, and HMAC route classification.
+- Added optional `WHOOP_WEBHOOK_SECRET` configuration and HMAC verification for `/api/v2/sources/whoop/webhook`.
+- Added tests for v2 read APIs, identity, export JSON/CSV, ETag change polling, receipts, empty/no-op higher-level surfaces, experiments, intelligence/privacy posture, and Whoop webhook signatures.
 - Added automatic one-time migration from legacy `<DATA_PATH>/status/<context>/observations.ndjson` status ledgers into SQLite, then renaming processed ledgers to `observations.ndjson.migrated`.
 - Added startup and migration logs for the selected state backend, SQLite schema initialization, per-context migration counts, skipped malformed legacy rows, and final migration summaries.
 - Added tests for SQLite status persistence, exact dedupe, legacy migration, migration marker skipping, close readiness, and startup failure when SQLite cannot open.

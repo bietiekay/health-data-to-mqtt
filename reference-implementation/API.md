@@ -1,5 +1,7 @@
 # HealthSave API Contract
 
+> This file is the **frozen v1 ingest contract** (the byte-stable surface the iOS app depends on). For a payload-level reference to **every** endpoint — v1 *and* v2 read/insights/identity, with request/response examples, auth, and who-calls-what — see [`API_REFERENCE.md`](API_REFERENCE.md).
+
 HealthSave expects the server URL to be the base URL only, for example
 `https://health.example.com`. The app appends the paths below.
 
@@ -613,6 +615,55 @@ Example response:
   "count": 1
 }
 ```
+
+## v2 read API (evolving)
+
+> **Status: evolving — not a frozen contract.** Unlike the v1 ingest surface
+> above (byte-locked for the HealthSave iOS app), the `/api/v2/*` read plane is
+> under active development; request/response shapes may change between releases.
+> Treat it as pre-stable. **Auth:** routes marked `key` require the `X-API-Key`
+> header when `API_KEY` is set; routes marked `open` are intentionally
+> unauthenticated; the Whoop webhook authenticates via its HMAC signature, not
+> `X-API-Key`.
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/api/v2/meta` | GET | open | v2 version axes (api_contract / ontology / normalizer / fusion_policy) |
+| `/api/v2/setup/diagnostics` | GET | open | self-describe the service so a misconfigured client (e.g. pointed at Grafana) detects it |
+| `/api/v2/metrics` | GET | open | list available canonical metrics |
+| `/api/v2/metrics/{metric_id}/series` | GET | key | time-series for one metric |
+| `/api/v2/series` | GET | key | batch time-series for many metrics (`ids=` comma list, max 24) |
+| `/api/v2/sources` | GET | key | Source integrations (Source/Device/Stream identity; optional `limit`/`offset`) |
+| `/api/v2/devices` | GET | key | distinct device emitters (derived from streams; optional `limit`/`offset`) |
+| `/api/v2/streams` | GET | key | source-device streams with stable UUIDs (HA keys on these; optional `limit`/`offset`) |
+| `/api/v2/streams/{stream_id}` | GET | key | one source-device stream |
+| `/api/v2/insights/latest` | GET | key | latest daily-briefing + weekly-summary narratives + last narrator run status per job (`runs`) |
+| `/api/v2/insights/correlations` | GET | key | recent cross-metric correlation findings |
+| `/api/v2/insights/findings` | GET | key | recent structured analysis findings |
+| `/api/v2/insights/narratives` | GET | key | narrative history, newest first (`type=`, `limit=`) |
+| `/api/v2/insights/trigger` | POST | key | run a briefing / trend / analysis job on demand |
+| `/api/v2/sync/runs/latest` | GET | key | latest sync-run summary |
+| `/api/v2/sync/runs/{sync_run_id}` | GET | key | per-run delivery-receipt summary |
+| `/api/v2/sync/coverage` | GET | key | per-metric receipt-vs-destination freshness |
+| `/api/v2/sync/anomalies` | GET | key | overlapping-sync-run + coverage anomalies |
+| `/api/v2/changes` | GET | key | cheap change fingerprint with ETag/304 (the dashboard's live poll) |
+| `/api/v2/receipts` | GET | key | intelligence audit trail + ingest freshness (the Local Vault's proof) |
+| `/api/v2/experiments` | GET, POST | key | list / create self-experiments |
+| `/api/v2/experiments/candidates` | GET | key | suggested experiments |
+| `/api/v2/experiments/{experiment_id}` | GET | key | one experiment |
+| `/api/v2/experiments/{experiment_id}/analyze` | POST | key | analyze an experiment's result |
+| `/api/v2/experiments/{experiment_id}/abandon` | POST | key | abandon an experiment |
+| `/api/v2/agents/proposals` | GET | key | pending agent action proposals |
+| `/api/v2/agents/proposals/{proposal_id}/decide` | POST | key | approve / reject a proposal |
+| `/api/v2/readiness` | GET | key | readiness / recovery summary |
+| `/api/v2/privacy` | GET | key | egress policy + audit (what derived data may leave the host) |
+| `/api/v2/intelligence` | GET, PUT | key | narrator (LLM) settings: mode (off/local/cloud), primary provider+model, fallback chain — keys never returned |
+| `/api/v2/intelligence/consent` | POST | key | grant / revoke the cloud-egress opt-in (separate from provider setup) |
+| `/api/v2/intelligence/test-connection` | POST | key | SSRF-guarded provider probe (one token, no health data) |
+| `/api/v2/intelligence/detect-local` | GET | key | probe known local Ollama endpoints (sidecar / host) for easy local-AI setup |
+| `/api/v2/export/metrics` | GET | key | list exportable metrics with counts + date ranges |
+| `/api/v2/export` | GET | key | export one metric (or `all`) as JSON or CSV |
+| `/api/v2/sources/whoop/webhook` | POST | HMAC | Whoop push webhook; authenticity via `X-WHOOP-Signature` |
 
 ## Compatibility Notes
 

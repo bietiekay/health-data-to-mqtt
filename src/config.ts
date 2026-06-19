@@ -90,6 +90,7 @@ const envSchema = z
     DATA_PATH: z.string().default("/data"),
     STATE_BACKEND: z.enum(["file", "memory"]).default("file"),
     RAW_STORAGE_PATH: z.string().optional().default(""),
+    WHOOP_WEBHOOK_SECRET: z.string().optional().default(""),
   })
   .transform((env) => ({
     host: env.HOST,
@@ -117,6 +118,10 @@ const envSchema = z
     rawStoragePath:
       env.RAW_STORAGE_PATH.trim().length > 0
         ? env.RAW_STORAGE_PATH.trim()
+        : undefined,
+    whoopWebhookSecret:
+      env.WHOOP_WEBHOOK_SECRET.trim().length > 0
+        ? env.WHOOP_WEBHOOK_SECRET.trim()
         : undefined,
   }));
 

@@ -126,6 +126,7 @@ export interface SyncRunSummary {
 
 export interface SyncCoverageMetric {
   metric: string;
+  batches_seen: number;
   records_received: number;
   records_accepted: number;
   records_inserted_new: null;
@@ -134,16 +135,29 @@ export interface SyncCoverageMetric {
   records_skipped: number;
   records_rejected: number;
   records_deduped_in_batch: number;
-  batches_seen: number;
   newest_receipt_at: string;
+  receipt_sample_window: {
+    min_sample_time: string | null;
+    max_sample_time: string | null;
+  };
   latest_receipt_sample_time: string | null;
   latest_destination_sample_time: string | null;
+  destination_row_count: number;
 }
 
 export interface SyncCoverageSummary {
   status: "ok";
   storage_result_level: "accepted_only";
   count: number;
+  summary: {
+    metrics_seen: number;
+    batches_seen: number;
+    records_received: number;
+    records_accepted: number;
+    records_inserted_new: null;
+    records_deduped_existing: null;
+    records_skipped: number;
+  };
   metrics: SyncCoverageMetric[];
 }
 
@@ -574,6 +588,7 @@ function coverageSummary(records: SyncReceiptRecord[]): SyncCoverageSummary {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([metric, metricRecords]) => ({
       metric,
+      batches_seen: uniqueBatchCount(metricRecords),
       records_received: sum(metricRecords, "records_received"),
       records_accepted: sum(metricRecords, "records_accepted"),
       records_inserted_new: null,
@@ -582,8 +597,19 @@ function coverageSummary(records: SyncReceiptRecord[]): SyncCoverageSummary {
       records_skipped: sum(metricRecords, "records_skipped"),
       records_rejected: sum(metricRecords, "records_rejected"),
       records_deduped_in_batch: sum(metricRecords, "records_deduped_in_batch"),
-      batches_seen: uniqueBatchCount(metricRecords),
       newest_receipt_at: maxString(metricRecords.map((record) => record.received_at))!,
+      receipt_sample_window: {
+        min_sample_time: minString(
+          metricRecords.flatMap((record) =>
+            record.sample_min_time ? [record.sample_min_time] : [],
+          ),
+        ),
+        max_sample_time: maxString(
+          metricRecords.flatMap((record) =>
+            record.sample_max_time ? [record.sample_max_time] : [],
+          ),
+        ),
+      },
       latest_receipt_sample_time: maxString(
         metricRecords.flatMap((record) =>
           record.sample_max_time ? [record.sample_max_time] : [],
@@ -596,12 +622,22 @@ function coverageSummary(records: SyncReceiptRecord[]): SyncCoverageSummary {
             : [],
         ),
       ),
+      destination_row_count: sum(metricRecords, "records_accepted"),
     }));
 
   return {
     status: "ok",
     storage_result_level: "accepted_only",
     count: metrics.length,
+    summary: {
+      metrics_seen: metrics.length,
+      batches_seen: uniqueBatchCount(records),
+      records_received: sum(records, "records_received"),
+      records_accepted: sum(records, "records_accepted"),
+      records_inserted_new: null,
+      records_deduped_existing: null,
+      records_skipped: sum(records, "records_skipped"),
+    },
     metrics,
   };
 }

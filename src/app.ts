@@ -21,6 +21,7 @@ import {
   createSyncReceiptStore,
   type SyncReceiptStore,
 } from "./state/sync-receipts.js";
+import { createReadStore, type ReadStore } from "./state/read-store.js";
 import { createStateStore, type StateStore } from "./state/store.js";
 import {
   createRawBatchStorage,
@@ -35,6 +36,7 @@ interface BuildAppOptions {
   rawBatchStorage?: RawBatchStorage;
   syncReceiptStore?: SyncReceiptStore;
   idempotencyStore?: IdempotencyStore;
+  readStore?: ReadStore;
 }
 
 export async function buildApp(
@@ -61,6 +63,7 @@ export async function buildApp(
     options.syncReceiptStore ?? createSyncReceiptStore(config);
   const idempotencyStore =
     options.idempotencyStore ?? createIdempotencyStore(config);
+  const readStore = options.readStore ?? createReadStore(config);
 
   app.setErrorHandler((error, _request, reply) => {
     const errorCode =
@@ -75,7 +78,7 @@ export async function buildApp(
   });
 
   app.addHook("onClose", async () => {
-    await Promise.all([mqttPublisher.close(), stateStore.close()]);
+    await Promise.all([mqttPublisher.close(), stateStore.close(), readStore.close()]);
   });
 
   for (const context of config.contexts) {
@@ -85,6 +88,7 @@ export async function buildApp(
           config,
           mqttPublisher,
           stateStore,
+          readStore,
         });
         await registerMetricsRoutes(contextApp);
         await registerInsightRoutes(contextApp, { config });
@@ -96,11 +100,13 @@ export async function buildApp(
           rawBatchStorage,
           syncReceiptStore,
           idempotencyStore,
+          readStore,
         });
         await registerV2Routes(contextApp, {
           config,
           context,
           syncReceiptStore,
+          readStore,
         });
       },
       { prefix: context.prefix === "/" ? "" : context.prefix },

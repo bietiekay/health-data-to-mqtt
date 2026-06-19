@@ -167,6 +167,14 @@ storage:
     expect(config.rawStoragePath).toBeUndefined();
   });
 
+  it("loads the Whoop webhook secret from environment variables", () => {
+    const config = loadConfig({
+      WHOOP_WEBHOOK_SECRET: "whoop-secret",
+    });
+
+    expect(config.whoopWebhookSecret).toBe("whoop-secret");
+  });
+
   it("loads contexts from environment JSON", () => {
     const config = loadConfig({
       CONTEXTS: JSON.stringify([

@@ -134,12 +134,34 @@ Supported client-facing endpoints:
 | `/api/insights/trends` | GET | Reference-shaped empty trend list with query validation |
 | `/api/insights/trigger` | POST | Reference-shaped no-op analysis trigger response |
 | `/api/insights/runs` | GET | Reference-shaped empty analysis run list |
+| `/api/v2/meta` | GET | Unauthenticated v2 version axes for contract/ontology/normalizer/fusion policy |
+| `/api/v2/metrics` | GET | Unauthenticated canonical metric catalog |
+| `/api/v2/metrics/{metric_id}/series` | GET | Local time series for one canonical metric from accepted batches |
+| `/api/v2/series` | GET | Batch time-series read for up to 24 metric ids |
+| `/api/v2/sources` | GET | Source integrations observed during ingest |
+| `/api/v2/devices` | GET | Distinct device labels derived from streams |
+| `/api/v2/streams` | GET | Source-device streams with stable deterministic UUIDs |
+| `/api/v2/streams/{stream_id}` | GET | One source-device stream |
 | `/api/v2/setup/diagnostics` | GET | Unauthenticated setup diagnostics for confirming the API base URL |
 | `/api/v2/sync/runs/latest` | GET | Latest HealthSave sync delivery receipt, or an empty success response before any sync-run receipt exists |
 | `/api/v2/sync/runs/{sync_run_id}` | GET | Delivery receipt summary for one HealthSave sync run |
-| `/api/v2/sync/coverage` | GET | Metric-level receipt coverage summary |
+| `/api/v2/sync/coverage` | GET | Metric-level receipt coverage summary with destination counts |
+| `/api/v2/sync/anomalies` | GET | Empty overlapping-sync anomaly list until deeper sync analysis exists |
+| `/api/v2/readiness` | GET | Per-metric local data sufficiency summary |
+| `/api/v2/changes` | GET | ETag-backed change fingerprint for polling clients |
+| `/api/v2/receipts` | GET | Intelligence audit trail plus ingest freshness |
+| `/api/v2/export/metrics` | GET | Exportable metric counts and date ranges |
+| `/api/v2/export` | GET | JSON or CSV export from local normalized read state |
+| `/api/v2/privacy` | GET | Current local/cloud egress posture |
+| `/api/v2/intelligence*` | GET/PUT/POST | Stored narrator settings, consent, local detection, and no-health-data connection probe |
+| `/api/v2/insights/*` | GET/POST | Typed empty/no-op v2 insight surfaces until an analysis engine is added |
+| `/api/v2/experiments*` | GET/POST | Lightweight local self-experiment records |
+| `/api/v2/agents/proposals*` | GET/POST | Typed empty/proposal-decision surface for future local agents |
+| `/api/v2/sources/whoop/webhook` | POST | Whoop webhook endpoint with optional HMAC verification |
 
-`/health` and `/api/health` are lightweight liveness checks. `/ready` follows the reference V1 contract and returns `503` only when file-backed local state cannot be written. Docker keeps using `/health` for container liveness by default.
+`/health` and `/api/health` are lightweight liveness checks. `/ready` follows the updated reference shape and returns `{"status":"ready","database":"ok"}` when local state is writable, or `503` when file-backed local state cannot be written. Docker keeps using `/health` for container liveness by default.
+
+The updated upstream API reference documents an `ALLOW_NO_AUTH` default-deny mode for keyed routes when `API_KEY` is unset. This port intentionally keeps its existing compatibility behavior for now: an empty `API_KEY` disables API-key enforcement. Set a long random `API_KEY` for production deployments.
 
 ## Multiple Client Contexts
 
@@ -424,6 +446,7 @@ Core options:
 | `API_KEY` | empty | Optional API key. Empty disables auth enforcement. |
 | `LOG_ENABLED` | `true` | Enables structured logs by default |
 | `LOG_LEVEL` | `info` | Log verbosity |
+| `WHOOP_WEBHOOK_SECRET` | empty | Optional HMAC secret for `/api/v2/sources/whoop/webhook`. Empty accepts the webhook as an unconfigured no-op. |
 
 MQTT options:
 
@@ -446,11 +469,13 @@ State and migration options:
 | Variable | Default | Description |
 | --- | --- | --- |
 | `DATA_PATH` | `/data` | Persistent application data directory |
-| `STATE_BACKEND` | `file` | Local status, sync receipt, and idempotency backend. Use `file` for durable SQLite status, receipts, and keys or `memory` for disposable runs. |
+| `STATE_BACKEND` | `file` | Local status, read API, sync receipt, intelligence, experiment, and idempotency backend. Use `file` for durable local state or `memory` for disposable runs. |
 | `TIMESCALE_MODE` | `off` | Optional reference mode: `off`, `shadow`, or `bridge` |
 | `TIMESCALE_URL` | empty | Optional Timescale/PostgreSQL connection string |
 | `TIMESCALE_STRICT_STARTUP` | `false` | Fail startup if reference mode cannot connect |
 | `RAW_STORAGE_PATH` | empty | Optional raw NDJSON batch archive path. Empty disables raw storage. |
+
+With `STATE_BACKEND=file`, the v2 read plane stores normalized observations, Source/Device/Stream identity, intelligence settings/audit events, and experiment records under `<DATA_PATH>/read/read.sqlite`. This is a lightweight local read model for API/export/dashboard use; MQTT publishing remains the primary integration path.
 
 ### Local Config File
 
