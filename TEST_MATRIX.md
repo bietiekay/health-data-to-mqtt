@@ -22,9 +22,12 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Ingest | Daily quantity metrics normalize into `daily_activity` | Existing | `test/unit/ingest.test.ts` | Covers `step_count` routing and date-level deduped records |
 | Ingest | Daily quantity mapping matrix stays complete | Existing | `test/unit/ingest.test.ts` | Covers every supported `daily_activity` quantity metric and field transform |
 | Ingest | Non-summary daily metrics remain in `quantity_samples` | Existing | `test/unit/ingest.test.ts` | Covers `apple_stand_time` fallback behavior |
+| Ingest | Logged scalar quantity metrics are supported | Existing | `test/unit/ingest.test.ts` | Covers adopted `quantity_samples` metrics without unsupported-metric diagnostics |
 | Ingest | Generic quantity metrics normalize datapoints | Existing | `test/unit/ingest.test.ts` | Covers unknown metric fallback fields |
+| Ingest | Handwashing events normalize as quantity-like events | Existing | `test/unit/ingest.test.ts` | Covers `handwashing_event` timestamp/value/source handling plus numeric `rawValue` metadata |
 | Ingest | Activity summaries normalize aliases | Existing | `test/unit/ingest.test.ts` | Covers reference activity field aliases |
 | Ingest | Activity summary alias matrix stays complete | Existing | `test/unit/ingest.test.ts` | Covers all supported activity summary source fields and aliases |
+| Ingest | Activity summary goal aliases are mapped | Existing | `test/unit/ingest.test.ts` | Covers `activeEnergyBurnedGoal`, `appleExerciseTimeGoal`, and `appleStandHoursGoal` normalization without unmapped diagnostics |
 | Ingest | Sleep stage samples aggregate into sessions | Existing | `test/unit/ingest.test.ts` | Covers reference stage bucket and duration behavior |
 | Ingest | Sleep sessions expose latest awake state | Existing | `test/unit/ingest.test.ts` | Covers normalized `awake` boolean from the latest sleep stage |
 | Ingest | Workouts normalize field variants | Existing | `test/unit/ingest.test.ts` | Covers start/end aliases and duration seconds conversion |
@@ -45,6 +48,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | MQTT | Quantity sample topics preserve sample-level metric names | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies normalized and current topics use `metric_name` such as blood pressure subtypes |
 | MQTT | Current scalar value publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical current topics and value-only payloads for dedicated and generic scalar metrics |
 | MQTT | Multi-field current values fan out to field subtopics | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies `daily_activity`, `sleep_sessions`, and `workouts` publish per-field scalar topics |
+| MQTT | Daily activity goal current values fan out to field subtopics | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies activity goal fields publish under `daily_activity/*_goal` current topics |
 | MQTT | Sleep current value publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies `sleep_sessions` publishes latest awake state as `true` or `false` |
 | MQTT | Context-specific topic templates | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies prefixed contexts can route to distinct topic templates |
 | Storage | Raw batch archive writes NDJSON by context and month | Existing | `test/unit/raw-batch-storage.test.ts` | Verifies append-only lines, UTC month naming, and per-context directories |
@@ -74,7 +78,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | API | Insight query parameter validation | Existing | `test/integration/app.test.ts` | Verifies invalid `since`, `severity`, and `period` reference-style errors |
 | API | `GET /api/v2/setup/diagnostics` is unauthenticated | Existing | `test/integration/app.test.ts` | Verifies port identity, auth-required flag, endpoint paths, and wrong-port hint |
 | API | Markdown API reference auth inventory | Existing | `test/integration/app.test.ts` | Verifies all local contract-inventory endpoints classify as open, keyed, or HMAC |
-| API | V2 meta and metric catalog endpoints | Existing | `test/integration/app.test.ts` | Verifies open `/api/v2/meta` and `/api/v2/metrics` response shapes |
+| API | V2 meta and metric catalog endpoints | Existing | `test/integration/app.test.ts` | Verifies open `/api/v2/meta` and `/api/v2/metrics` response shapes, including adopted metric and activity goal catalog entries |
 | API | Protected v2 sync endpoints enforce API key auth | Existing | `test/integration/app.test.ts` | Verifies v2 sync routes use the same optional `x-api-key` behavior as v1 protected routes |
 | API | V2 sync receipts summarize batches with HealthSave run headers | Existing | `test/integration/app.test.ts` | Verifies latest run, run-specific receipt, coverage summary, receipt sample windows, destination counts, and accepted/rejected/deduped counts |
 | API | Batches without sync run IDs do not appear in v2 receipts | Existing | `test/integration/app.test.ts` | Verifies latest returns an empty success, specific run lookup returns `404`, and coverage stays empty for v1-style requests |
@@ -86,6 +90,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | API | Batch happy path returns processed delivery receipt | Existing | `test/integration/app.test.ts` | Counts valid deduplicated logical records and verifies reference delivery receipt fields |
 | API | Non-empty batches without normalized records return `records: 0` and unchanged status | Existing | `test/integration/app.test.ts` | Verifies invalid samples are skipped without inflating status |
 | API | Batch route logs structured unknown health data diagnostics | Existing | `test/integration/app.test.ts` | Verifies unmapped samples emit a redacted schema v2 JSON warning payload with implementation hints and no raw health/source values |
+| API | Adopted logged sources do not emit unknown health diagnostics | Existing | `test/integration/app.test.ts` | Verifies supported logged metrics and activity goal fields process, update existing counters, and stay quiet in warning logs |
 | API | Large batch payloads above Fastify default parser limit are accepted | Existing | `test/integration/app.test.ts` | Regression coverage for HealthSave sync batches larger than 1 MiB |
 | API | Empty batch returns reference-compatible delivery receipt | Existing | `test/integration/app.test.ts` | Verifies empty receipt fields and no counter increment |
 | API | Batch delivery receipts include sample-window headers | Existing | `test/integration/app.test.ts` | Verifies HealthSave sample-window headers are normalized and echoed |

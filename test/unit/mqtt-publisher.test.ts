@@ -303,7 +303,10 @@ describe("MQTT publisher", () => {
           date: "2026-04-10",
           steps: 1000,
           active_calories: 450,
+          active_calories_goal: 600,
+          active_minutes_goal: 45,
           stand_hours: 10,
+          stand_hours_goal: 12,
         },
       },
       {
@@ -340,11 +343,14 @@ describe("MQTT publisher", () => {
     ]);
 
     expect(result).toEqual({
-      records: 16,
+      records: 19,
       topics: [
         "healthsave/current/daily_activity/steps",
         "healthsave/current/daily_activity/active_calories",
+        "healthsave/current/daily_activity/active_calories_goal",
+        "healthsave/current/daily_activity/active_minutes_goal",
         "healthsave/current/daily_activity/stand_hours",
+        "healthsave/current/daily_activity/stand_hours_goal",
         "healthsave/current/sleep_sessions",
         "healthsave/current/sleep_sessions/awake",
         "healthsave/current/sleep_sessions/total_duration_ms",
@@ -370,8 +376,20 @@ describe("MQTT publisher", () => {
         message: "450",
       },
       {
+        topic: "healthsave/current/daily_activity/active_calories_goal",
+        message: "600",
+      },
+      {
+        topic: "healthsave/current/daily_activity/active_minutes_goal",
+        message: "45",
+      },
+      {
         topic: "healthsave/current/daily_activity/stand_hours",
         message: "10",
+      },
+      {
+        topic: "healthsave/current/daily_activity/stand_hours_goal",
+        message: "12",
       },
       {
         topic: "healthsave/current/sleep_sessions",

@@ -211,6 +211,18 @@ const dailyQuantityMetricSpecs: Record<
   },
 };
 
+const knownGenericQuantityMetrics = new Set([
+  "environmental_audio_exposure",
+  "physical_effort",
+  "resting_heart_rate",
+  "stair_ascent_speed",
+  "time_in_daylight",
+  "walking_asymmetry",
+  "walking_double_support",
+  "walking_speed",
+  "walking_step_length",
+]);
+
 const publicStatusMetrics = new Set<StatusMetricKey>([
   "heart_rate",
   "hrv",
@@ -227,11 +239,14 @@ const activityFields: Record<string, string> = {
   flights_climbed: "floors_climbed",
   active_energy: "active_calories",
   activeEnergyBurned: "active_calories",
+  activeEnergyBurnedGoal: "active_calories_goal",
   basal_energy: "total_calories",
   exercise_minutes: "active_minutes",
   appleExerciseTime: "active_minutes",
+  appleExerciseTimeGoal: "active_minutes_goal",
   stand_hours: "stand_hours",
   appleStandHours: "stand_hours",
+  appleStandHoursGoal: "stand_hours_goal",
 };
 
 const deviceIdentityFields = [
@@ -336,6 +351,14 @@ function normalizeBatchRecords(batch: BatchRequest): NormalizationResult {
     return normalizeDedicated(batch, dedicatedSpec);
   }
 
+  if (batch.metric === "handwashing_event") {
+    return normalizeGenericQuantity(batch, { extraNumericFields: ["rawValue"] });
+  }
+
+  if (knownGenericQuantityMetrics.has(batch.metric)) {
+    return normalizeGenericQuantity(batch);
+  }
+
   return normalizeGenericQuantity(batch);
 }
 
@@ -379,7 +402,10 @@ function normalizeDedicated(
   );
 }
 
-function normalizeGenericQuantity(batch: BatchRequest): NormalizationResult {
+function normalizeGenericQuantity(
+  batch: BatchRequest,
+  options: { extraNumericFields?: string[] } = {},
+): NormalizationResult {
   const records = batch.samples.flatMap((sample, sampleIndex) => {
     const time = parseTimestamp(
       firstPresent(sample, "date", "startDate", "start", "endDate", "end"),
@@ -389,19 +415,28 @@ function normalizeGenericQuantity(batch: BatchRequest): NormalizationResult {
       return [];
     }
 
+    const normalizedSample: Record<string, unknown> = {
+      time,
+      metric_name: getStringValue(sample.metric) ?? batch.metric,
+      value,
+      unit: getStringValue(sample.unit) ?? "",
+      source_id: resolveDeviceIdentity(sample),
+    };
+
+    for (const field of options.extraNumericFields ?? []) {
+      const extraValue = toNumber(sample[field]);
+      if (extraValue !== undefined) {
+        normalizedSample[field] = extraValue;
+      }
+    }
+
     return [
       createNormalizedRecord(
         batch.metric,
         "quantity_samples",
         sampleIndex,
         sample,
-        {
-          time,
-          metric_name: getStringValue(sample.metric) ?? batch.metric,
-          value,
-          unit: getStringValue(sample.unit) ?? "",
-          source_id: resolveDeviceIdentity(sample),
-        },
+        normalizedSample,
       ),
     ];
   });
@@ -1400,15 +1435,42 @@ function diagnosticProfileForBatch(
     };
   }
 
-  return {
+  if (batch.metric === "handwashing_event") {
+    return genericQuantityDiagnosticProfile({
+      mapper: "category_event_quantity",
+      unsupportedMetric: false,
+      extraKnownFields: ["rawValue"],
+    });
+  }
+
+  if (knownGenericQuantityMetrics.has(batch.metric)) {
+    return genericQuantityDiagnosticProfile({
+      mapper: "known_quantity",
+      unsupportedMetric: false,
+    });
+  }
+
+  return genericQuantityDiagnosticProfile({
     mapper: "generic_quantity_fallback",
-    normalizedMetric: "quantity_samples",
     unsupportedMetric: true,
+  });
+}
+
+function genericQuantityDiagnosticProfile(input: {
+  mapper: string;
+  unsupportedMetric: boolean;
+  extraKnownFields?: string[];
+}): DiagnosticProfile {
+  return {
+    mapper: input.mapper,
+    normalizedMetric: "quantity_samples",
+    unsupportedMetric: input.unsupportedMetric,
     knownFields: knownSampleFields([
       ...genericQuantityTimeFields,
       ...genericQuantityValueFields,
       "metric",
       "unit",
+      ...(input.extraKnownFields ?? []),
     ]),
     timeFields: [...genericQuantityTimeFields],
     valueFields: [...genericQuantityValueFields],

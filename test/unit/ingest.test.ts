@@ -451,6 +451,91 @@ describe("normalizeBatch", () => {
     });
   });
 
+  it("treats logged scalar quantity metrics as supported quantity_samples", () => {
+    const metrics = [
+      "environmental_audio_exposure",
+      "physical_effort",
+      "resting_heart_rate",
+      "stair_ascent_speed",
+      "time_in_daylight",
+      "walking_asymmetry",
+      "walking_double_support",
+      "walking_speed",
+      "walking_step_length",
+    ] as const;
+
+    for (const metric of metrics) {
+      const result = normalizeBatchWithStats({
+        metric,
+        batch_index: 0,
+        total_batches: 1,
+        samples: [
+          {
+            date: "2026-04-10T12:00:00Z",
+            qty: 1.25,
+            source: "Watch",
+          },
+        ],
+      });
+
+      expect(result.records[0]).toMatchObject({
+        metric,
+        normalizedMetric: "quantity_samples",
+        deviceId: "Watch",
+        normalizedSample: {
+          time: "2026-04-10T12:00:00.000Z",
+          metric_name: metric,
+          value: 1.25,
+          unit: "",
+          source_id: "Watch",
+        },
+      });
+      expect(result.unknownHealthData).toMatchObject({
+        mapper: "known_quantity",
+        normalized_metric: "quantity_samples",
+        unsupported_metric: false,
+        total_samples: 0,
+        reasons: [],
+      });
+    }
+  });
+
+  it("normalizes handwashing events and preserves numeric raw values", () => {
+    const result = normalizeBatchWithStats({
+      metric: "handwashing_event",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        {
+          date: "2026-04-10T12:00:00Z",
+          endDate: "2026-04-10T12:00:20Z",
+          qty: 20,
+          rawValue: 1,
+          source: "Watch",
+        },
+      ],
+    });
+
+    expect(result.records[0]).toMatchObject({
+      metric: "handwashing_event",
+      normalizedMetric: "quantity_samples",
+      normalizedSample: {
+        time: "2026-04-10T12:00:00.000Z",
+        metric_name: "handwashing_event",
+        value: 20,
+        rawValue: 1,
+        unit: "",
+        source_id: "Watch",
+      },
+    });
+    expect(result.unknownHealthData).toMatchObject({
+      mapper: "category_event_quantity",
+      unsupported_metric: false,
+      total_samples: 0,
+      reasons: [],
+    });
+  });
+
   it("normalizes blood oxygen aliases and fractional saturation values", () => {
     expect(
       normalizeBatch({
@@ -483,7 +568,10 @@ describe("normalizeBatch", () => {
             date: "2026-04-10T23:00:00Z",
             steps: 1234,
             activeEnergyBurned: 456,
+            activeEnergyBurnedGoal: 600,
             appleExerciseTime: 35,
+            appleExerciseTimeGoal: 45,
+            appleStandHoursGoal: 12,
           },
         ],
       })[0]?.normalizedSample,
@@ -491,7 +579,10 @@ describe("normalizeBatch", () => {
       date: "2026-04-10",
       steps: 1234,
       active_calories: 456,
+      active_calories_goal: 600,
       active_minutes: 35,
+      active_minutes_goal: 45,
+      stand_hours_goal: 12,
     });
   });
 
@@ -512,6 +603,10 @@ describe("normalizeBatch", () => {
         expected: { active_calories: 333.5 },
       },
       {
+        sample: { activeEnergyBurnedGoal: 600 },
+        expected: { active_calories_goal: 600 },
+      },
+      {
         sample: { basal_energy: 654.25 },
         expected: { total_calories: 654.25 },
       },
@@ -523,8 +618,13 @@ describe("normalizeBatch", () => {
         sample: { appleExerciseTime: 43 },
         expected: { active_minutes: 43 },
       },
+      {
+        sample: { appleExerciseTimeGoal: 45 },
+        expected: { active_minutes_goal: 45 },
+      },
       { sample: { stand_hours: 11 }, expected: { stand_hours: 11 } },
       { sample: { appleStandHours: 12 }, expected: { stand_hours: 12 } },
+      { sample: { appleStandHoursGoal: 12 }, expected: { stand_hours_goal: 12 } },
     ] as const;
 
     for (const testCase of cases) {
@@ -545,6 +645,35 @@ describe("normalizeBatch", () => {
         ...testCase.expected,
       });
     }
+  });
+
+  it("treats activity summary goal fields as mapped diagnostics", () => {
+    const result = normalizeBatchWithStats({
+      metric: "activity_summaries",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        {
+          date: "2026-04-10T23:00:00Z",
+          activeEnergyBurnedGoal: 600,
+          appleExerciseTimeGoal: 45,
+          appleStandHoursGoal: 12,
+        },
+      ],
+    });
+
+    expect(result.records[0]?.normalizedSample).toEqual({
+      date: "2026-04-10",
+      active_calories_goal: 600,
+      active_minutes_goal: 45,
+      stand_hours_goal: 12,
+    });
+    expect(result.unknownHealthData).toMatchObject({
+      mapper: "activity_summaries",
+      unsupported_metric: false,
+      total_samples: 0,
+      reasons: [],
+    });
   });
 
   it("aggregates sleep stage samples into sessions", () => {

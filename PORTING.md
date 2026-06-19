@@ -338,11 +338,14 @@ Field mappings from the reference:
 | `flights_climbed` | `floors_climbed` |
 | `active_energy` | `active_calories` |
 | `activeEnergyBurned` | `active_calories` |
+| `activeEnergyBurnedGoal` | `active_calories_goal` |
 | `basal_energy` | `total_calories` |
 | `exercise_minutes` | `active_minutes` |
 | `appleExerciseTime` | `active_minutes` |
+| `appleExerciseTimeGoal` | `active_minutes_goal` |
 | `stand_hours` | `stand_hours` |
 | `appleStandHours` | `stand_hours` |
+| `appleStandHoursGoal` | `stand_hours_goal` |
 
 Daily quantity metrics also map into `daily_activity`:
 
@@ -362,7 +365,9 @@ Current MQTT values for `daily_activity` fan out per normalized field so
 consumers can subscribe to scalar topics such as
 `healthsave/current/daily_activity/steps`,
 `healthsave/current/daily_activity/active_calories`, or
-`healthsave/current/daily_activity/stand_hours`.
+`healthsave/current/daily_activity/stand_hours`. Activity goal fields publish
+the same way under `daily_activity/active_calories_goal`,
+`daily_activity/active_minutes_goal`, and `daily_activity/stand_hours_goal`.
 
 ### 6.3 Sleep Analysis
 
@@ -433,6 +438,26 @@ All unknown metrics should follow `quantity_samples` semantics:
 | `unit` | `unit` |
 | `source` | `source_id` |
 | incoming `metric` | `metric_name` |
+
+The MQTT-first port explicitly recognizes the following HealthSave quantity
+metrics with this shape so they do not emit unsupported-metric diagnostics when
+their samples contain only known quantity fields:
+
+```text
+environmental_audio_exposure
+physical_effort
+resting_heart_rate
+stair_ascent_speed
+time_in_daylight
+walking_asymmetry
+walking_double_support
+walking_speed
+walking_step_length
+```
+
+`handwashing_event` is accepted as a category-event quantity using the same
+timestamp and `qty` value handling. Numeric `rawValue` is retained as normalized
+metadata.
 
 ### 6.6 Unknown Data Diagnostics
 

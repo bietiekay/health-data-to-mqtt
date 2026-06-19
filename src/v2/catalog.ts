@@ -93,6 +93,14 @@ const activityMetricSpecs: Record<string, Omit<RecordMetricSpec, "normalizedMetr
     canonical_unit: "kcal",
     field: "active_calories",
   },
+  active_calories_goal: {
+    id: "activity.active_energy_burned_goal",
+    display_name: "Active Energy Burned Goal",
+    category: "activity",
+    value_type: "quantity",
+    canonical_unit: "kcal",
+    field: "active_calories_goal",
+  },
   total_calories: {
     id: "activity.basal_energy_burned",
     display_name: "Basal Energy Burned",
@@ -109,6 +117,14 @@ const activityMetricSpecs: Record<string, Omit<RecordMetricSpec, "normalizedMetr
     canonical_unit: "min",
     field: "active_minutes",
   },
+  active_minutes_goal: {
+    id: "activity.apple_exercise_time_goal",
+    display_name: "Exercise Time Goal",
+    category: "activity",
+    value_type: "quantity",
+    canonical_unit: "min",
+    field: "active_minutes_goal",
+  },
   stand_hours: {
     id: "activity.stand_hours",
     display_name: "Stand Hours",
@@ -116,6 +132,14 @@ const activityMetricSpecs: Record<string, Omit<RecordMetricSpec, "normalizedMetr
     value_type: "quantity",
     canonical_unit: "h",
     field: "stand_hours",
+  },
+  stand_hours_goal: {
+    id: "activity.stand_hours_goal",
+    display_name: "Stand Hours Goal",
+    category: "activity",
+    value_type: "quantity",
+    canonical_unit: "h",
+    field: "stand_hours_goal",
   },
 };
 
@@ -222,6 +246,27 @@ const workoutMetricSpecs: Record<string, Omit<RecordMetricSpec, "normalizedMetri
 };
 
 const quantityMetricOverrides: Record<string, CanonicalMetric> = {
+  environmental_audio_exposure: {
+    id: "environment.environmental_audio_exposure",
+    display_name: "Environmental Audio Exposure",
+    category: "environment",
+    value_type: "quantity",
+    canonical_unit: null,
+  },
+  physical_effort: {
+    id: "activity.physical_effort",
+    display_name: "Physical Effort",
+    category: "activity",
+    value_type: "quantity",
+    canonical_unit: null,
+  },
+  handwashing_event: {
+    id: "event.handwashing_event",
+    display_name: "Handwashing Event",
+    category: "event",
+    value_type: "quantity",
+    canonical_unit: null,
+  },
   resting_heart_rate: {
     id: "vital.resting_heart_rate",
     display_name: "Resting Heart Rate",
@@ -277,6 +322,34 @@ const quantityMetricOverrides: Record<string, CanonicalMetric> = {
     category: "mobility",
     value_type: "quantity",
     canonical_unit: "m",
+  },
+  walking_asymmetry: {
+    id: "mobility.walking_asymmetry",
+    display_name: "Walking Asymmetry",
+    category: "mobility",
+    value_type: "quantity",
+    canonical_unit: null,
+  },
+  walking_double_support: {
+    id: "mobility.walking_double_support",
+    display_name: "Walking Double Support",
+    category: "mobility",
+    value_type: "quantity",
+    canonical_unit: null,
+  },
+  stair_ascent_speed: {
+    id: "mobility.stair_ascent_speed",
+    display_name: "Stair Ascent Speed",
+    category: "mobility",
+    value_type: "quantity",
+    canonical_unit: null,
+  },
+  time_in_daylight: {
+    id: "environment.time_in_daylight",
+    display_name: "Time in Daylight",
+    category: "environment",
+    value_type: "quantity",
+    canonical_unit: null,
   },
   vo2_max: {
     id: "vital.vo2_max",

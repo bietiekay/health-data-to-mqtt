@@ -370,9 +370,12 @@ const dailyActivityCurrentFields = [
   "distance_m",
   "floors_climbed",
   "active_calories",
+  "active_calories_goal",
   "total_calories",
   "active_minutes",
+  "active_minutes_goal",
   "stand_hours",
+  "stand_hours_goal",
 ] as const;
 
 const sleepSessionCurrentFields = [

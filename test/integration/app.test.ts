@@ -423,6 +423,20 @@ describe("compatibility endpoints", () => {
       value_type: "quantity",
       canonical_unit: "count/min",
     });
+    expect(metrics.json()).toContainEqual({
+      id: "activity.active_energy_burned_goal",
+      display_name: "Active Energy Burned Goal",
+      category: "activity",
+      value_type: "quantity",
+      canonical_unit: "kcal",
+    });
+    expect(metrics.json()).toContainEqual({
+      id: "environment.environmental_audio_exposure",
+      display_name: "Environmental Audio Exposure",
+      category: "environment",
+      value_type: "quantity",
+      canonical_unit: null,
+    });
   });
 
   it("returns reference-shaped no-data insight and metrics responses", async () => {
@@ -884,6 +898,98 @@ describe("compatibility endpoints", () => {
 
     const status = await server.inject({ method: "GET", url: "/api/apple/status" });
     expect(status.json()).toEqual(emptyStatusResponse());
+  });
+
+  it("processes adopted logged sources without unknown health warnings", async () => {
+    const logStream = createRecordingLogStream();
+    const mqttPublisher = createRecordingMqttPublisher();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: true,
+        logLevel: "warn",
+      },
+      logger: {
+        level: "warn",
+        stream: logStream,
+        redact: ["req.headers.x-api-key"],
+      },
+      mqttPublisher,
+    });
+
+    const walkingResponse = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "walking_speed",
+        samples: [
+          {
+            date: "2026-04-10T12:00:00Z",
+            qty: 1.4,
+            source: "iPhone",
+          },
+        ],
+      },
+    });
+    const activityResponse = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "activity_summaries",
+        samples: [
+          {
+            date: "2026-04-10T23:00:00Z",
+            activeEnergyBurnedGoal: 600,
+            appleExerciseTimeGoal: 45,
+            appleStandHoursGoal: 12,
+          },
+        ],
+      },
+    });
+
+    expect(walkingResponse.statusCode).toBe(200);
+    expect(walkingResponse.json()).toMatchObject({
+      status: "processed",
+      metric: "walking_speed",
+      records: 1,
+    });
+    expect(activityResponse.statusCode).toBe(200);
+    expect(activityResponse.json()).toMatchObject({
+      status: "processed",
+      metric: "activity_summaries",
+      records: 1,
+    });
+    expect(mqttPublisher.normalizedBatches[0]?.records[0]).toMatchObject({
+      metric: "walking_speed",
+      normalizedMetric: "quantity_samples",
+      normalizedSample: {
+        metric_name: "walking_speed",
+        value: 1.4,
+      },
+    });
+    expect(mqttPublisher.normalizedBatches[1]?.records[0]).toMatchObject({
+      metric: "activity_summaries",
+      normalizedMetric: "daily_activity",
+      normalizedSample: {
+        active_calories_goal: 600,
+        active_minutes_goal: 45,
+        stand_hours_goal: 12,
+      },
+    });
+
+    const status = await app.inject({ method: "GET", url: "/api/apple/status" });
+    expect(status.json()).toMatchObject({
+      daily_activity: metricStatus(1, "2026-04-10"),
+      quantity_samples: metricStatus(1, "2026-04-10T12:00:00.000Z"),
+    });
+    const logEntries = logStream.lines
+      .filter((line) => line.trim().length > 0)
+      .map((line) => JSON.parse(line) as { msg?: string });
+    expect(
+      logEntries.some(
+        (entry) => entry.msg === "detected unmapped apple health batch data",
+      ),
+    ).toBe(false);
   });
 
   it("logs structured unknown health data diagnostics for unmapped samples", async () => {
