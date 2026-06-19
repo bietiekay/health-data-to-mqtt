@@ -142,6 +142,107 @@ describe("normalizeBatch", () => {
     });
   });
 
+  it("reports unmapped sample fields on supported metrics", () => {
+    const sample = {
+      date: "2026-04-10T12:00:00Z",
+      qty: 72,
+      source: "Watch",
+      sourceBundleIdentifier: "com.apple.health",
+      heartRateContext: "resting",
+    };
+    const result = normalizeBatchWithStats({
+      metric: "heart_rate",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [sample],
+    });
+
+    expect(result.records).toHaveLength(1);
+    expect(result.unknownHealthData).toMatchObject({
+      metric: "heart_rate",
+      mapper: "dedicated_metric",
+      normalized_metric: "heart_rate",
+      unsupported_metric: false,
+      total_samples: 1,
+      reported_samples: 1,
+      truncated_samples: 0,
+      reasons: ["unmapped_sample_fields"],
+      unmapped_keys: ["heartRateContext", "sourceBundleIdentifier"],
+      candidate_time_fields: ["date"],
+      candidate_numeric_fields: ["qty"],
+      source_ids: ["Watch"],
+      samples: [
+        {
+          sample_index: 0,
+          reasons: ["unmapped_sample_fields"],
+          source_id: "Watch",
+          unmapped_keys: ["heartRateContext", "sourceBundleIdentifier"],
+          expected_time_fields: ["date", "startDate", "start"],
+          expected_value_fields: ["qty"],
+          missing_time_fields: [],
+          missing_value_fields: [],
+          candidate_time_fields: ["date"],
+          candidate_numeric_fields: ["qty"],
+          sample,
+        },
+      ],
+    });
+  });
+
+  it("reports unsupported metrics with candidate fields for mapper implementation", () => {
+    const result = normalizeBatchWithStats({
+      metric: "new_quantity_metric",
+      batch_index: 0,
+      total_batches: 1,
+      samples: [
+        {
+          startDate: "2026-04-10T12:00:00Z",
+          value: 4.2,
+          sourceName: "Watch",
+          healthKitIdentifier: "HKQuantityTypeIdentifierNewQuantityMetric",
+        },
+      ],
+    });
+
+    expect(result.records).toEqual([]);
+    expect(result.stats).toMatchObject({
+      recordsReceived: 1,
+      recordsAccepted: 0,
+      recordsRejected: 1,
+    });
+    expect(result.unknownHealthData).toMatchObject({
+      metric: "new_quantity_metric",
+      mapper: "generic_quantity_fallback",
+      normalized_metric: "quantity_samples",
+      unsupported_metric: true,
+      total_samples: 1,
+      reasons: [
+        "rejected_sample",
+        "unmapped_sample_fields",
+        "unsupported_metric",
+      ],
+      unmapped_keys: ["healthKitIdentifier", "value"],
+      candidate_time_fields: ["startDate"],
+      candidate_numeric_fields: ["value"],
+      source_ids: ["Watch"],
+      samples: [
+        {
+          sample_index: 0,
+          reasons: [
+            "unsupported_metric",
+            "unmapped_sample_fields",
+            "rejected_sample",
+          ],
+          source_id: "Watch",
+          missing_time_fields: [],
+          missing_value_fields: ["qty"],
+          candidate_time_fields: ["startDate"],
+          candidate_numeric_fields: ["value"],
+        },
+      ],
+    });
+  });
+
   it("uses category event fallback timestamps for generic quantities", () => {
     expect(
       normalizeBatch({

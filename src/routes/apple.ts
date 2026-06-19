@@ -7,6 +7,7 @@ import {
   batchRequestSchema,
   createStatusObservations,
   normalizeBatchWithStats,
+  type UnknownHealthDataDiagnostics,
 } from "../ingest.js";
 import type { HealthMqttPublisher } from "../mqtt/publisher.js";
 import type { IdempotencyStore } from "../state/idempotency-store.js";
@@ -97,6 +98,19 @@ export async function registerAppleRoutes(
     const normalizedRecords = normalizationResult.records;
     const processedRecords = normalizedRecords.length;
     const statusObservations = createStatusObservations(normalizedRecords);
+    if (normalizationResult.unknownHealthData.total_samples > 0) {
+      request.log.warn(
+        {
+          unknown_health_data: createUnknownHealthDataLogPayload(
+            options.context,
+            batch,
+            normalizationResult.unknownHealthData,
+            processedRecords,
+          ),
+        },
+        "detected unmapped apple health batch data",
+      );
+    }
     request.log.debug(
       {
         context: options.context.name,
@@ -593,4 +607,97 @@ function getObjectKeys(value: unknown): string[] {
   }
 
   return Object.keys(value).sort();
+}
+
+function createUnknownHealthDataLogPayload(
+  context: AppContextConfig,
+  batch: {
+    metric: string;
+    batch_index: number;
+    total_batches: number;
+    samples: Array<Record<string, unknown>>;
+  },
+  diagnostics: UnknownHealthDataDiagnostics,
+  processedRecords: number,
+) {
+  return {
+    schema_version: diagnostics.schema_version,
+    context: context.name,
+    prefix: context.prefix,
+    metric: batch.metric,
+    batch_index: batch.batch_index,
+    total_batches: batch.total_batches,
+    raw_records: batch.samples.length,
+    processed_records: processedRecords,
+    mapper: diagnostics.mapper,
+    normalized_metric: diagnostics.normalized_metric,
+    unsupported_metric: diagnostics.unsupported_metric,
+    total_samples: diagnostics.total_samples,
+    reported_samples: diagnostics.reported_samples,
+    truncated_samples: diagnostics.truncated_samples,
+    reasons: diagnostics.reasons,
+    field_summary: {
+      sample_keys: diagnostics.sample_keys,
+      unmapped_keys: diagnostics.unmapped_keys,
+      candidate_time_fields: diagnostics.candidate_time_fields,
+      candidate_numeric_fields: diagnostics.candidate_numeric_fields,
+      candidate_string_fields: diagnostics.candidate_string_fields,
+      source_ids: diagnostics.source_ids,
+    },
+    implementation_hint: {
+      metric: batch.metric,
+      mapper: diagnostics.mapper,
+      add_or_update_mapper_for_metric: batch.metric,
+      candidate_time_fields: diagnostics.candidate_time_fields,
+      candidate_value_fields: diagnostics.candidate_numeric_fields,
+      unmapped_fields: diagnostics.unmapped_keys,
+    },
+    samples: diagnostics.samples.map((sample) => ({
+      ...sample,
+      sample: sanitizeLogValue(sample.sample),
+    })),
+  };
+}
+
+function sanitizeLogValue(value: unknown, depth = 0): unknown {
+  if (depth > 4) {
+    return "[MaxDepth]";
+  }
+
+  if (typeof value === "string") {
+    return value.length > 2_048 ? `${value.slice(0, 2_048)}...[truncated]` : value;
+  }
+
+  if (
+    value === null ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+
+  if (typeof value === "bigint") {
+    return value.toString();
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (Array.isArray(value)) {
+    return value.slice(0, 25).map((item) => sanitizeLogValue(item, depth + 1));
+  }
+
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .slice(0, 50)
+        .map(([key, nestedValue]) => [
+          key,
+          sanitizeLogValue(nestedValue, depth + 1),
+        ]),
+    );
+  }
+
+  return String(value);
 }

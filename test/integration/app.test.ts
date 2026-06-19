@@ -127,6 +127,18 @@ function createRecordingPublishClient(): MqttPublishClient & {
   };
 }
 
+function createRecordingLogStream(): {
+  lines: string[];
+  write(chunk: string): void;
+} {
+  return {
+    lines: [],
+    write(chunk) {
+      this.lines.push(chunk);
+    },
+  };
+}
+
 function emptyMetricStatus() {
   return {
     count: 0,
@@ -809,6 +821,92 @@ describe("compatibility endpoints", () => {
 
     const status = await server.inject({ method: "GET", url: "/api/apple/status" });
     expect(status.json()).toEqual(emptyStatusResponse());
+  });
+
+  it("logs structured unknown health data diagnostics for unmapped samples", async () => {
+    const logStream = createRecordingLogStream();
+    app = await buildApp({
+      config: {
+        ...baseConfig,
+        logEnabled: true,
+        logLevel: "warn",
+      },
+      logger: {
+        level: "warn",
+        stream: logStream,
+        redact: ["req.headers.x-api-key"],
+      },
+      mqttPublisher: createRecordingMqttPublisher(),
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/apple/batch",
+      payload: {
+        metric: "new_quantity_metric",
+        batch_index: 1,
+        total_batches: 2,
+        samples: [
+          {
+            startDate: "2026-04-10T12:00:00Z",
+            value: 4.2,
+            sourceName: "Watch",
+            healthKitIdentifier: "HKQuantityTypeIdentifierNewQuantityMetric",
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const logEntries = logStream.lines.map((line) => JSON.parse(line) as {
+      msg?: string;
+      unknown_health_data?: Record<string, unknown>;
+    });
+    const warning = logEntries.find(
+      (entry) => entry.msg === "detected unmapped apple health batch data",
+    );
+
+    expect(warning?.unknown_health_data).toMatchObject({
+      schema_version: 1,
+      context: "default",
+      prefix: "/",
+      metric: "new_quantity_metric",
+      batch_index: 1,
+      total_batches: 2,
+      raw_records: 1,
+      processed_records: 0,
+      mapper: "generic_quantity_fallback",
+      normalized_metric: "quantity_samples",
+      unsupported_metric: true,
+      total_samples: 1,
+      field_summary: {
+        unmapped_keys: ["healthKitIdentifier", "value"],
+        candidate_time_fields: ["startDate"],
+        candidate_numeric_fields: ["value"],
+        source_ids: ["Watch"],
+      },
+      implementation_hint: {
+        add_or_update_mapper_for_metric: "new_quantity_metric",
+        candidate_time_fields: ["startDate"],
+        candidate_value_fields: ["value"],
+        unmapped_fields: ["healthKitIdentifier", "value"],
+      },
+      samples: [
+        {
+          sample_index: 0,
+          reasons: [
+            "unsupported_metric",
+            "unmapped_sample_fields",
+            "rejected_sample",
+          ],
+          missing_value_fields: ["qty"],
+          sample: {
+            value: 4.2,
+            healthKitIdentifier: "HKQuantityTypeIdentifierNewQuantityMetric",
+          },
+        },
+      ],
+    });
   });
 
   it("records v2 sync receipts for batches with HealthSave run headers", async () => {

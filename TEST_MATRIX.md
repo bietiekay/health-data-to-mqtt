@@ -36,6 +36,8 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | Ingest | Sleep aggregation is not counted as in-batch dedupe | Existing | `test/unit/ingest.test.ts` | Covers honest accounting for folded sleep-stage samples |
 | Ingest | ECG compatibility batches are accepted without rejected records | Existing | `test/unit/ingest.test.ts` | Verifies ECG payloads produce zero normalized records and zero validation rejections |
 | Ingest | Category events can use fallback timestamps | Existing | `test/unit/ingest.test.ts` | Verifies generic quantity/category payloads can use `endDate` when `date` is absent |
+| Ingest | Unknown health data diagnostics identify unmapped supported-metric fields | Existing | `test/unit/ingest.test.ts` | Verifies new sample fields on known metrics are reported with source, candidate fields, and raw sample context |
+| Ingest | Unknown health data diagnostics identify unsupported metric candidates | Existing | `test/unit/ingest.test.ts` | Verifies new metric payloads expose unsupported metric, rejected sample, unmapped keys, and candidate value fields for mapper implementation |
 | MQTT | Topic template rendering | Existing | `test/unit/ingest.test.ts` | Covers `{metric}` and `{context}` placeholders |
 | MQTT | Raw event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies one raw event per sample, topic, QoS, retain, metadata, and idempotency key shape |
 | MQTT | Normalized event payload publication | Existing | `test/unit/mqtt-publisher.test.ts` | Verifies logical topics, normalized metadata, payload shape, and idempotency key shape |
@@ -75,6 +77,7 @@ This file is the current inventory of existing, planned, and blocked tests. Upda
 | API | Batch body validation errors match reference style | Existing | `test/integration/app.test.ts` | Verifies invalid JSON `400` and schema validation `422` response shapes |
 | API | Batch happy path returns processed delivery receipt | Existing | `test/integration/app.test.ts` | Counts valid deduplicated logical records and verifies reference delivery receipt fields |
 | API | Non-empty batches without normalized records return `records: 0` and unchanged status | Existing | `test/integration/app.test.ts` | Verifies invalid samples are skipped without inflating status |
+| API | Batch route logs structured unknown health data diagnostics | Existing | `test/integration/app.test.ts` | Verifies unmapped samples emit a JSON warning payload with implementation hints and sample examples |
 | API | Large batch payloads above Fastify default parser limit are accepted | Existing | `test/integration/app.test.ts` | Regression coverage for HealthSave sync batches larger than 1 MiB |
 | API | Empty batch returns reference-compatible delivery receipt | Existing | `test/integration/app.test.ts` | Verifies empty receipt fields and no counter increment |
 | API | Batch delivery receipts include sample-window headers | Existing | `test/integration/app.test.ts` | Verifies HealthSave sample-window headers are normalized and echoed |

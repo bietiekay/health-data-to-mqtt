@@ -1,4 +1,7 @@
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyServerOptions,
+} from "fastify";
 import type { AppConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import {
@@ -26,6 +29,7 @@ import {
 
 interface BuildAppOptions {
   config?: AppConfig;
+  logger?: FastifyServerOptions["logger"];
   stateStore?: StateStore;
   mqttPublisher?: HealthMqttPublisher;
   rawBatchStorage?: RawBatchStorage;
@@ -39,12 +43,14 @@ export async function buildApp(
   const config = options.config ?? loadConfig();
   const app = Fastify({
     bodyLimit: config.httpBodyLimitBytes,
-    logger: config.logEnabled
-      ? {
-          level: config.logLevel,
-          redact: ["req.headers.x-api-key"],
-        }
-      : false,
+    logger:
+      options.logger ??
+      (config.logEnabled
+        ? {
+            level: config.logLevel,
+            redact: ["req.headers.x-api-key"],
+          }
+        : false),
   });
   const stateStore = options.stateStore ?? createStateStore(config, app.log);
   const mqttPublisher =

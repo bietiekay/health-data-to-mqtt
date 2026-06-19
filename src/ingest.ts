@@ -46,9 +46,50 @@ export interface NormalizationStats {
   recordsDedupedInBatch: number;
 }
 
+export type UnknownHealthDataReason =
+  | "unsupported_metric"
+  | "unmapped_sample_fields"
+  | "rejected_sample";
+
+export interface UnknownHealthDataSampleDiagnostic {
+  sample_index: number;
+  reasons: UnknownHealthDataReason[];
+  source_id: string;
+  sample_keys: string[];
+  unmapped_keys: string[];
+  expected_time_fields: string[];
+  expected_value_fields: string[];
+  missing_time_fields: string[];
+  missing_value_fields: string[];
+  candidate_time_fields: string[];
+  candidate_numeric_fields: string[];
+  candidate_string_fields: string[];
+  sample: Record<string, unknown>;
+}
+
+export interface UnknownHealthDataDiagnostics {
+  schema_version: 1;
+  metric: string;
+  mapper: string;
+  normalized_metric: string | null;
+  unsupported_metric: boolean;
+  total_samples: number;
+  reported_samples: number;
+  truncated_samples: number;
+  reasons: UnknownHealthDataReason[];
+  sample_keys: string[];
+  unmapped_keys: string[];
+  candidate_time_fields: string[];
+  candidate_numeric_fields: string[];
+  candidate_string_fields: string[];
+  source_ids: string[];
+  samples: UnknownHealthDataSampleDiagnostic[];
+}
+
 export interface NormalizationResult {
   records: NormalizedRecord[];
   stats: NormalizationStats;
+  unknownHealthData: UnknownHealthDataDiagnostics;
 }
 
 interface DedicatedMetricSpec {
@@ -151,6 +192,28 @@ const activityFields: Record<string, string> = {
   appleStandHours: "stand_hours",
 };
 
+const deviceIdentityFields = [
+  "source",
+  "source_id",
+  "sourceName",
+  "device",
+  "deviceName",
+  "device_id",
+  "deviceId",
+] as const;
+
+const genericQuantityTimeFields = [
+  "date",
+  "startDate",
+  "start",
+  "endDate",
+  "end",
+] as const;
+
+const genericQuantityValueFields = ["qty"] as const;
+
+const diagnosticSampleLimit = 20;
+
 export function createStatusObservations(
   records: NormalizedRecord[],
 ): StatusObservation[] {
@@ -178,6 +241,14 @@ export function normalizeBatch(batch: BatchRequest): NormalizedRecord[] {
 }
 
 export function normalizeBatchWithStats(batch: BatchRequest): NormalizationResult {
+  const result = normalizeBatchRecords(batch);
+  return {
+    ...result,
+    unknownHealthData: createUnknownHealthDataDiagnostics(batch, result),
+  };
+}
+
+function normalizeBatchRecords(batch: BatchRequest): NormalizationResult {
   if (batch.metric === "activity_summaries") {
     return normalizeActivity(batch);
   }
@@ -842,7 +913,398 @@ function createNormalizationResult(
       recordsRejected: Math.max(0, batch.samples.length - acceptedBeforeDedupe),
       recordsDedupedInBatch,
     },
+    unknownHealthData: createEmptyUnknownHealthDataDiagnostics(batch),
   };
+}
+
+interface DiagnosticProfile {
+  mapper: string;
+  normalizedMetric: string | null;
+  unsupportedMetric: boolean;
+  knownFields: string[];
+  timeFields: string[];
+  valueFields: string[];
+  isRejected(sample: Record<string, unknown>): boolean;
+}
+
+function createUnknownHealthDataDiagnostics(
+  batch: BatchRequest,
+  result: Pick<NormalizationResult, "records">,
+): UnknownHealthDataDiagnostics {
+  const profile = diagnosticProfileForBatch(batch, result);
+  const samples: UnknownHealthDataSampleDiagnostic[] = [];
+  const reasons = new Set<UnknownHealthDataReason>();
+  const sampleKeys = new Set<string>();
+  const unmappedKeys = new Set<string>();
+  const candidateTimeFields = new Set<string>();
+  const candidateNumericFields = new Set<string>();
+  const candidateStringFields = new Set<string>();
+  const sourceIds = new Set<string>();
+  let totalSamples = 0;
+
+  for (const [sampleIndex, sample] of batch.samples.entries()) {
+    const knownFields = new Set(profile.knownFields);
+    const currentSampleKeys = Object.keys(sample).sort();
+    const currentUnmappedKeys = currentSampleKeys.filter(
+      (key) => !knownFields.has(key),
+    );
+    const currentCandidateTimeFields = fieldsMatching(sample, parseTimestamp);
+    const currentCandidateNumericFields = fieldsMatching(sample, toNumber);
+    const currentCandidateStringFields = fieldsMatching(sample, getStringValue);
+    const missingTimeFields =
+      profile.timeFields.length > 0 && !hasAnyTimeValue(sample, profile.timeFields)
+        ? profile.timeFields
+        : [];
+    const missingValueFields =
+      profile.valueFields.length > 0 &&
+      !hasAnyNumericValue(sample, profile.valueFields)
+        ? profile.valueFields
+        : [];
+    const sampleReasons: UnknownHealthDataReason[] = [];
+
+    if (profile.unsupportedMetric) {
+      sampleReasons.push("unsupported_metric");
+    }
+
+    if (currentUnmappedKeys.length > 0) {
+      sampleReasons.push("unmapped_sample_fields");
+    }
+
+    if (profile.isRejected(sample)) {
+      sampleReasons.push("rejected_sample");
+    }
+
+    if (sampleReasons.length === 0) {
+      continue;
+    }
+
+    totalSamples += 1;
+    for (const reason of sampleReasons) {
+      reasons.add(reason);
+    }
+    for (const key of currentSampleKeys) {
+      sampleKeys.add(key);
+    }
+    for (const key of currentUnmappedKeys) {
+      unmappedKeys.add(key);
+    }
+    for (const key of currentCandidateTimeFields) {
+      candidateTimeFields.add(key);
+    }
+    for (const key of currentCandidateNumericFields) {
+      candidateNumericFields.add(key);
+    }
+    for (const key of currentCandidateStringFields) {
+      candidateStringFields.add(key);
+    }
+    sourceIds.add(resolveDeviceIdentity(sample));
+
+    if (samples.length >= diagnosticSampleLimit) {
+      continue;
+    }
+
+    samples.push({
+      sample_index: sampleIndex,
+      reasons: sampleReasons,
+      source_id: resolveDeviceIdentity(sample),
+      sample_keys: currentSampleKeys,
+      unmapped_keys: currentUnmappedKeys,
+      expected_time_fields: profile.timeFields,
+      expected_value_fields: profile.valueFields,
+      missing_time_fields: missingTimeFields,
+      missing_value_fields: missingValueFields,
+      candidate_time_fields: currentCandidateTimeFields,
+      candidate_numeric_fields: currentCandidateNumericFields,
+      candidate_string_fields: currentCandidateStringFields,
+      sample,
+    });
+  }
+
+  return {
+    schema_version: 1,
+    metric: batch.metric,
+    mapper: profile.mapper,
+    normalized_metric: profile.normalizedMetric,
+    unsupported_metric: profile.unsupportedMetric,
+    total_samples: totalSamples,
+    reported_samples: samples.length,
+    truncated_samples: Math.max(0, totalSamples - samples.length),
+    reasons: [...reasons].sort(),
+    sample_keys: [...sampleKeys].sort(),
+    unmapped_keys: [...unmappedKeys].sort(),
+    candidate_time_fields: [...candidateTimeFields].sort(),
+    candidate_numeric_fields: [...candidateNumericFields].sort(),
+    candidate_string_fields: [...candidateStringFields].sort(),
+    source_ids: [...sourceIds].sort(),
+    samples,
+  };
+}
+
+function createEmptyUnknownHealthDataDiagnostics(
+  batch: BatchRequest,
+): UnknownHealthDataDiagnostics {
+  return {
+    schema_version: 1,
+    metric: batch.metric,
+    mapper: "unknown",
+    normalized_metric: null,
+    unsupported_metric: false,
+    total_samples: 0,
+    reported_samples: 0,
+    truncated_samples: 0,
+    reasons: [],
+    sample_keys: [],
+    unmapped_keys: [],
+    candidate_time_fields: [],
+    candidate_numeric_fields: [],
+    candidate_string_fields: [],
+    source_ids: [],
+    samples: [],
+  };
+}
+
+function diagnosticProfileForBatch(
+  batch: BatchRequest,
+  result: Pick<NormalizationResult, "records">,
+): DiagnosticProfile {
+  if (batch.metric === "activity_summaries") {
+    return {
+      mapper: "activity_summaries",
+      normalizedMetric: "daily_activity",
+      unsupportedMetric: false,
+      knownFields: knownSampleFields(["date", ...Object.keys(activityFields)]),
+      timeFields: ["date"],
+      valueFields: [],
+      isRejected: (sample) => parseDateValue(sample.date) === undefined,
+    };
+  }
+
+  const dailyQuantitySpec = dailyQuantityMetricSpecs[batch.metric];
+  if (dailyQuantitySpec) {
+    return {
+      mapper: "daily_quantity",
+      normalizedMetric: "daily_activity",
+      unsupportedMetric: false,
+      knownFields: knownSampleFields(["date", "qty"]),
+      timeFields: ["date"],
+      valueFields: ["qty"],
+      isRejected: (sample) =>
+        parseDateValue(sample.date) === undefined ||
+        toNumber(sample.qty) === undefined,
+    };
+  }
+
+  if (batch.metric === "sleep_analysis") {
+    return sleepDiagnosticProfile(batch);
+  }
+
+  if (batch.metric === "workout") {
+    return activeEnergyDiagnosticProfile();
+  }
+
+  if (batch.metric === "workouts") {
+    const normalizedMetric = result.records.some(
+      (record) => record.normalizedMetric === "workouts",
+    )
+      ? "workouts"
+      : "quantity_samples";
+    const sessionProfile = workoutsDiagnosticProfile(normalizedMetric);
+    return {
+      ...sessionProfile,
+      isRejected: (sample) =>
+        sessionProfile.isRejected(sample) &&
+        activeEnergyDiagnosticProfile().isRejected(sample),
+    };
+  }
+
+  if (batch.metric === "ecg") {
+    return {
+      mapper: "ecg_compatibility",
+      normalizedMetric: null,
+      unsupportedMetric: false,
+      knownFields: knownSampleFields([
+        "start",
+        "startDate",
+        "date",
+        "end",
+        "endDate",
+        "classification",
+        "numberOfVoltageMeasurements",
+        "samplingFrequency",
+        "averageHeartRate",
+      ]),
+      timeFields: [],
+      valueFields: [],
+      isRejected: () => false,
+    };
+  }
+
+  const dedicatedSpec = dedicatedMetricSpecs[batch.metric];
+  if (dedicatedSpec) {
+    const timeFields = dedicatedSpec.timeFields ?? ["date", "startDate", "start"];
+    const valueFields = dedicatedSpec.valueFields ?? ["qty"];
+    return {
+      mapper: "dedicated_metric",
+      normalizedMetric: dedicatedSpec.normalizedMetric,
+      unsupportedMetric: false,
+      knownFields: knownSampleFields([...timeFields, ...valueFields]),
+      timeFields,
+      valueFields,
+      isRejected: (sample) =>
+        parseTimestamp(firstPresent(sample, ...timeFields)) === undefined ||
+        toNumber(firstPresent(sample, ...valueFields)) === undefined,
+    };
+  }
+
+  return {
+    mapper: "generic_quantity_fallback",
+    normalizedMetric: "quantity_samples",
+    unsupportedMetric: true,
+    knownFields: knownSampleFields([
+      ...genericQuantityTimeFields,
+      ...genericQuantityValueFields,
+      "metric",
+      "unit",
+    ]),
+    timeFields: [...genericQuantityTimeFields],
+    valueFields: [...genericQuantityValueFields],
+    isRejected: (sample) =>
+      parseTimestamp(firstPresent(sample, ...genericQuantityTimeFields)) ===
+        undefined || toNumber(firstPresent(sample, ...genericQuantityValueFields)) === undefined,
+  };
+}
+
+function sleepDiagnosticProfile(batch: BatchRequest): DiagnosticProfile {
+  if (batch.samples.some((sample) => "startDate" in sample || "value" in sample)) {
+    const timeFields = ["start_date", "startDate", "start", "date"];
+    const endFields = ["end_date", "endDate", "end"];
+    return {
+      mapper: "sleep_stage_aggregation",
+      normalizedMetric: "sleep_sessions",
+      unsupportedMetric: false,
+      knownFields: knownSampleFields([...timeFields, ...endFields, "value", "stage"]),
+      timeFields: [...timeFields, ...endFields],
+      valueFields: [],
+      isRejected: (sample) => {
+        const start = parseDateObject(firstPresent(sample, ...timeFields));
+        const end = parseDateObject(firstPresent(sample, ...endFields));
+        return !start || !end || end <= start;
+      },
+    };
+  }
+
+  const startFields = ["start_date", "startDate", "date"];
+  const endFields = ["end_date", "endDate"];
+  return {
+    mapper: "sleep_session",
+    normalizedMetric: "sleep_sessions",
+    unsupportedMetric: false,
+    knownFields: knownSampleFields([
+      ...startFields,
+      ...endFields,
+      "total_duration_ms",
+      "deep_ms",
+      "rem_ms",
+      "light_ms",
+      "core_ms",
+      "awake_ms",
+      "respiratory_rate",
+    ]),
+    timeFields: [...startFields, ...endFields],
+    valueFields: [],
+    isRejected: (sample) =>
+      parseTimestamp(firstPresent(sample, ...startFields)) === undefined ||
+      parseTimestamp(firstPresent(sample, ...endFields)) === undefined,
+  };
+}
+
+function workoutsDiagnosticProfile(normalizedMetric: string): DiagnosticProfile {
+  const startFields = ["start_date", "startDate", "start", "date"];
+  const endFields = ["end_date", "endDate", "end"];
+  return {
+    mapper: "workouts",
+    normalizedMetric,
+    unsupportedMetric: false,
+    knownFields: knownSampleFields([
+      ...startFields,
+      ...endFields,
+      "sport_type",
+      "sportType",
+      "name",
+      "duration_ms",
+      "duration",
+      "avg_hr",
+      "avgHeartRate",
+      "max_hr",
+      "maxHeartRate",
+      "calories",
+      "activeEnergy",
+      "activeEnergyBurned",
+      "distance_m",
+      "distance",
+      "active_energy",
+    ]),
+    timeFields: [...startFields, ...endFields],
+    valueFields: [],
+    isRejected: (sample) =>
+      parseTimestamp(firstPresent(sample, ...startFields)) === undefined ||
+      parseTimestamp(firstPresent(sample, ...endFields)) === undefined,
+  };
+}
+
+function activeEnergyDiagnosticProfile(): DiagnosticProfile {
+  const timeFields = ["date", "startDate", "start"];
+  const valueFields = [
+    "activeEnergyBurned",
+    "activeEnergy",
+    "active_energy",
+    "calories",
+  ];
+  return {
+    mapper: "active_energy_quantity",
+    normalizedMetric: "quantity_samples",
+    unsupportedMetric: false,
+    knownFields: knownSampleFields([
+      ...timeFields,
+      ...valueFields,
+      "appleExerciseTime",
+      "appleStandHours",
+      "metric",
+      "unit",
+    ]),
+    timeFields,
+    valueFields,
+    isRejected: (sample) =>
+      parseTimestamp(firstPresent(sample, ...timeFields)) === undefined ||
+      toNumber(firstPresent(sample, ...valueFields)) === undefined,
+  };
+}
+
+function knownSampleFields(fields: string[]): string[] {
+  return [...new Set([...fields, ...deviceIdentityFields])].sort();
+}
+
+function fieldsMatching(
+  sample: Record<string, unknown>,
+  predicate: (value: unknown) => unknown,
+): string[] {
+  return Object.keys(sample)
+    .filter((key) => predicate(sample[key]) !== undefined)
+    .sort();
+}
+
+function hasAnyTimeValue(
+  sample: Record<string, unknown>,
+  fields: string[],
+): boolean {
+  return fields.some((field) => parseTimestamp(sample[field]) !== undefined);
+}
+
+function hasAnyNumericValue(
+  sample: Record<string, unknown>,
+  fields: string[],
+): boolean {
+  return fields.some((field) => toNumber(sample[field]) !== undefined);
 }
 
 function deserializeBatchPayload(value: unknown): unknown {

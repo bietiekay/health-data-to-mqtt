@@ -407,6 +407,31 @@ All unknown metrics should follow `quantity_samples` semantics:
 | `source` | `source_id` |
 | incoming `metric` | `metric_name` |
 
+### 6.6 Unknown Data Diagnostics
+
+The mapper should keep accepting batches even when the client sends a metric or
+sample field shape that is not implemented yet. In that case, ingest emits a
+structured warning log with an `unknown_health_data` object instead of requiring
+full raw-body trace logging.
+
+The diagnostic object should include:
+
+- batch context, metric, batch index, total batches, raw record count, and
+  processed record count,
+- whether the metric used the generic fallback or a dedicated mapper,
+- reasons such as `unsupported_metric`, `unmapped_sample_fields`, or
+  `rejected_sample`,
+- aggregate field summaries for sample keys, unmapped keys, candidate timestamp
+  fields, candidate numeric value fields, candidate string fields, and source
+  IDs,
+- implementation hints naming the metric and likely timestamp/value fields,
+- a bounded list of sanitized sample examples.
+
+This is intentionally additive to the HealthSave API response contract. Clients
+still receive the same accepted/empty/error response shapes, while maintainers
+can copy the JSON warning from normal logs and turn it into a mapper test plus a
+new MQTT normalization rule.
+
 ## 7) Target Architecture
 
 ### 7.1 Runtime and Frameworks
