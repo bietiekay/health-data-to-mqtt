@@ -159,6 +159,7 @@ describe("normalizeBatch", () => {
 
     expect(result.records).toHaveLength(1);
     expect(result.unknownHealthData).toMatchObject({
+      schema_version: 2,
       metric: "heart_rate",
       mapper: "dedicated_metric",
       normalized_metric: "heart_rate",
@@ -170,23 +171,40 @@ describe("normalizeBatch", () => {
       unmapped_keys: ["heartRateContext", "sourceBundleIdentifier"],
       candidate_time_fields: ["date"],
       candidate_numeric_fields: ["qty"],
-      source_ids: ["Watch"],
+      source_identity_fields: ["source"],
+      source_id_count: 1,
       samples: [
         {
           sample_index: 0,
           reasons: ["unmapped_sample_fields"],
-          source_id: "Watch",
           unmapped_keys: ["heartRateContext", "sourceBundleIdentifier"],
+          source_identity_fields: ["source"],
           expected_time_fields: ["date", "startDate", "start"],
           expected_value_fields: ["qty"],
           missing_time_fields: [],
           missing_value_fields: [],
           candidate_time_fields: ["date"],
           candidate_numeric_fields: ["qty"],
-          sample,
+          field_profiles: expect.arrayContaining([
+            expect.objectContaining({
+              field: "heartRateContext",
+              value_type: "string",
+              roles: ["unmapped_field", "candidate_string_field"],
+            }),
+            expect.objectContaining({
+              field: "sourceBundleIdentifier",
+              value_type: "string",
+              roles: ["unmapped_field", "candidate_string_field"],
+            }),
+          ]),
         },
       ],
     });
+    expect(JSON.stringify(result.unknownHealthData)).not.toContain("resting");
+    expect(JSON.stringify(result.unknownHealthData)).not.toContain(
+      "com.apple.health",
+    );
+    expect(JSON.stringify(result.unknownHealthData)).not.toContain("Watch");
   });
 
   it("reports unsupported metrics with candidate fields for mapper implementation", () => {
@@ -211,6 +229,7 @@ describe("normalizeBatch", () => {
       recordsRejected: 1,
     });
     expect(result.unknownHealthData).toMatchObject({
+      schema_version: 2,
       metric: "new_quantity_metric",
       mapper: "generic_quantity_fallback",
       normalized_metric: "quantity_samples",
@@ -224,7 +243,9 @@ describe("normalizeBatch", () => {
       unmapped_keys: ["healthKitIdentifier", "value"],
       candidate_time_fields: ["startDate"],
       candidate_numeric_fields: ["value"],
-      source_ids: ["Watch"],
+      categorical_preview_fields: ["healthKitIdentifier"],
+      source_identity_fields: ["sourceName"],
+      source_id_count: 1,
       samples: [
         {
           sample_index: 0,
@@ -233,14 +254,44 @@ describe("normalizeBatch", () => {
             "unmapped_sample_fields",
             "rejected_sample",
           ],
-          source_id: "Watch",
+          source_identity_fields: ["sourceName"],
           missing_time_fields: [],
           missing_value_fields: ["qty"],
           candidate_time_fields: ["startDate"],
           candidate_numeric_fields: ["value"],
+          categorical_preview_fields: ["healthKitIdentifier"],
+          field_profiles: expect.arrayContaining([
+            expect.objectContaining({
+              field: "healthKitIdentifier",
+              value_type: "string",
+              roles: [
+                "unmapped_field",
+                "candidate_string_field",
+                "categorical_preview_field",
+              ],
+              preview: "HKQuantityTypeIdentifierNewQuantityMetric",
+            }),
+            expect.objectContaining({
+              field: "sourceName",
+              value_type: "string",
+              roles: [
+                "known_field",
+                "candidate_string_field",
+                "device_identity_field",
+              ],
+            }),
+            expect.objectContaining({
+              field: "value",
+              value_type: "number",
+              roles: ["unmapped_field", "candidate_numeric_field"],
+              parseable_number: true,
+            }),
+          ]),
         },
       ],
     });
+    expect(JSON.stringify(result.unknownHealthData)).not.toContain("4.2");
+    expect(JSON.stringify(result.unknownHealthData)).not.toContain("Watch");
   });
 
   it("uses category event fallback timestamps for generic quantities", () => {

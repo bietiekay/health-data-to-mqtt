@@ -11,13 +11,14 @@ Version headers must match the `version` field in `package.json`.
 - Updated npm dependencies to resolve audit advisories in Fastify, Vitest, and transitive URI, IP address, and WebSocket packages.
 - Changed the file-backed `/api/apple/status` store from per-context NDJSON ledgers to a SQLite database at `<DATA_PATH>/status/status.sqlite`.
 - Changed the test script to ignore compiled `dist/**` output so source tests remain reliable after a build.
+- Changed `unknown_health_data` warning logs to schema v2 with redacted field profiles and mapper-ready hints instead of raw sample values.
 
 ### Added
 
 - Added automatic one-time migration from legacy `<DATA_PATH>/status/<context>/observations.ndjson` status ledgers into SQLite, then renaming processed ledgers to `observations.ndjson.migrated`.
 - Added startup and migration logs for the selected state backend, SQLite schema initialization, per-context migration counts, skipped malformed legacy rows, and final migration summaries.
 - Added tests for SQLite status persistence, exact dedupe, legacy migration, migration marker skipping, close readiness, and startup failure when SQLite cannot open.
-- Added structured `unknown_health_data` warning logs for unsupported metrics, rejected samples, and unmapped sample fields, including candidate mapper fields and sanitized sample examples.
+- Added structured `unknown_health_data` warning logs for unsupported metrics, rejected samples, and unmapped sample fields, including candidate mapper fields and redacted sample field profiles.
 - Added documentation and tests for unknown health data diagnostics so new client payload shapes can be implemented from normal logs.
 
 ## 0.4.0

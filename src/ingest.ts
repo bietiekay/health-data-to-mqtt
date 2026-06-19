@@ -51,12 +51,51 @@ export type UnknownHealthDataReason =
   | "unmapped_sample_fields"
   | "rejected_sample";
 
+export type UnknownHealthDataFieldValueType =
+  | "array"
+  | "bigint"
+  | "boolean"
+  | "date"
+  | "function"
+  | "null"
+  | "number"
+  | "object"
+  | "string"
+  | "symbol"
+  | "undefined"
+  | "unknown";
+
+export type UnknownHealthDataFieldRole =
+  | "categorical_preview_field"
+  | "candidate_numeric_field"
+  | "candidate_string_field"
+  | "candidate_time_field"
+  | "device_identity_field"
+  | "expected_time_field"
+  | "expected_value_field"
+  | "known_field"
+  | "unmapped_field";
+
+export interface UnknownHealthDataFieldDiagnostic {
+  field: string;
+  value_type: UnknownHealthDataFieldValueType;
+  roles: UnknownHealthDataFieldRole[];
+  parseable_timestamp: boolean;
+  parseable_number: boolean;
+  string_length?: number;
+  string_empty?: boolean;
+  array_length?: number;
+  object_keys?: string[];
+  object_key_count?: number;
+  preview?: string;
+}
+
 export interface UnknownHealthDataSampleDiagnostic {
   sample_index: number;
   reasons: UnknownHealthDataReason[];
-  source_id: string;
   sample_keys: string[];
   unmapped_keys: string[];
+  source_identity_fields: string[];
   expected_time_fields: string[];
   expected_value_fields: string[];
   missing_time_fields: string[];
@@ -64,11 +103,12 @@ export interface UnknownHealthDataSampleDiagnostic {
   candidate_time_fields: string[];
   candidate_numeric_fields: string[];
   candidate_string_fields: string[];
-  sample: Record<string, unknown>;
+  categorical_preview_fields: string[];
+  field_profiles: UnknownHealthDataFieldDiagnostic[];
 }
 
 export interface UnknownHealthDataDiagnostics {
-  schema_version: 1;
+  schema_version: 2;
   metric: string;
   mapper: string;
   normalized_metric: string | null;
@@ -82,7 +122,9 @@ export interface UnknownHealthDataDiagnostics {
   candidate_time_fields: string[];
   candidate_numeric_fields: string[];
   candidate_string_fields: string[];
-  source_ids: string[];
+  categorical_preview_fields: string[];
+  source_identity_fields: string[];
+  source_id_count: number;
   samples: UnknownHealthDataSampleDiagnostic[];
 }
 
@@ -201,6 +243,18 @@ const deviceIdentityFields = [
   "device_id",
   "deviceId",
 ] as const;
+
+const deviceIdentityFieldSet = new Set<string>(deviceIdentityFields);
+
+const categoricalPreviewFields = new Set([
+  "category",
+  "healthkitidentifier",
+  "identifier",
+  "metric",
+  "stage",
+  "type",
+  "unit",
+]);
 
 const genericQuantityTimeFields = [
   "date",
@@ -939,6 +993,8 @@ function createUnknownHealthDataDiagnostics(
   const candidateTimeFields = new Set<string>();
   const candidateNumericFields = new Set<string>();
   const candidateStringFields = new Set<string>();
+  const categoricalPreviewFieldNames = new Set<string>();
+  const sourceIdentityFields = new Set<string>();
   const sourceIds = new Set<string>();
   let totalSamples = 0;
 
@@ -951,6 +1007,22 @@ function createUnknownHealthDataDiagnostics(
     const currentCandidateTimeFields = fieldsMatching(sample, parseTimestamp);
     const currentCandidateNumericFields = fieldsMatching(sample, toNumber);
     const currentCandidateStringFields = fieldsMatching(sample, getStringValue);
+    const currentSourceIdentityFields = currentSampleKeys.filter((key) =>
+      deviceIdentityFieldSet.has(key),
+    );
+    const currentFieldProfiles = createFieldProfilesForSample(
+      sample,
+      knownFields,
+      profile,
+      currentUnmappedKeys,
+      currentCandidateTimeFields,
+      currentCandidateNumericFields,
+      currentCandidateStringFields,
+      currentSourceIdentityFields,
+    );
+    const currentCategoricalPreviewFields = currentFieldProfiles
+      .filter((fieldProfile) => fieldProfile.preview !== undefined)
+      .map((fieldProfile) => fieldProfile.field);
     const missingTimeFields =
       profile.timeFields.length > 0 && !hasAnyTimeValue(sample, profile.timeFields)
         ? profile.timeFields
@@ -997,7 +1069,15 @@ function createUnknownHealthDataDiagnostics(
     for (const key of currentCandidateStringFields) {
       candidateStringFields.add(key);
     }
-    sourceIds.add(resolveDeviceIdentity(sample));
+    for (const key of currentCategoricalPreviewFields) {
+      categoricalPreviewFieldNames.add(key);
+    }
+    for (const key of currentSourceIdentityFields) {
+      sourceIdentityFields.add(key);
+    }
+    if (currentSourceIdentityFields.length > 0) {
+      sourceIds.add(resolveDeviceIdentity(sample));
+    }
 
     if (samples.length >= diagnosticSampleLimit) {
       continue;
@@ -1006,9 +1086,9 @@ function createUnknownHealthDataDiagnostics(
     samples.push({
       sample_index: sampleIndex,
       reasons: sampleReasons,
-      source_id: resolveDeviceIdentity(sample),
       sample_keys: currentSampleKeys,
       unmapped_keys: currentUnmappedKeys,
+      source_identity_fields: currentSourceIdentityFields,
       expected_time_fields: profile.timeFields,
       expected_value_fields: profile.valueFields,
       missing_time_fields: missingTimeFields,
@@ -1016,12 +1096,13 @@ function createUnknownHealthDataDiagnostics(
       candidate_time_fields: currentCandidateTimeFields,
       candidate_numeric_fields: currentCandidateNumericFields,
       candidate_string_fields: currentCandidateStringFields,
-      sample,
+      categorical_preview_fields: currentCategoricalPreviewFields,
+      field_profiles: currentFieldProfiles,
     });
   }
 
   return {
-    schema_version: 1,
+    schema_version: 2,
     metric: batch.metric,
     mapper: profile.mapper,
     normalized_metric: profile.normalizedMetric,
@@ -1035,7 +1116,9 @@ function createUnknownHealthDataDiagnostics(
     candidate_time_fields: [...candidateTimeFields].sort(),
     candidate_numeric_fields: [...candidateNumericFields].sort(),
     candidate_string_fields: [...candidateStringFields].sort(),
-    source_ids: [...sourceIds].sort(),
+    categorical_preview_fields: [...categoricalPreviewFieldNames].sort(),
+    source_identity_fields: [...sourceIdentityFields].sort(),
+    source_id_count: sourceIds.size,
     samples,
   };
 }
@@ -1044,7 +1127,7 @@ function createEmptyUnknownHealthDataDiagnostics(
   batch: BatchRequest,
 ): UnknownHealthDataDiagnostics {
   return {
-    schema_version: 1,
+    schema_version: 2,
     metric: batch.metric,
     mapper: "unknown",
     normalized_metric: null,
@@ -1058,9 +1141,170 @@ function createEmptyUnknownHealthDataDiagnostics(
     candidate_time_fields: [],
     candidate_numeric_fields: [],
     candidate_string_fields: [],
-    source_ids: [],
+    categorical_preview_fields: [],
+    source_identity_fields: [],
+    source_id_count: 0,
     samples: [],
   };
+}
+
+function createFieldProfilesForSample(
+  sample: Record<string, unknown>,
+  knownFields: Set<string>,
+  profile: Pick<DiagnosticProfile, "timeFields" | "valueFields">,
+  unmappedFields: string[],
+  candidateTimeFields: string[],
+  candidateNumericFields: string[],
+  candidateStringFields: string[],
+  sourceIdentityFields: string[],
+): UnknownHealthDataFieldDiagnostic[] {
+  const unmappedFieldSet = new Set(unmappedFields);
+  const candidateTimeFieldSet = new Set(candidateTimeFields);
+  const candidateNumericFieldSet = new Set(candidateNumericFields);
+  const candidateStringFieldSet = new Set(candidateStringFields);
+  const sourceIdentityFieldSet = new Set(sourceIdentityFields);
+
+  return Object.keys(sample)
+    .sort()
+    .map((field) =>
+      createFieldProfile({
+        field,
+        value: sample[field],
+        knownFields,
+        timeFields: profile.timeFields,
+        valueFields: profile.valueFields,
+        unmappedFields: unmappedFieldSet,
+        candidateTimeFields: candidateTimeFieldSet,
+        candidateNumericFields: candidateNumericFieldSet,
+        candidateStringFields: candidateStringFieldSet,
+        sourceIdentityFields: sourceIdentityFieldSet,
+      }),
+    );
+}
+
+function createFieldProfile(input: {
+  field: string;
+  value: unknown;
+  knownFields: Set<string>;
+  timeFields: string[];
+  valueFields: string[];
+  unmappedFields: Set<string>;
+  candidateTimeFields: Set<string>;
+  candidateNumericFields: Set<string>;
+  candidateStringFields: Set<string>;
+  sourceIdentityFields: Set<string>;
+}): UnknownHealthDataFieldDiagnostic {
+  const roles: UnknownHealthDataFieldRole[] = [];
+  const preview = categoricalPreviewForField(input.field, input.value);
+
+  if (input.knownFields.has(input.field)) {
+    roles.push("known_field");
+  }
+  if (input.unmappedFields.has(input.field)) {
+    roles.push("unmapped_field");
+  }
+  if (input.timeFields.includes(input.field)) {
+    roles.push("expected_time_field");
+  }
+  if (input.valueFields.includes(input.field)) {
+    roles.push("expected_value_field");
+  }
+  if (input.candidateTimeFields.has(input.field)) {
+    roles.push("candidate_time_field");
+  }
+  if (input.candidateNumericFields.has(input.field)) {
+    roles.push("candidate_numeric_field");
+  }
+  if (input.candidateStringFields.has(input.field)) {
+    roles.push("candidate_string_field");
+  }
+  if (input.sourceIdentityFields.has(input.field)) {
+    roles.push("device_identity_field");
+  }
+  if (preview !== undefined) {
+    roles.push("categorical_preview_field");
+  }
+
+  return {
+    field: input.field,
+    value_type: fieldValueType(input.value),
+    roles,
+    parseable_timestamp: parseTimestamp(input.value) !== undefined,
+    parseable_number: toNumber(input.value) !== undefined,
+    ...fieldShape(input.value),
+    ...(preview !== undefined ? { preview } : {}),
+  };
+}
+
+function fieldValueType(value: unknown): UnknownHealthDataFieldValueType {
+  if (value === null) {
+    return "null";
+  }
+
+  if (value instanceof Date) {
+    return "date";
+  }
+
+  if (Array.isArray(value)) {
+    return "array";
+  }
+
+  const valueType = typeof value;
+  if (
+    valueType === "bigint" ||
+    valueType === "boolean" ||
+    valueType === "function" ||
+    valueType === "number" ||
+    valueType === "object" ||
+    valueType === "string" ||
+    valueType === "symbol" ||
+    valueType === "undefined"
+  ) {
+    return valueType;
+  }
+
+  return "unknown";
+}
+
+function fieldShape(value: unknown): Partial<UnknownHealthDataFieldDiagnostic> {
+  if (typeof value === "string") {
+    return {
+      string_length: value.length,
+      string_empty: value.trim().length === 0,
+    };
+  }
+
+  if (Array.isArray(value)) {
+    return { array_length: value.length };
+  }
+
+  if (value !== null && typeof value === "object" && !(value instanceof Date)) {
+    const keys = Object.keys(value as Record<string, unknown>).sort();
+    return {
+      object_keys: keys.slice(0, 25),
+      object_key_count: keys.length,
+    };
+  }
+
+  return {};
+}
+
+function categoricalPreviewForField(
+  field: string,
+  value: unknown,
+): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  if (!categoricalPreviewFields.has(field.toLowerCase())) {
+    return undefined;
+  }
+
+  const trimmedValue = value.trim();
+  return trimmedValue.length > 128
+    ? `${trimmedValue.slice(0, 128)}...[truncated]`
+    : trimmedValue;
 }
 
 function diagnosticProfileForBatch(

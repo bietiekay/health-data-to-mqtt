@@ -858,6 +858,13 @@ describe("compatibility endpoints", () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      status: "processed",
+      metric: "new_quantity_metric",
+      records: 0,
+      records_received: 1,
+      records_rejected: 1,
+    });
     const logEntries = logStream.lines.map((line) => JSON.parse(line) as {
       msg?: string;
       unknown_health_data?: Record<string, unknown>;
@@ -867,7 +874,7 @@ describe("compatibility endpoints", () => {
     );
 
     expect(warning?.unknown_health_data).toMatchObject({
-      schema_version: 1,
+      schema_version: 2,
       context: "default",
       prefix: "/",
       metric: "new_quantity_metric",
@@ -883,13 +890,21 @@ describe("compatibility endpoints", () => {
         unmapped_keys: ["healthKitIdentifier", "value"],
         candidate_time_fields: ["startDate"],
         candidate_numeric_fields: ["value"],
-        source_ids: ["Watch"],
+        categorical_preview_fields: ["healthKitIdentifier"],
+        source_identity_fields: ["sourceName"],
+        source_id_count: 1,
       },
       implementation_hint: {
         add_or_update_mapper_for_metric: "new_quantity_metric",
         candidate_time_fields: ["startDate"],
         candidate_value_fields: ["value"],
+        candidate_metric_name_fields: ["healthKitIdentifier"],
+        candidate_unit_fields: [],
         unmapped_fields: ["healthKitIdentifier", "value"],
+        used_generic_fallback: true,
+        accepted_through_fallback: false,
+        has_rejected_samples: true,
+        accepted_records: 0,
       },
       samples: [
         {
@@ -900,13 +915,34 @@ describe("compatibility endpoints", () => {
             "rejected_sample",
           ],
           missing_value_fields: ["qty"],
-          sample: {
-            value: 4.2,
-            healthKitIdentifier: "HKQuantityTypeIdentifierNewQuantityMetric",
-          },
+          categorical_preview_fields: ["healthKitIdentifier"],
+          field_profiles: expect.arrayContaining([
+            expect.objectContaining({
+              field: "healthKitIdentifier",
+              value_type: "string",
+              preview: "HKQuantityTypeIdentifierNewQuantityMetric",
+            }),
+            expect.objectContaining({
+              field: "sourceName",
+              value_type: "string",
+              roles: [
+                "known_field",
+                "candidate_string_field",
+                "device_identity_field",
+              ],
+            }),
+            expect.objectContaining({
+              field: "value",
+              value_type: "number",
+              parseable_number: true,
+            }),
+          ]),
         },
       ],
     });
+    const warningJson = JSON.stringify(warning?.unknown_health_data);
+    expect(warningJson).not.toContain("4.2");
+    expect(warningJson).not.toContain("Watch");
   });
 
   it("records v2 sync receipts for batches with HealthSave run headers", async () => {

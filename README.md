@@ -255,7 +255,7 @@ Current payload:
 
 Current messages publish scalar values to logical metric topics. Single-value metrics use the metric topic directly, such as `heart_rate`, `hrv`, `blood_oxygen`, `body_temperature`, or generic quantity metrics like `walking_speed` and `blood_pressure_systolic`. Multi-field normalized records fan out into subtopics under the logical metric, for example `daily_activity/steps`, `daily_activity/active_calories`, `sleep_sessions/awake`, `sleep_sessions/total_duration_ms`, `workouts/calories`, or `workouts/distance_m`. For backward compatibility, sleep awake state still also publishes to `sleep_sessions` and workout calories still also publish to `workouts`. Blood oxygen accepts common saturation fields such as `qty`, `oxygenSaturation`, `spo2`, or `value`; fractional values like `0.97` are converted to percent before publishing.
 
-Set `LOG_LEVEL=debug` while capturing new client payload shapes. Batch debug logs include top-level request field names, metric name, batch counters, processed record count, status observation counts, the first sample's field names, and MQTT publish counts without logging complete health samples by default. When a batch contains an unsupported metric, rejected samples, or fields not used by the current mapper, the service emits a warning log with an `unknown_health_data` JSON object. That object includes the context, metric, batch counters, source IDs, unmapped keys, candidate timestamp/value fields, implementation hints, and truncated sample examples so new mappers can be added without enabling full raw-body logs. Set `LOG_LEVEL=trace` only when you intentionally need raw request bodies in the logs.
+Set `LOG_LEVEL=debug` while capturing new client payload shapes. Batch debug logs include top-level request field names, metric name, batch counters, processed record count, status observation counts, the first sample's field names, and MQTT publish counts without logging complete health samples by default. When a batch contains an unsupported metric, rejected samples, or fields not used by the current mapper, the service emits a warning log with an `unknown_health_data` JSON object. That object includes the context, metric, batch counters, unmapped keys, candidate timestamp/value fields, source identity field names/counts, redacted per-field profiles, limited categorical previews, and implementation hints so new mappers can be added without enabling full raw-body logs. Normal warning logs do not include raw numeric health values, source/device names, or arbitrary string values. Set `LOG_LEVEL=trace` only when you intentionally need raw request bodies in the logs.
 
 Example warning shape:
 
@@ -263,6 +263,7 @@ Example warning shape:
 {
   "msg": "detected unmapped apple health batch data",
   "unknown_health_data": {
+    "schema_version": 2,
     "metric": "new_quantity_metric",
     "mapper": "generic_quantity_fallback",
     "unsupported_metric": true,
@@ -270,13 +271,37 @@ Example warning shape:
       "unmapped_keys": ["healthKitIdentifier", "value"],
       "candidate_time_fields": ["startDate"],
       "candidate_numeric_fields": ["value"],
-      "source_ids": ["Apple Watch"]
+      "categorical_preview_fields": ["healthKitIdentifier"],
+      "source_identity_fields": ["sourceName"],
+      "source_id_count": 1
     },
     "implementation_hint": {
       "add_or_update_mapper_for_metric": "new_quantity_metric",
       "candidate_time_fields": ["startDate"],
-      "candidate_value_fields": ["value"]
-    }
+      "candidate_value_fields": ["value"],
+      "used_generic_fallback": true,
+      "has_rejected_samples": true
+    },
+    "samples": [
+      {
+        "sample_index": 0,
+        "reasons": ["unsupported_metric", "unmapped_sample_fields", "rejected_sample"],
+        "field_profiles": [
+          {
+            "field": "value",
+            "value_type": "number",
+            "roles": ["unmapped_field", "candidate_numeric_field"],
+            "parseable_number": true
+          },
+          {
+            "field": "healthKitIdentifier",
+            "value_type": "string",
+            "roles": ["unmapped_field", "candidate_string_field", "categorical_preview_field"],
+            "preview": "HKQuantityTypeIdentifierNewQuantityMetric"
+          }
+        ]
+      }
+    ]
   }
 }
 ```

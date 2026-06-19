@@ -642,7 +642,9 @@ function createUnknownHealthDataLogPayload(
       candidate_time_fields: diagnostics.candidate_time_fields,
       candidate_numeric_fields: diagnostics.candidate_numeric_fields,
       candidate_string_fields: diagnostics.candidate_string_fields,
-      source_ids: diagnostics.source_ids,
+      categorical_preview_fields: diagnostics.categorical_preview_fields,
+      source_identity_fields: diagnostics.source_identity_fields,
+      source_id_count: diagnostics.source_id_count,
     },
     implementation_hint: {
       metric: batch.metric,
@@ -650,54 +652,19 @@ function createUnknownHealthDataLogPayload(
       add_or_update_mapper_for_metric: batch.metric,
       candidate_time_fields: diagnostics.candidate_time_fields,
       candidate_value_fields: diagnostics.candidate_numeric_fields,
+      candidate_metric_name_fields: diagnostics.categorical_preview_fields.filter(
+        (field) => field !== "unit",
+      ),
+      candidate_unit_fields: diagnostics.categorical_preview_fields.filter(
+        (field) => field === "unit",
+      ),
       unmapped_fields: diagnostics.unmapped_keys,
+      used_generic_fallback: diagnostics.mapper === "generic_quantity_fallback",
+      accepted_through_fallback:
+        diagnostics.mapper === "generic_quantity_fallback" && processedRecords > 0,
+      has_rejected_samples: diagnostics.reasons.includes("rejected_sample"),
+      accepted_records: processedRecords,
     },
-    samples: diagnostics.samples.map((sample) => ({
-      ...sample,
-      sample: sanitizeLogValue(sample.sample),
-    })),
+    samples: diagnostics.samples,
   };
-}
-
-function sanitizeLogValue(value: unknown, depth = 0): unknown {
-  if (depth > 4) {
-    return "[MaxDepth]";
-  }
-
-  if (typeof value === "string") {
-    return value.length > 2_048 ? `${value.slice(0, 2_048)}...[truncated]` : value;
-  }
-
-  if (
-    value === null ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
-    return value;
-  }
-
-  if (typeof value === "bigint") {
-    return value.toString();
-  }
-
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-
-  if (Array.isArray(value)) {
-    return value.slice(0, 25).map((item) => sanitizeLogValue(item, depth + 1));
-  }
-
-  if (typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .slice(0, 50)
-        .map(([key, nestedValue]) => [
-          key,
-          sanitizeLogValue(nestedValue, depth + 1),
-        ]),
-    );
-  }
-
-  return String(value);
 }

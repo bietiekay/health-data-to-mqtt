@@ -422,10 +422,13 @@ The diagnostic object should include:
 - reasons such as `unsupported_metric`, `unmapped_sample_fields`, or
   `rejected_sample`,
 - aggregate field summaries for sample keys, unmapped keys, candidate timestamp
-  fields, candidate numeric value fields, candidate string fields, and source
-  IDs,
-- implementation hints naming the metric and likely timestamp/value fields,
-- a bounded list of sanitized sample examples.
+  fields, candidate numeric value fields, candidate string fields, source
+  identity field names/counts, and categorical preview fields,
+- implementation hints naming the metric, likely timestamp/value/unit fields,
+  fallback usage, accepted records, and whether samples were rejected,
+- a bounded list of redacted sample field profiles. Normal warning logs should
+  not include raw numeric health values, source/device names, or arbitrary
+  string values; full raw request bodies remain trace-level only.
 
 This is intentionally additive to the HealthSave API response contract. Clients
 still receive the same accepted/empty/error response shapes, while maintainers
